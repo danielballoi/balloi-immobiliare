@@ -15,7 +15,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
-app.use('/api/zone', require('./routes/zone'));
+app.use('/api/auth',    require('./routes/auth'));
+app.use('/api/utenze',  require('./routes/utenze'));
+app.use('/api/zone',    require('./routes/zone'));
 app.use('/api/valori', require('./routes/valori'));
 app.use('/api/valutazioni', require('./routes/valutazioni'));
 app.use('/api/portafoglio', require('./routes/portafoglio'));

@@ -1,54 +1,71 @@
 /**
  * App.jsx - Punto di ingresso dell'applicazione React
  *
- * Qui si definisce il sistema di routing.
- * React Router DOM funziona così:
- *   - <BrowserRouter> abilita la navigazione tramite URL del browser
- *   - <Routes> è il contenitore delle route
- *   - <Route> mappa un URL a un componente
- *   - <Layout> è il "wrapper" che contiene sidebar + header,
- *     mentre le pagine specifiche vanno dentro l'<Outlet>
+ * Routing:
+ *   /login      → Login (pubblica)
+ *   /register   → Register (pubblica)
+ *   /           → DashboardMappa (protetta)
+ *   /statistiche, /import, /valutazione, /portafoglio, /impostazioni → protette
  *
- * Struttura URL:
- *   /               → DashboardMappa
- *   /statistiche    → StatisticheQuartiere
- *   /import         → ImportDati
- *   /valutazione    → WizardValutazione
- *   /portafoglio    → MieiInvestimenti
- *   /impostazioni   → Impostazioni
+ * <PrivateRoute> controlla se l'utente è autenticato.
+ * Se non lo è, redirige automaticamente a /login.
+ *
+ * <AuthProvider> avvolge tutto → condivide lo stato auth in ogni componente.
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import DashboardMappa         from './pages/DashboardMappa';
-import StatisticheQuartiere   from './pages/StatisticheQuartiere';
-import ImportDati             from './pages/ImportDati';
-import WizardValutazione      from './pages/WizardValutazione';
-import MieiInvestimenti       from './pages/MieiInvestimenti';
-import Impostazioni           from './pages/Impostazioni';
-import DettaglioTipologia     from './pages/DettaglioTipologia';
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute            from './components/PrivateRoute';
+import Layout                  from './components/Layout';
+import Login                   from './pages/Login';
+import Register                from './pages/Register';
+import DashboardMappa          from './pages/DashboardMappa';
+import StatisticheQuartiere    from './pages/StatisticheQuartiere';
+import ImportDati              from './pages/ImportDati';
+import WizardValutazione       from './pages/WizardValutazione';
+import MieiInvestimenti        from './pages/MieiInvestimenti';
+import Impostazioni            from './pages/Impostazioni';
+import DettaglioTipologia      from './pages/DettaglioTipologia';
+import Utenze                  from './pages/Utenze';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/*
-          Layout è il genitore: renderizza sidebar + header.
-          Le route figlie vengono inserite dentro <Outlet /> nel Layout.
-        */}
-        <Route path="/" element={<Layout />}>
-          <Route index               element={<DashboardMappa />} />
-          <Route path="statistiche"  element={<StatisticheQuartiere />} />
-          <Route path="import"       element={<ImportDati />} />
-          <Route path="valutazione"  element={<WizardValutazione />} />
-          <Route path="portafoglio"  element={<MieiInvestimenti />} />
-          <Route path="impostazioni" element={<Impostazioni />} />
-          <Route path="tipologia"   element={<DettaglioTipologia />} />
+    /*
+      AuthProvider deve stare FUORI dal BrowserRouter
+      per poter usare window.location.href nel logout senza
+      dipendere da React Router.
+    */
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* ── Route pubbliche (non richiedono login) ────────────── */}
+          <Route path="/login"    element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-          {/* Qualsiasi URL non riconosciuto → reindirizza alla home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          {/* ── Route protette: avvolte in PrivateRoute ───────────── */}
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
+            }
+          >
+            <Route index               element={<DashboardMappa />} />
+            <Route path="statistiche"  element={<StatisticheQuartiere />} />
+            <Route path="import"       element={<ImportDati />} />
+            <Route path="valutazione"  element={<WizardValutazione />} />
+            <Route path="portafoglio"  element={<MieiInvestimenti />} />
+            <Route path="impostazioni" element={<Impostazioni />} />
+            <Route path="tipologia"    element={<DettaglioTipologia />} />
+            <Route path="utenze"       element={<Utenze />} />
+            <Route path="*"            element={<Navigate to="/" replace />} />
+          </Route>
+
+          {/* Qualsiasi altro path → login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
