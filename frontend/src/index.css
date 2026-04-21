@@ -1,0 +1,46 @@
+/* Tailwind CSS v4 */
+@import "tailwindcss";
+
+/*
+  Variabili CSS del tema scuro Balloi Immobiliare.
+  Definirle qui centralizza i colori: se vuoi cambiare il tema,
+  modifichi solo questo file e tutto si aggiorna.
+*/
+:root {
+  --bg-primary:   #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card:      #1e2130;
+  --bg-hover:     #252840;
+  --accent:       #f59e0b;
+  --accent-hover: #d97706;
+  --text-primary: #f1f5f9;
+  --text-muted:   #64748b;
+  --border:       #2d3148;
+  --success:      #10b981;
+  --danger:       #ef4444;
+  --warning:      #f59e0b;
+  --info:         #3b82f6;
+
+  /* Ombre cards — usate inline per profondità */
+  --shadow-card:     0 4px 12px rgba(0,0,0,0.25);
+  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.40);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Scrollbar sottile stile dark */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Leaflet: override sfondo mappa per tema scuro */
+.leaflet-container { background: #1a1d27 !important; border-radius: 8px; }
+.leaflet-control-attribution { background: rgba(15,17,23,0.8) !important; color: #64748b !important; }
