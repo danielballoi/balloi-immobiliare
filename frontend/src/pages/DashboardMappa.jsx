@@ -9,11 +9,13 @@
  *   5. Pannello laterale: dettaglio zona selezionata
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useHeatmap from '../hooks/useHeatmap';
 import StatCard from '../components/StatCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import StradeAutocomplete from '../components/StradeAutocomplete';
+import { useAuth } from '../contexts/AuthContext';
 
 const formatEuro = (n) =>
   n ? `€ ${Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })}` : '–';
@@ -116,6 +118,123 @@ function InfoFascia() {
   );
 }
 
+/**
+ * ComuneAutocomplete — autocomplete client-side per i comuni hinterland.
+ * Riceve la lista comuni già caricata (no chiamate API aggiuntive).
+ * Funziona esattamente come StradeAutocomplete ma su dati locali.
+ */
+function ComuneAutocomplete({ comuni, onSeleziona, onSvuota, placeholder }) {
+  const [query, setQuery]           = useState('');
+  const [aperto, setAperto]         = useState(false);
+  const [indiceFocus, setIndiceFocus] = useState(-1);
+  const inputRef    = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Filtra i comuni in base al testo digitato
+  const suggerimenti = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return comuni.filter(c => c.toLowerCase().includes(q));
+  }, [query, comuni]);
+
+  // Chiude dropdown cliccando fuori
+  useEffect(() => {
+    function handler(e) {
+      if (!dropdownRef.current?.contains(e.target) && !inputRef.current?.contains(e.target)) {
+        setAperto(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function seleziona(comune) {
+    setQuery(comune);
+    setAperto(false);
+    setIndiceFocus(-1);
+    onSeleziona(comune);
+    console.log('[ComuneAutocomplete] Selezionato:', comune);
+  }
+
+  function svuota() {
+    setQuery('');
+    setAperto(false);
+    setIndiceFocus(-1);
+    onSvuota?.();
+    inputRef.current?.focus();
+  }
+
+  function handleKeyDown(e) {
+    if (!aperto || suggerimenti.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setIndiceFocus(i => Math.min(i + 1, suggerimenti.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setIndiceFocus(i => Math.max(i - 1, -1)); }
+    else if (e.key === 'Enter' && indiceFocus >= 0) { e.preventDefault(); seleziona(suggerimenti[indiceFocus]); }
+    else if (e.key === 'Escape') setAperto(false);
+  }
+
+  return (
+    <div className="relative">
+      <div
+        className="flex items-center rounded-xl"
+        style={{ background: 'rgba(15,17,23,0.65)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.20)' }}
+      >
+        <svg className="ml-4 w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={e => { setQuery(e.target.value); setAperto(true); setIndiceFocus(-1); }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => suggerimenti.length > 0 && setAperto(true)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="flex-1 px-3 py-3 text-sm placeholder:text-white/40 bg-transparent"
+          style={{ color: '#fff', outline: 'none' }}
+        />
+        {query && (
+          <button onClick={svuota}
+            className="mr-3 w-5 h-5 rounded-full flex items-center justify-center text-xs leading-none"
+            style={{ background: 'rgba(255,255,255,0.20)', color: '#fff' }}>
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown comuni */}
+      {aperto && suggerimenti.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className="absolute left-0 right-0 top-full mt-1 rounded-xl overflow-hidden z-50 shadow-2xl"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        >
+          {suggerimenti.map((comune, idx) => (
+            <button
+              key={comune}
+              onMouseDown={e => { e.preventDefault(); seleziona(comune); }}
+              onMouseEnter={() => setIndiceFocus(idx)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-left text-sm transition-colors"
+              style={{
+                background: idx === indiceFocus ? 'var(--bg-hover)' : 'transparent',
+                borderBottom: idx < suggerimenti.length - 1 ? '1px solid var(--border)' : 'none',
+                color: 'var(--text-primary)',
+              }}
+            >
+              <span className="font-medium">{comune}</span>
+              <span className="ml-3 px-2 py-0.5 rounded text-xs shrink-0 font-medium"
+                style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>
+                Hinterland
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Tab selector: Cagliari Comune | Cagliari Hinterland */
 function SelettoreArea({ area, onCambio }) {
   const tabs = [
@@ -146,12 +265,14 @@ function SelettoreArea({ area, onCambio }) {
 
 export default function DashboardMappa() {
   const navigate = useNavigate();
+  const { user } = useAuth(); // per il messaggio di benvenuto
 
   // ── Stato ────────────────────────────────────────────────────────────────
-  // Default: Cagliari Comune
   const [area, setArea]                       = useState('CAGLIARI');
-  // Barra di ricerca unificata — un solo testo per l'area attiva
-  const [filtro, setFiltro]                   = useState('');
+  // CAGLIARI: zona trovata dalla ricerca via → filtra la lista al solo quartiere
+  const [zonaFocused, setZonaFocused]         = useState(null);
+  // HINTERLAND: comune selezionato dall'autocomplete → filtra la lista per quel comune
+  const [comuneFocused, setComuneFocused]     = useState('');
   const [zonaSelezionata, setZonaSelezionata] = useState(null);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
@@ -163,15 +284,51 @@ export default function DashboardMappa() {
   const prezzoMax   = prezzi.length ? Math.max(...prezzi) : 1;
   const prezzoMedio = prezzi.length ? prezzi.reduce((a, b) => a + b, 0) / prezzi.length : 0;
 
-  // ── Filtro testo ricerca ─────────────────────────────────────────────────
+  // ── Handler selezione via (Cagliari Comune) ──────────────────────────────
+  // Trova la zona OMI dalla via scelta → filtra la lista + apre il pannello.
+  function handleStradeSeleziona(item) {
+    console.log('[DASHBOARD] Via selezionata:', item.via, '→ link_zona:', item.link_zona);
+    let zona = null;
+    if (item.link_zona) {
+      zona = zone.find(z => z.link_zona === item.link_zona);
+    }
+    if (!zona && item.quartiere) {
+      // Fallback: match parziale sul nome quartiere
+      const q = item.quartiere.toUpperCase();
+      zona = zone.find(z => cleanNome(z.descrizione_zona).toUpperCase().includes(q));
+    }
+    if (zona) {
+      setZonaFocused(zona);       // → filtra la lista al solo quartiere trovato
+      setZonaSelezionata(zona);   // → apre il pannello laterale
+      console.log('[DASHBOARD] Quartiere trovato:', cleanNome(zona.descrizione_zona));
+    } else {
+      console.warn('[DASHBOARD] Zona OMI non trovata per questa via');
+    }
+  }
+
+  // ── Handler selezione comune (Hinterland) ────────────────────────────────
+  // Filtra la lista ai soli quartieri di quel comune e seleziona il primo.
+  function handleComuneSelezionato(nomeComune) {
+    console.log('[DASHBOARD] Comune selezionato:', nomeComune);
+    setComuneFocused(nomeComune);
+    // Auto-seleziona la prima zona del comune nel pannello laterale
+    const prima = zone.find(z => z.comune === nomeComune);
+    if (prima) setZonaSelezionata(prima);
+  }
+
+  // ── Filtro lista ──────────────────────────────────────────────────────────
+  // CAGLIARI:   se zonaFocused → mostra solo quella zona; altrimenti tutte
+  // HINTERLAND: se comuneFocused → mostra solo le zone di quel comune; altrimenti tutte
   const zoneFiltrate = useMemo(() => {
-    const q = filtro.toLowerCase().trim();
-    if (!q) return zone;
-    return zone.filter(z =>
-      cleanNome(z.descrizione_zona)?.toLowerCase().includes(q) ||
-      z.comune?.toLowerCase().includes(q)
-    );
-  }, [zone, filtro]);
+    if (area === 'CAGLIARI') {
+      return zonaFocused ? [zonaFocused] : zone;
+    }
+    // HINTERLAND
+    if (comuneFocused) {
+      return zone.filter(z => z.comune === comuneFocused);
+    }
+    return zone;
+  }, [zone, area, zonaFocused, comuneFocused]);
 
   // ── Colonne griglia adattive ─────────────────────────────────────────────
   // Cagliari:  # | Quartiere | Prezzo | Fascia
@@ -194,8 +351,36 @@ export default function DashboardMappa() {
     </div>
   );
 
+  // Saluto personalizzato: usa username se disponibile, altrimenti email
+  const nomeUtente = user?.username ?? user?.email ?? 'Utente';
+  const ora = new Date().getHours();
+  const saluto = ora < 12 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
+
   return (
     <div className="flex flex-col gap-6">
+
+      {/* ── Banner di benvenuto ─────────────────────────────────────────── */}
+      <div
+        className="flex items-center justify-between px-5 py-4 rounded-xl"
+        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+      >
+        <div>
+          <p className="text-xs font-semibold tracking-wider mb-0.5" style={{ color: 'var(--accent)' }}>
+            DASHBOARD
+          </p>
+          <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            {saluto}, <span style={{ color: 'var(--accent)' }}>{nomeUtente}</span> 👋
+          </h2>
+        </div>
+        <div className="hidden sm:block text-right">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Mercato immobiliare · Cagliari & hinterland
+          </p>
+        </div>
+      </div>
 
       {/* ── Hero image ──────────────────────────────────────────────────── */}
       <div className="relative rounded-2xl overflow-hidden" style={{ height: 280 }}>
@@ -226,43 +411,34 @@ export default function DashboardMappa() {
             </button>
           </div>
 
-          {/* Barra di ricerca centrata e prominente — senza toggle area */}
+          {/* ── Barre di ricerca — distinte per area ────────────────────── */}
           <div className="flex-1 flex items-center justify-center">
             <div className="w-full max-w-lg">
-              <div
-                className="flex items-center rounded-xl"
-                style={{
-                  background: 'rgba(15,17,23,0.65)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,255,255,0.20)',
-                }}
-              >
-                <svg
-                  className="ml-4 w-4 h-4 shrink-0 pointer-events-none"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  style={{ color: 'rgba(255,255,255,0.45)' }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  value={filtro}
-                  onChange={e => setFiltro(e.target.value)}
-                  placeholder={area === 'CAGLIARI' ? 'Cerca quartiere in Cagliari…' : "Cerca comune nell'Hinterland…"}
-                  className="flex-1 px-3 py-3 text-sm placeholder:text-white/40 bg-transparent"
-                  style={{ color: '#fff', outline: 'none' }}
+              {area === 'CAGLIARI' ? (
+                /*
+                 * CAGLIARI: autocomplete su stradario (StradeAutocomplete).
+                 * Selezione via → lista si filtra al quartiere trovato +
+                 * pannello laterale mostra i dati di quella zona.
+                 * onSvuota → reset del filtro (torna a mostrare tutti).
+                 */
+                <StradeAutocomplete
+                  onSeleziona={handleStradeSeleziona}
+                  onSvuota={() => { setZonaFocused(null); setZonaSelezionata(null); }}
+                  placeholder="Cerca via, viale, piazza a Cagliari…"
                 />
-                {/* Bottone X per svuotare la ricerca velocemente */}
-                {filtro && (
-                  <button
-                    onClick={() => setFiltro('')}
-                    className="mr-3 w-5 h-5 rounded-full flex items-center justify-center text-xs leading-none"
-                    style={{ background: 'rgba(255,255,255,0.20)', color: '#fff' }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+              ) : (
+                /*
+                 * HINTERLAND: autocomplete client-side sui comuni già caricati.
+                 * Selezione comune → lista filtra le zone di quel comune +
+                 * seleziona automaticamente la prima nel pannello laterale.
+                 */
+                <ComuneAutocomplete
+                  comuni={[...new Set(zone.map(z => z.comune).filter(Boolean))].sort()}
+                  onSeleziona={handleComuneSelezionato}
+                  onSvuota={() => { setComuneFocused(''); setZonaSelezionata(null); }}
+                  placeholder="Cerca comune nell'Hinterland…"
+                />
+              )}
             </div>
           </div>
 
@@ -271,7 +447,12 @@ export default function DashboardMappa() {
 
       {/* ── Tab selector ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <SelettoreArea area={area} onCambio={(nuova) => { setZonaSelezionata(null); setArea(nuova); setFiltro(''); }} />
+        <SelettoreArea area={area} onCambio={(nuova) => {
+          setArea(nuova);
+          setZonaSelezionata(null);
+          setZonaFocused(null);
+          setComuneFocused('');
+        }} />
         {isHinterland && (
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
             Comuni: Quartu Sant'Elena, Selargius, Assemini, Capoterra, Monserrato, Quartucciu…
@@ -302,7 +483,39 @@ export default function DashboardMappa() {
       <div className="flex gap-5 flex-col lg:flex-row items-start">
 
         {/* ── Lista quartieri / comuni ──────────────────────────────────── */}
-        <div className="flex-1 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <div className="flex-1 min-w-0">
+
+          {/* Chip "filtro attivo" — appare quando la lista è ristretta dalla ricerca */}
+          {(zonaFocused || comuneFocused) && (
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--accent)' }}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+                </svg>
+                {zonaFocused
+                  ? `Quartiere: ${cleanNome(zonaFocused.descrizione_zona)}`
+                  : `Comune: ${comuneFocused}`
+                }
+              </span>
+              <button
+                onClick={() => {
+                  setZonaFocused(null);
+                  setComuneFocused('');
+                  setZonaSelezionata(null);
+                }}
+                className="text-xs underline"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                × Mostra tutti
+              </button>
+            </div>
+          )}
+
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
 
           {/* Intestazione colonne */}
           <div
@@ -384,6 +597,7 @@ export default function DashboardMappa() {
             )}
           </div>
         </div>
+        </div>{/* fine wrapper lista con chip */}
 
         {/* ── Pannello dettaglio ────────────────────────────────────────── */}
         <div

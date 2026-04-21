@@ -24,19 +24,26 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Interceptor risposta: log centralizzato degli errori ──────────────────
-// Questo codice viene eseguito per OGNI risposta ricevuta.
-// Se c'è un errore, lo logga in console e riemette l'eccezione.
+// ── Interceptor risposta: log errori + gestione 401 ──────────────────────
+// Se il server risponde 401 (token scaduto/mancante) → forza logout.
+// Questo evita che l'utente rimanga bloccato su una pagina protetta
+// con un token scaduto senza sapere cosa fare.
 api.interceptors.response.use(
-  (response) => {
-    // Risposta OK: passa trasparente
-    return response;
-  },
+  (response) => response,
   (error) => {
     const url    = error.config?.url ?? 'unknown';
     const status = error.response?.status ?? 'network error';
     const msg    = error.response?.data?.error ?? error.message;
     console.error(`[API] Errore ${status} su ${url}: ${msg}`);
+
+    // 401 fuori dalla route /auth → token scaduto, reindirizza al login
+    if (status === 401 && !url.includes('/auth/')) {
+      console.log('[API] Token scaduto, redirect a /login');
+      localStorage.removeItem('balloi_jwt');
+      localStorage.removeItem('balloi_user');
+      window.location.href = '/login';
+    }
+
     return Promise.reject(error);
   }
 );
@@ -266,6 +273,30 @@ export const getStradeStats = () =>
 /** Lista di tutte le vie in un quartiere */
 export const getVieByQuartiere = (nome) =>
   api.get(`/strade/quartiere/${encodeURIComponent(nome)}`).then(r => r.data);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTENZE — Gestione utenti (solo admin)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Lista completa utenti con conteggi per stato */
+export const getUtenze = () =>
+  api.get('/utenze').then(r => r.data);
+
+/** Approva un utente pending → attivo */
+export const approvaUtente = (id) =>
+  api.put(`/utenze/${id}/approva`).then(r => r.data);
+
+/** Blocca un utente attivo */
+export const bloccaUtente = (id) =>
+  api.put(`/utenze/${id}/blocca`).then(r => r.data);
+
+/** Riattiva un utente bloccato o pending */
+export const riattivaUtente = (id) =>
+  api.put(`/utenze/${id}/riattiva`).then(r => r.data);
+
+/** Elimina un utente */
+export const eliminaUtente = (id) =>
+  api.delete(`/utenze/${id}`).then(r => r.data);
 
 export default api;
 

@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { searchStrade } from '../services/api';
 
-export default function StradeAutocomplete({ onSeleziona, placeholder = 'Cerca via…', className = '' }) {
+export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder = 'Cerca via…', className = '' }) {
   const [query,     setQuery]     = useState('');
   const [risultati, setRisultati] = useState([]);
   const [loading,   setLoading]   = useState(false);
@@ -109,6 +109,8 @@ export default function StradeAutocomplete({ onSeleziona, placeholder = 'Cerca v
     setRisultati([]);
     setAperto(false);
     inputRef.current?.focus();
+    // Notifica il parent così può resettare eventuali filtri derivati
+    onSvuota?.();
   }
 
   return (
