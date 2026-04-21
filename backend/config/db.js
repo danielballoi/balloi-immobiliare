@@ -1,5 +1,6 @@
 require('dotenv').config();
-const mysql = require('mysql2/promise');
+const mysql   = require('mysql2/promise');
+const bcrypt  = require('bcryptjs');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -151,6 +152,50 @@ async function initDB() {
         INDEX idx_quartiere (quartiere)
       )
     `);
+
+    // ── Tabella utenti ──────────────────────────────────────────────────────
+    // stato: 'pending' → in attesa di approvazione admin
+    //        'attivo'  → accesso consentito
+    //        'bloccato'→ accesso negato
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id              INT AUTO_INCREMENT PRIMARY KEY,
+        username        VARCHAR(30)  NOT NULL UNIQUE,
+        email           VARCHAR(255) NOT NULL UNIQUE,
+        password_hash   VARCHAR(255) NOT NULL,
+        nome            VARCHAR(100) DEFAULT NULL,
+        cognome         VARCHAR(100) DEFAULT NULL,
+        ruolo           ENUM('admin','user') DEFAULT 'user',
+        stato           ENUM('pending','attivo','bloccato') DEFAULT 'pending',
+        ultimo_accesso  DATETIME     DEFAULT NULL,
+        created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Aggiunge colonne nuove a tabella esistente (idempotente)
+    await conn.query(`ALTER TABLE users ADD COLUMN nome    VARCHAR(100) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE users ADD COLUMN cognome VARCHAR(100) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE users ADD COLUMN stato   ENUM('pending','attivo','bloccato') DEFAULT 'pending'`).catch(() => {});
+
+    // ── Seed account Daniel admin (idempotente) ───────────────────────────
+    const [esistenti] = await conn.query(
+      'SELECT id FROM users WHERE email = ? LIMIT 1',
+      ['danielballoi1995@outlook.it']
+    );
+    if (esistenti.length === 0) {
+      const hash = await bcrypt.hash('Daniel12345!', 12);
+      await conn.query(
+        'INSERT INTO users (username, email, password_hash, nome, cognome, ruolo, stato) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['danielballoi', 'danielballoi1995@outlook.it', hash, 'Daniel', 'Balloi', 'admin', 'attivo']
+      );
+      console.log('[DB] Account admin creato: danielballoi1995@outlook.it');
+    } else {
+      // Assicura che l'admin esistente sia attivo (migrazione da versioni precedenti)
+      await conn.query(
+        'UPDATE users SET stato = ?, ruolo = ?, nome = COALESCE(nome, ?), cognome = COALESCE(cognome, ?) WHERE email = ?',
+        ['attivo', 'admin', 'Daniel', 'Balloi', 'danielballoi1995@outlook.it']
+      );
+    }
 
     console.log('[DB] Tabelle verificate/create con successo');
   } finally {
