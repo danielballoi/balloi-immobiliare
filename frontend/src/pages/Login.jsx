@@ -35,8 +35,9 @@ function FeatureRow({ text }) {
 function InputField({ label, type, name, value, onChange, placeholder, autoComplete, disabled, children }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6, letterSpacing: '0.01em' }}>
+    /* marginBottom 20px — gap minimo tra input per non comprimerli */
+    <div style={{ marginBottom: 20 }}>
+      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.01em' }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
@@ -52,8 +53,8 @@ function InputField({ label, type, name, value, onChange, placeholder, autoCompl
           onBlur={() => setFocused(false)}
           style={{
             width: '100%',
-            padding: '10px 14px',
-            paddingRight: children ? 44 : 14,
+            padding: '12px 16px',
+            paddingRight: children ? 48 : 16,
             fontSize: 14,
             borderRadius: 10,
             background: 'var(--bg-input)',
@@ -103,13 +104,13 @@ export default function Login() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#080b12' }}>
 
-      {/* ── Panel sinistro — brand ──────────────────────────────────── */}
+      {/* ── Panel sinistro — brand 50% — uguale a Register per coerenza visiva ── */}
       <div style={{
         display: 'none',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        width: '44%',
-        padding: '40px 48px',
+        width: '50%',
+        padding: '48px 56px',
         background: 'linear-gradient(145deg, #0a0f1a 0%, #0f1520 50%, #080b12 100%)',
         borderRight: '1px solid rgba(255,255,255,0.06)',
         position: 'relative',
@@ -118,103 +119,58 @@ export default function Login() {
         className="lg:flex"
       >
         {/* Glow decorativo */}
-        <div style={{
-          position: 'absolute',
-          width: 400,
-          height: 400,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)',
-          top: '10%',
-          left: '-20%',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute',
-          width: 300,
-          height: 300,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(96,165,250,0.04) 0%, transparent 70%)',
-          bottom: '20%',
-          right: '-10%',
-          pointerEvents: 'none',
-        }} />
+        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)', top: '8%', left: '-15%', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(96,165,250,0.04) 0%, transparent 70%)', bottom: '15%', right: '-8%', pointerEvents: 'none' }} />
 
-        {/* Logo */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34,
-            height: 34,
-            borderRadius: 10,
-            background: 'var(--accent)',
-            color: '#000',
-            fontSize: 13,
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            letterSpacing: '-0.02em',
-          }}>
-            DB
-          </div>
-          <div>
-            <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: 14, color: '#e8edf5', lineHeight: 1.2 }}>
-              Daniel Balloi
-            </div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)' }}>
-              Immobiliare
-            </div>
-          </div>
+        {/* Logo DBI in alto */}
+        <div style={{ position: 'relative' }}>
+          <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare"
+            style={{ height: 40, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
         </div>
 
-        {/* Headline */}
+        {/* Headline + passi 01/02/03 */}
         <div style={{ position: 'relative' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 20 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 20 }}>
             Piattaforma Immobiliare
-          </div>
-          <h1 style={{ fontSize: 38, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.03em', color: '#e8edf5', marginBottom: 20 }}>
+          </p>
+          <h1 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-0.03em', color: '#e8edf5', marginBottom: 36 }}>
             Investi su<br />
             <span style={{ color: 'var(--accent)' }}>Cagliari</span><br />
             & hinterland.
           </h1>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, marginBottom: 32, maxWidth: 340 }}>
-            La piattaforma con dati OMI ufficiali per analizzare, valutare
-            e gestire investimenti immobiliari in Sardegna.
-          </p>
 
-          <FeatureRow text="Prezzi OMI aggiornati per ogni quartiere" />
-          <FeatureRow text="Wizard valutazione: VCM, Reddituale, DCF" />
-          <FeatureRow text="Portafoglio investimenti e analisi ROI" />
-          <FeatureRow text="Censimento immobili e gestione locazioni" />
+          {/* Passaggi numerati 01 / 02 / 03 */}
+          {[
+            { n: '01', tit: 'Analizza il mercato',    desc: 'Prezzi OMI aggiornati per ogni quartiere di Cagliari.' },
+            { n: '02', tit: 'Valuta l\'immobile',     desc: 'Wizard VCM, Reddituale e DCF per stima professionale.' },
+            { n: '03', tit: 'Gestisci gli investimenti', desc: 'Portafoglio, censimenti e locazioni in un unico posto.' },
+          ].map(p => (
+            <div key={p.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+              <span style={{ fontSize: 24, fontWeight: 900, color: 'rgba(245,158,11,0.28)', flexShrink: 0, lineHeight: 1 }}>{p.n}</span>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#e8edf5', marginBottom: 2 }}>{p.tit}</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.40)', lineHeight: 1.5 }}>{p.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Footer panel */}
         <div style={{ position: 'relative' }}>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>
-            Accesso su invito
-          </p>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', marginBottom: 12 }}>Non hai ancora un account?</p>
           <Link
             to="/register"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '9px 18px',
-              borderRadius: 8,
-              border: '1px solid rgba(245,158,11,0.3)',
-              color: 'var(--accent)',
-              fontSize: 13,
-              fontWeight: 500,
-              textDecoration: 'none',
-              background: 'rgba(245,158,11,0.05)',
-              transition: 'all 0.15s',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '10px 20px', borderRadius: 8,
+              border: '1px solid rgba(245,158,11,0.3)', color: 'var(--accent)',
+              fontSize: 13, fontWeight: 500, textDecoration: 'none',
+              background: 'rgba(245,158,11,0.05)', transition: 'all 0.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.05)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'; }}
           >
-            Crea Account
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 6h8M7 3l3 3-3 3" />
-            </svg>
+            Crea Account →
           </Link>
         </div>
       </div>
@@ -224,36 +180,25 @@ export default function Login() {
 
         {/* Logo mobile */}
         <div className="lg:hidden" style={{ marginBottom: 32, textAlign: 'center' }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: 'var(--accent)',
-            color: '#000',
-            fontSize: 14,
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 8px',
-          }}>
-            DB
-          </div>
-          <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>
-            Daniel Balloi Immobiliare
-          </div>
+          <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare"
+            style={{ height: 44, objectFit: 'contain', margin: '0 auto 8px' }} />
         </div>
 
         {/* Card form */}
         <div style={{
           width: '100%',
-          maxWidth: 420,
+          maxWidth: 440,
           background: 'var(--bg-card)',
           border: '1px solid var(--border-strong)',
           borderRadius: 16,
-          padding: '36px 32px',
+          padding: '40px 40px',
           boxShadow: 'var(--shadow-lg)',
         }}>
+          {/* Logo DBI centrato sopra il form — desktop */}
+          <div className="hidden lg:flex" style={{ justifyContent: 'center', marginBottom: 28 }}>
+            <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare" style={{ height: 40, objectFit: 'contain' }} />
+          </div>
+
           <div style={{ marginBottom: 28, textAlign: 'center' }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>
               Bentornato
@@ -336,7 +281,7 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '11px',
+                padding: '13px',
                 borderRadius: 10,
                 border: 'none',
                 background: loading ? 'rgba(245,158,11,0.4)' : 'var(--accent)',
