@@ -179,7 +179,7 @@ export default function Utenze() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
 
       {/* ── Intestazione ──────────────────────────────────────────────── */}
       <div>
@@ -192,7 +192,7 @@ export default function Utenze() {
         </p>
       </div>
 
-      {/* ── KPI cards ─────────────────────────────────────────────────── */}
+      {/* ── KPI cards — altezza minima 110px, padding 20px, numero rimpicciolito */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Totale utenti', valore: conteggi.totale ?? 0, colore: 'var(--info)' },
@@ -202,16 +202,26 @@ export default function Utenze() {
         ].map(k => (
           <div
             key={k.label}
-            className="rounded-xl p-4"
+            className="rounded-xl"
             style={{
               background: 'var(--bg-card)',
               border: `1px solid ${k.urgente ? 'rgba(245,158,11,0.4)' : 'var(--border)'}`,
+              padding: '20px 24px',
+              minHeight: 114,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{k.label}</p>
-            <p className="text-3xl font-bold" style={{ color: k.colore }}>{k.valore}</p>
+            {/* Etichetta leggibile e ben distanziata dal numero */}
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 12 }}>
+              {k.label}
+            </p>
+            <p style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: k.colore }}>
+              {k.valore}
+            </p>
             {k.urgente && (
-              <p className="text-xs mt-1 font-semibold" style={{ color: 'var(--warning)' }}>
+              <p style={{ fontSize: 11, marginTop: 8, fontWeight: 600, color: 'var(--warning)' }}>
                 Richiede approvazione
               </p>
             )}
@@ -272,24 +282,25 @@ export default function Utenze() {
       {/* ── Sezione Segnalazioni ────────────────────────────────────────── */}
       {tabPagina === 'segnalazioni' && (
         <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <div className="px-5 py-4 border-b flex items-center gap-3" style={{ borderColor: 'var(--border)' }}>
-            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Messaggi degli Utenti</h2>
+          {/* Header */}
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Messaggi degli Utenti</h2>
             {segnalazioniNuove > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: '#ef4444', color: '#fff' }}>
+              <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#ef4444', color: '#fff' }}>
                 {segnalazioniNuove} nuovi
               </span>
             )}
           </div>
 
           {loadingSeg ? (
-            <div className="p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Caricamento messaggi…</div>
+            <div style={{ padding: 48, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>Caricamento messaggi…</div>
           ) : segnalazioni.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-2xl mb-2">📭</p>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nessuna segnalazione ricevuta</p>
+            <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+              <p style={{ fontSize: 28, marginBottom: 8 }}>📭</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Nessuna segnalazione ricevuta</p>
             </div>
           ) : (
-            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+            <div>
               {segnalazioni.map(seg => {
                 const nuova = seg.stato === 'NUOVO';
                 const data  = new Date(seg.data_invio).toLocaleDateString('it-IT', {
@@ -299,43 +310,45 @@ export default function Utenze() {
                 return (
                   <div
                     key={seg.id}
-                    className="px-5 py-4 flex flex-col sm:flex-row gap-3"
                     style={{
+                      padding: '20px 24px',
+                      display: 'flex',
+                      flexDirection: 'row',
+                      gap: 16,
                       background: nuova ? 'rgba(239,68,68,0.04)' : 'transparent',
                       borderTop: '1px solid var(--border)',
                     }}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                         {nuova && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
                             NUOVO
                           </span>
                         )}
-                        <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                           {seg.oggetto || 'Segnalazione'}
                         </span>
                       </div>
-                      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                        Da: <strong style={{ color: 'var(--text-primary)' }}>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
+                        Da: <strong style={{ color: 'var(--text-secondary)' }}>
                           {[seg.nome, seg.cognome].filter(Boolean).join(' ') || seg.username || seg.email}
                         </strong>
                         {seg.email && ` · ${seg.email}`}
                         {' · '}{data}
                       </p>
-                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {seg.messaggio}
                       </p>
-                      <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                      <p style={{ fontSize: 11, marginTop: 10, color: 'var(--text-muted)' }}>
                         Risposta: via email all'indirizzo dell'utente registrato
                       </p>
                     </div>
                     {nuova && (
-                      <div className="shrink-0 flex items-start">
+                      <div style={{ flexShrink: 0 }}>
                         <button
                           onClick={() => marcaLetta(seg.id)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                          style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                          style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer' }}
                         >
                           Segna letto
                         </button>
@@ -356,7 +369,7 @@ export default function Utenze() {
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         {/* Tab bar */}
-        <div className="flex border-b" style={{ borderColor: 'var(--border)', padding: '0 8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', borderBottom: '1px solid var(--border)', padding: '0 16px', gap: 4, background: 'var(--bg-secondary)' }}>
           {TABS_UTENTI.map(tab => {
             const attiva = tabAttiva === tab.value;
             const count = tab.value === 'tutti' ? (conteggi.totale ?? 0)
@@ -365,19 +378,21 @@ export default function Utenze() {
               <button
                 key={tab.value}
                 onClick={() => setTabAttiva(tab.value)}
-                className="px-5 py-4 text-sm font-medium flex items-center gap-2 transition-colors"
                 style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '14px 20px',
+                  fontSize: 13, fontWeight: attiva ? 600 : 400,
                   color: attiva ? 'var(--accent)' : 'var(--text-muted)',
                   borderBottom: attiva ? '2px solid var(--accent)' : '2px solid transparent',
-                  background: 'transparent',
-                  marginBottom: '-1px',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  marginBottom: '-1px', transition: 'color 0.12s', flexShrink: 0,
                 }}
               >
                 {tab.label}
                 {count > 0 && (
                   <span
-                    className="px-1.5 py-0.5 rounded text-xs font-bold"
                     style={{
+                      padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 700, lineHeight: 1.4,
                       background: tab.value === 'pending' && count > 0 ? 'rgba(245,158,11,0.2)' : 'var(--bg-hover)',
                       color: tab.value === 'pending' && count > 0 ? 'var(--warning)' : 'var(--text-muted)',
                     }}
@@ -402,13 +417,13 @@ export default function Utenze() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              {/* Header tabella: maiuscolo, lettering marcato, sfondo differenziato */}
+              <thead style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
+                <tr>
                   {['Utente', 'Email', 'Stato', 'Registrato il', 'Ultimo accesso', 'Azioni'].map(h => (
                     <th
                       key={h}
-                      className="px-5 py-3 text-left text-xs font-semibold tracking-wider"
-                      style={{ color: 'var(--text-muted)' }}
+                      style={{ padding: '14px 24px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--text-muted)' }}
                     >
                       {h}
                     </th>
@@ -416,97 +431,83 @@ export default function Utenze() {
                 </tr>
               </thead>
               <tbody>
-                {utentiFiltrati.map(u => (
+                {utentiFiltrati.map((u, idx) => (
                   <tr
                     key={u.id}
-                    style={{ borderBottom: '1px solid var(--border)' }}
+                    style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}
                   >
                     {/* Avatar + nome */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
+                    <td style={{ padding: '16px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                          style={{ background: 'var(--accent)', color: '#0f1117' }}
+                          style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, background: 'var(--accent)', color: '#0f1117' }}
                         >
                           {(u.nome?.[0] ?? u.username?.[0] ?? '?').toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>
                             {u.nome && u.cognome ? `${u.nome} ${u.cognome}` : u.username}
                           </p>
-                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>@{u.username}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{u.username}</p>
                         </div>
                       </div>
                     </td>
 
                     {/* Email */}
-                    <td className="px-5 py-4">
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{u.email}</span>
+                    <td style={{ padding: '16px 24px' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{u.email}</span>
                     </td>
 
                     {/* Stato */}
-                    <td className="px-5 py-4">
+                    <td style={{ padding: '16px 24px' }}>
                       <BadgeStato stato={u.stato} />
                     </td>
 
                     {/* Date */}
-                    <td className="px-5 py-4">
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatData(u.created_at)}</span>
+                    <td style={{ padding: '16px 24px' }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatData(u.created_at)}</span>
                     </td>
-                    <td className="px-5 py-4">
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatData(u.ultimo_accesso)}</span>
+                    <td style={{ padding: '16px 24px' }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatData(u.ultimo_accesso)}</span>
                     </td>
 
                     {/* Azioni */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Approva — solo se pending */}
+                    <td style={{ padding: '16px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         {u.stato === 'pending' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'approva', email: u.email })}
-                            className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
-                            style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}
+                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(16,185,129,0.15)', color: '#10b981' }}
                           >
                             Approva
                           </button>
                         )}
-
-                        {/* Blocca — solo se attivo */}
                         {u.stato === 'attivo' && u.ruolo !== 'admin' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'blocca', email: u.email })}
-                            className="px-3 py-1 rounded-lg text-xs font-semibold"
-                            style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
                           >
                             Blocca
                           </button>
                         )}
-
-                        {/* Riattiva — se bloccato */}
                         {u.stato === 'bloccato' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'riattiva', email: u.email })}
-                            className="px-3 py-1 rounded-lg text-xs font-semibold"
-                            style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
                           >
                             Riattiva
                           </button>
                         )}
-
-                        {/* Elimina — mai su admin */}
                         {u.ruolo !== 'admin' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'elimina', email: u.email })}
-                            className="px-3 py-1 rounded-lg text-xs font-semibold"
-                            style={{ background: 'rgba(239,68,68,0.07)', color: 'var(--text-muted)' }}
+                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(239,68,68,0.07)', color: 'var(--text-muted)' }}
                           >
                             Elimina
                           </button>
                         )}
-
-                        {/* Admin badge — non modificabile */}
                         {u.ruolo === 'admin' && (
-                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— account admin</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>— account admin</span>
                         )}
                       </div>
                     </td>

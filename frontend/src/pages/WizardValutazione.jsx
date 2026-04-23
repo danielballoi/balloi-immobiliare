@@ -11,11 +11,12 @@
  * Al completamento, la valutazione viene salvata in "Valutazioni Eseguite" (portafoglio).
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   getZone, getTipologie, calcolaVCM, calcolaReddituale,
   calcolaDCF, salvaValutazione, aggiungiAPortafoglio,
+  getHeatmap,
 } from '../services/api';
 import StradeAutocomplete from '../components/StradeAutocomplete';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -30,10 +31,10 @@ const formatEuro = (n) =>
 const formatPct = (n) =>
   n != null && !isNaN(n) ? `${Number(n).toFixed(1)}%` : '–';
 
-/** Barra di avanzamento step */
+/** Barra di avanzamento step — nessun margin bottom (lo gestisce il container) */
 function StepBar({ step, steps }) {
   return (
-    <div className="flex items-center gap-2 mb-6">
+    <div className="flex items-center gap-2">
       {steps.map((label, i) => (
         <div key={i} className="flex items-center gap-2 flex-1">
           <div
@@ -191,11 +192,15 @@ export default function WizardValutazione() {
   // ── Caricamento zone e tipologie ────────────────────────────────────
   useEffect(() => {
     console.log('[WIZARD] Caricamento zone e tipologie');
-    Promise.all([getZone(), getTipologie()])
-      .then(([z, t]) => {
-        setZone(z);
+    Promise.all([getZone(), getHeatmap(null, 'HINTERLAND'), getTipologie()])
+      .then(([cagliariZone, hinterlandZone, t]) => {
+        const tutte = [
+          ...cagliariZone.map(z => ({ ...z, area: z.area || 'CAGLIARI' })),
+          ...hinterlandZone.map(z => ({ ...z, area: 'HINTERLAND' })),
+        ];
+        setZone(tutte);
         setTipologie(t);
-        console.log(`[WIZARD] ${z.length} zone, ${t.length} tipologie`);
+        console.log(`[WIZARD] ${tutte.length} zone totali, ${t.length} tipologie`);
       })
       .catch(err => console.error('[WIZARD] Errore caricamento supporto:', err));
   }, []);
@@ -379,11 +384,12 @@ export default function WizardValutazione() {
     }
   };
 
-  // ── Stile input condiviso ────────────────────────────────────────────
+  // ── Stile input condiviso — padding aumentato per altezza moderna (12/16px) ────
   const inputStyle = {
     background: 'var(--bg-secondary)',
     border: '1px solid var(--border)',
     color: 'var(--text-primary)',
+    padding: '12px 16px',
   };
 
   // ── Zona selezionata (nome leggibile) ────────────────────────────────
@@ -391,17 +397,26 @@ export default function WizardValutazione() {
     ?.replace(/^'+|'+$/g, '').trim() ?? val.zona_codice;
 
   return (
-    <div style={{ maxWidth: 768, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    /* gap: 32px tra titolo e card — rispetta la regola: nulla deve toccarsi */
+    <div style={{ maxWidth: 768, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32 }}>
       <div>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Nuova Valutazione</h1>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Wizard guidato · {STEPS.length} passaggi</p>
+        <p className="text-sm" style={{ marginTop: 6, color: 'var(--text-muted)' }}>Wizard guidato · {STEPS.length} passaggi</p>
       </div>
 
-      <div className="rounded-xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <StepBar step={stepAttivo} steps={STEPS} />
+      {/* ── Card wizard: due zone visive distinte ─────────────────────────── */}
+      <div className="rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+
+        {/* ── ZONA 1: barra avanzamento — bordo inferiore la separa dal form ── */}
+        <div style={{ padding: '24px 44px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          <StepBar step={stepAttivo} steps={STEPS} />
+        </div>
+
+        {/* ── ZONA 2: contenuto form — padding pieno 40px su tutti i lati ── */}
+        <div style={{ padding: '40px 44px' }}>
 
         {errore && (
-          <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
+          <div style={{ marginBottom: 28, padding: '12px 16px', borderRadius: 10, fontSize: 14, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
             ⚠ {errore}
           </div>
         )}
@@ -410,17 +425,18 @@ export default function WizardValutazione() {
         {/* STEP 0 - TIPO AREA                                         */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {stepAttivo === 0 && (
-          <div className="flex flex-col gap-6">
-            <div>
-              <h2 className="font-semibold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex flex-col gap-8 items-center text-center">
+            {/* Titolo con spazio inferiore marcato per non attaccarsi al contenuto */}
+            <div style={{ paddingBottom: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>
                 Dove si trova l'immobile?
               </h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 Seleziona se la valutazione riguarda il Comune di Cagliari o la provincia (hinterland).
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12, background: 'var(--bg-secondary)', alignSelf: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12, background: 'var(--bg-secondary)', alignSelf: 'center' }}>
               {[
                 { value: 'CAGLIARI',   label: 'Cagliari Comune',      desc: "Indirizzo completato automaticamente dallo stradario." },
                 { value: 'HINTERLAND', label: 'Hinterland / Provincia', desc: "Quartu, Selargius, Assemini, Capoterra e altri comuni." },
@@ -454,10 +470,11 @@ export default function WizardValutazione() {
               }
             </p>
 
-            <div className="flex justify-end">
+            {/* Bottone separato visivamente dal form con bordo e margine */}
+            <div className="flex justify-end" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)', width: '100%' }}>
               <button
                 onClick={() => setStepAttivo(1)}
-                style={{ padding: '10px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                style={{ padding: '12px 32px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 Avanti →
               </button>
@@ -469,10 +486,10 @@ export default function WizardValutazione() {
         {/* STEP 1 - DATI BASE IMMOBILE                                */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {stepAttivo === 1 && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="font-semibold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>Dati Base Immobile</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <div className="flex flex-col gap-7">
+            <div style={{ paddingBottom: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>Dati Base Immobile</h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 Inserisci le informazioni principali della proprietà per iniziare l'analisi.
                 {areaWizard === 'CAGLIARI'
                   ? ' Cerca la via per auto-completare il quartiere.'
@@ -481,7 +498,7 @@ export default function WizardValutazione() {
             </div>
 
             {/* Indirizzo + Zona */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <Label>Indirizzo Completo</Label>
                 {areaWizard === 'CAGLIARI' ? (
@@ -507,38 +524,59 @@ export default function WizardValutazione() {
               </div>
               <div>
                 <Label>
-                  {areaWizard === 'CAGLIARI' ? 'Quartiere (Cagliari)*' : 'Zona OMI*'}
+                  {areaWizard === 'CAGLIARI' ? 'Quartiere (Cagliari)*' : 'Comune*'}
                 </Label>
-                <select
-                  required
-                  value={val.zona_codice}
-                  onChange={e => upd('zona_codice', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={inputStyle}
-                >
-                  <option value="">Seleziona quartiere...</option>
-                  {zone
-                    .filter(z => areaWizard === 'CAGLIARI'
-                      ? (z.area === 'CAGLIARI' || !z.area)
-                      : z.area === 'HINTERLAND'
-                    )
-                    .map(z => (
-                      <option key={z.id} value={z.link_zona}>
-                        {z.descrizione_zona?.replace(/^'+|'+$/g, '').trim()} ({z.link_zona})
-                      </option>
-                    ))}
-                </select>
-                {/* Mostra il quartiere auto-completato */}
-                {val.zona_codice && areaWizard === 'CAGLIARI' && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--success)' }}>
-                    ✓ Quartiere: {zonaNome}
-                  </p>
+                {areaWizard === 'CAGLIARI' ? (
+                  <>
+                    <select
+                      required
+                      value={val.zona_codice}
+                      onChange={e => upd('zona_codice', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={inputStyle}
+                    >
+                      <option value="">Seleziona quartiere...</option>
+                      {zone
+                        .filter(z => z.area === 'CAGLIARI' || !z.area)
+                        .map(z => (
+                          <option key={z.id ?? z.link_zona} value={z.link_zona}>
+                            {z.descrizione_zona?.replace(/^'+|'+$/g, '').trim()}
+                          </option>
+                        ))}
+                    </select>
+                    {val.zona_codice && (
+                      <p className="text-xs mt-1" style={{ color: 'var(--success)' }}>
+                        ✓ Quartiere: {zonaNome}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <select
+                    required
+                    value={val.zona_codice}
+                    onChange={e => upd('zona_codice', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={inputStyle}
+                  >
+                    <option value="">Seleziona comune...</option>
+                    {[...new Map(
+                      zone
+                        .filter(z => z.area === 'HINTERLAND' && z.comune)
+                        .map(z => [z.comune, z])
+                    ).values()]
+                      .sort((a, b) => (a.comune ?? '').localeCompare(b.comune ?? ''))
+                      .map(z => (
+                        <option key={z.link_zona} value={z.link_zona}>
+                          {z.comune}
+                        </option>
+                      ))}
+                  </select>
                 )}
               </div>
             </div>
 
             {/* Tipologia + Superficie commerciale + Stato */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div>
                 <Label>Tipologia*</Label>
                 <select
@@ -579,7 +617,7 @@ export default function WizardValutazione() {
             </div>
 
             {/* Piano + Anno costruzione */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <Label>Piano</Label>
                 <select
@@ -635,15 +673,16 @@ export default function WizardValutazione() {
               </div>
             </div>
 
-            <div className="flex justify-between gap-3">
-              <button onClick={() => setStepAttivo(0)} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+            {/* Bottoni separati dal form con bordo e margine — gerarchia visiva chiara */}
+            <div className="flex justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setStepAttivo(0)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                 ← Indietro
               </button>
               <button
                 onClick={() => setStepAttivo(2)}
                 disabled={!val.zona_codice || !val.tipologia || !val.superficie_mq}
                 className="disabled:opacity-40"
-                style={{ padding: '10px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 Avanti →
               </button>
@@ -655,10 +694,10 @@ export default function WizardValutazione() {
         {/* STEP 2 - VALUTAZIONE COMPARATIVA (VCM)                     */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {stepAttivo === 2 && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="font-semibold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>Analisi di Mercato (VCM)</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <div className="flex flex-col gap-7">
+            <div style={{ paddingBottom: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>Analisi di Mercato (VCM)</h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 Stima il valore basandosi sui prezzi OMI comparabili della zona.
               </p>
             </div>
@@ -708,15 +747,15 @@ export default function WizardValutazione() {
               </div>
             )}
 
-            <div className="flex justify-between gap-3">
-              <button onClick={() => setStepAttivo(1)} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+            <div className="flex justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setStepAttivo(1)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                 ← Indietro
               </button>
               <button
                 onClick={eseguiVCM}
                 disabled={loading}
                 className="disabled:opacity-40"
-                style={{ padding: '10px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 {loading ? 'Calcolo...' : val.vcm ? 'Ricalcola e Avanti →' : 'Calcola VCM →'}
               </button>
@@ -729,16 +768,16 @@ export default function WizardValutazione() {
         {/* Ogni voce ha icona (i) cliccabile con spiegazione dettagliata */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {stepAttivo === 3 && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="font-semibold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>Costi & Analisi Reddituale</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <div className="flex flex-col gap-7">
+            <div style={{ paddingBottom: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>Costi & Analisi Reddituale</h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 Inserisci i dati finanziari. Ogni campo ha un'icona ⓘ con la spiegazione.
               </p>
             </div>
 
             {/* Prezzo acquisto + canone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <Label info={{
                   titolo: 'Prezzo di Acquisto',
@@ -774,7 +813,7 @@ export default function WizardValutazione() {
             </div>
 
             {/* Parametri operativi */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
               <div>
                 <Label info={{
                   titolo: 'Vacancy %',
@@ -820,7 +859,7 @@ export default function WizardValutazione() {
             {/* Parametri mutuo */}
             <div>
               <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Finanziamento (opzionale)</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                 <div>
                   <Label info={{
                     titolo: 'LTV % (Loan-to-Value)',
@@ -867,7 +906,7 @@ export default function WizardValutazione() {
             {/* Parametri avanzati DCF */}
             <div>
               <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Parametri Avanzati DCF</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
                 <div>
                   <Label info={{
                     titolo: 'Costi Ristrutturazione (€)',
@@ -901,15 +940,15 @@ export default function WizardValutazione() {
               </div>
             </div>
 
-            <div className="flex justify-between gap-3">
-              <button onClick={() => setStepAttivo(2)} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+            <div className="flex justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setStepAttivo(2)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                 ← Indietro
               </button>
               <button
                 onClick={eseguiAnalisiFinanziaria}
                 disabled={loading || (!val.canone_mensile && !val.prezzo_acquisto)}
                 className="disabled:opacity-40"
-                style={{ padding: '10px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 {loading ? 'Analisi in corso...' : 'Calcola e Avanti →'}
               </button>
@@ -921,10 +960,10 @@ export default function WizardValutazione() {
         {/* STEP 4 - RISULTATI FINALI                                  */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {stepAttivo === 4 && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="font-semibold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>Risultati Valutazione</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <div className="flex flex-col gap-7">
+            <div style={{ paddingBottom: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>Risultati Valutazione</h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 {val.indirizzo || 'Immobile'} · {val.superficie_mq} mq · {val.tipologia}
               </p>
             </div>
@@ -995,8 +1034,8 @@ export default function WizardValutazione() {
                 ✓ Valutazione salvata — la trovi in I Miei Investimenti › Valutazioni Eseguite!
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row justify-between gap-3">
-                <button onClick={() => setStepAttivo(3)} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+              <div className="flex flex-col sm:flex-row justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+                <button onClick={() => setStepAttivo(3)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                   ← Modifica
                 </button>
                 <div className="flex gap-3">
@@ -1021,7 +1060,9 @@ export default function WizardValutazione() {
             )}
           </div>
         )}
-      </div>
+
+        </div>{/* fine ZONA 2 form */}
+      </div>{/* fine card wizard */}
     </div>
   );
 }
