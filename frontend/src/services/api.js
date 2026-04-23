@@ -298,5 +298,37 @@ export const riattivaUtente = (id) =>
 export const eliminaUtente = (id) =>
   api.delete(`/utenze/${id}`).then(r => r.data);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// CENSIMENTI IMMOBILI
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const getCensimenti      = ()        => api.get('/censimenti').then(r => r.data);
+export const creaCensimento     = (dati)    => api.post('/censimenti', dati).then(r => r.data);
+export const aggiornaCensimento = (id, d)   => api.put(`/censimenti/${id}`, d).then(r => r.data);
+export const eliminaCensimento  = (id)      => api.delete(`/censimenti/${id}`).then(r => r.data);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOCAZIONI ATTIVE
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const getLocazioni      = ()       => api.get('/locazioni').then(r => r.data);
+export const creaLocazione     = (dati)   => api.post('/locazioni', dati).then(r => r.data);
+export const aggiornaLocazione = (id, d)  => api.put(`/locazioni/${id}`, d).then(r => r.data);
+export const eliminaLocazione  = (id)     => api.delete(`/locazioni/${id}`).then(r => r.data);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SEGNALAZIONI
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Invia segnalazione all'admin */
+export const inviaSegnalazione    = (dati) => api.post('/segnalazioni', dati).then(r => r.data);
+
+/** Lista segnalazioni (solo admin) */
+export const getSegnalazioni      = ()     => api.get('/segnalazioni').then(r => r.data);
+
+/** Segna segnalazione come letta (solo admin) */
+export const segnaLetta           = (id)   => api.put(`/segnalazioni/${id}/letto`).then(r => r.data);
+
 export default api;
+
 

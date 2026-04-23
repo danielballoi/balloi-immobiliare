@@ -125,8 +125,8 @@ export default function Register() {
   }
 
   const inputStyle = {
-    background: 'var(--bg-primary)',
-    border: '1px solid var(--border)',
+    background: 'var(--bg-input)',
+    border: '1px solid rgba(255,255,255,0.1)',
     color: 'var(--text-primary)',
   };
 
@@ -135,7 +135,7 @@ export default function Register() {
       {/* Popup pending — appare sopra tutto dopo registrazione riuscita */}
       {registrato && <PopupPending onClose={() => setRegistrato(false)} />}
 
-      <div className="min-h-screen flex" style={{ background: '#0d1117' }}>
+      <div className="min-h-screen flex" style={{ background: '#080b12' }}>
 
         {/* ══════════════════════════════════════════════════════════════
             PANNELLO SINISTRO — form registrazione
@@ -155,7 +155,7 @@ export default function Register() {
 
           <div
             className="w-full max-w-md rounded-2xl p-8"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-lg)' }}
           >
             {/* Logo desktop */}
             <div className="hidden lg:flex items-center justify-center gap-2 mb-5">

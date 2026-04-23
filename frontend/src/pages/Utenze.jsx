@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getUtenze, approvaUtente, bloccaUtente, riattivaUtente, eliminaUtente } from '../services/api';
+import { getUtenze, approvaUtente, bloccaUtente, riattivaUtente, eliminaUtente, getSegnalazioni, segnaLetta } from '../services/api';
 
 // ── Badge di stato ─────────────────────────────────────────────────────────
 function BadgeStato({ stato }) {
@@ -62,21 +62,32 @@ function ModalConferma({ titolo, messaggio, onConferma, onAnnulla, pericoloso })
 }
 
 // ── Tabs filtro stato ──────────────────────────────────────────────────────
-const TABS = [
+const TABS_UTENTI = [
   { value: 'tutti',    label: 'Tutti' },
   { value: 'pending',  label: 'In attesa' },
   { value: 'attivo',   label: 'Attivi' },
   { value: 'bloccato', label: 'Bloccati' },
 ];
 
+// ── Tab principale pagina ──────────────────────────────────────────────────
+const TABS_PAGINA = [
+  { value: 'utenti',       label: 'Utenti' },
+  { value: 'segnalazioni', label: 'Messaggi' },
+];
+
 export default function Utenze() {
-  const [utenti, setUtenti]       = useState([]);
-  const [conteggi, setConteggi]   = useState({});
-  const [loading, setLoading]     = useState(true);
-  const [errore, setErrore]       = useState('');
-  const [tabAttiva, setTabAttiva] = useState('tutti');
-  const [conferma, setConferma]   = useState(null); // { id, azione, email }
-  const [feedback, setFeedback]   = useState('');   // messaggio successo/errore
+  const [utenti, setUtenti]           = useState([]);
+  const [conteggi, setConteggi]       = useState({});
+  const [loading, setLoading]         = useState(true);
+  const [errore, setErrore]           = useState('');
+  const [tabPagina, setTabPagina]     = useState('utenti');   // 'utenti' | 'segnalazioni'
+  const [tabAttiva, setTabAttiva]     = useState('tutti');
+  const [conferma, setConferma]       = useState(null);
+  const [feedback, setFeedback]       = useState('');
+
+  // Segnalazioni
+  const [segnalazioni, setSegnalazioni]     = useState([]);
+  const [loadingSeg, setLoadingSeg]         = useState(false);
 
   // ── Carica lista utenti ───────────────────────────────────────────────
   const caricaUtenti = useCallback(async () => {
@@ -96,6 +107,34 @@ export default function Utenze() {
   }, []);
 
   useEffect(() => { caricaUtenti(); }, [caricaUtenti]);
+
+  // ── Carica segnalazioni ───────────────────────────────────────────────
+  const caricaSegnalazioni = useCallback(async () => {
+    setLoadingSeg(true);
+    try {
+      const data = await getSegnalazioni();
+      setSegnalazioni(data);
+      console.log('[UTENZE] Segnalazioni caricate:', data.length);
+    } catch (err) {
+      console.error('[UTENZE] Errore segnalazioni:', err.message);
+    } finally {
+      setLoadingSeg(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tabPagina === 'segnalazioni') caricaSegnalazioni();
+  }, [tabPagina, caricaSegnalazioni]);
+
+  async function marcaLetta(id) {
+    try {
+      await segnaLetta(id);
+      setSegnalazioni(prev => prev.map(s => s.id === id ? { ...s, stato: 'LETTO' } : s));
+      console.log('[UTENZE] Segnalazione', id, 'marcata letta');
+    } catch (err) {
+      console.error('[UTENZE] Errore marca letta:', err.message);
+    }
+  }
 
   // ── Esegue azione su utente (dopo conferma) ───────────────────────────
   async function eseguiAzione() {
@@ -123,6 +162,8 @@ export default function Utenze() {
   const utentiFiltrati = tabAttiva === 'tutti'
     ? utenti
     : utenti.filter(u => u.stato === tabAttiva);
+
+  const segnalazioniNuove = segnalazioni.filter(s => s.stato === 'NUOVO').length;
 
   // ── Formatta data ─────────────────────────────────────────────────────
   const formatData = (d) => d
@@ -178,6 +219,34 @@ export default function Utenze() {
         ))}
       </div>
 
+      {/* ── Tab principale pagina: Utenti | Messaggi ─────────────────── */}
+      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12, background: 'var(--bg-secondary)' }}>
+        {TABS_PAGINA.map(tab => {
+          const attiva = tabPagina === tab.value;
+          const nuovi  = tab.value === 'segnalazioni' ? (conteggi.messaggi_nuovi ?? 0) : 0;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setTabPagina(tab.value)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 500,
+                border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                background: attiva ? 'var(--accent)' : 'transparent',
+                color: attiva ? '#000' : 'var(--text-muted)',
+              }}
+            >
+              {tab.label}
+              {nuovi > 0 && (
+                <span style={{ padding: '2px 6px', borderRadius: 20, fontSize: 11, fontWeight: 700, lineHeight: 1.2, background: '#ef4444', color: '#fff' }}>
+                  {nuovi}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Feedback toast ────────────────────────────────────────────── */}
       {feedback && (
         <div
@@ -200,14 +269,95 @@ export default function Utenze() {
         </div>
       )}
 
+      {/* ── Sezione Segnalazioni ────────────────────────────────────────── */}
+      {tabPagina === 'segnalazioni' && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div className="px-5 py-4 border-b flex items-center gap-3" style={{ borderColor: 'var(--border)' }}>
+            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Messaggi degli Utenti</h2>
+            {segnalazioniNuove > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: '#ef4444', color: '#fff' }}>
+                {segnalazioniNuove} nuovi
+              </span>
+            )}
+          </div>
+
+          {loadingSeg ? (
+            <div className="p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Caricamento messaggi…</div>
+          ) : segnalazioni.length === 0 ? (
+            <div className="p-12 text-center">
+              <p className="text-2xl mb-2">📭</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nessuna segnalazione ricevuta</p>
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+              {segnalazioni.map(seg => {
+                const nuova = seg.stato === 'NUOVO';
+                const data  = new Date(seg.data_invio).toLocaleDateString('it-IT', {
+                  day: '2-digit', month: '2-digit', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                });
+                return (
+                  <div
+                    key={seg.id}
+                    className="px-5 py-4 flex flex-col sm:flex-row gap-3"
+                    style={{
+                      background: nuova ? 'rgba(239,68,68,0.04)' : 'transparent',
+                      borderTop: '1px solid var(--border)',
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        {nuova && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                            NUOVO
+                          </span>
+                        )}
+                        <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                          {seg.oggetto || 'Segnalazione'}
+                        </span>
+                      </div>
+                      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                        Da: <strong style={{ color: 'var(--text-primary)' }}>
+                          {[seg.nome, seg.cognome].filter(Boolean).join(' ') || seg.username || seg.email}
+                        </strong>
+                        {seg.email && ` · ${seg.email}`}
+                        {' · '}{data}
+                      </p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {seg.messaggio}
+                      </p>
+                      <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                        Risposta: via email all'indirizzo dell'utente registrato
+                      </p>
+                    </div>
+                    {nuova && (
+                      <div className="shrink-0 flex items-start">
+                        <button
+                          onClick={() => marcaLetta(seg.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                          style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                        >
+                          Segna letto
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Tabs filtro ───────────────────────────────────────────────── */}
+      {tabPagina === 'utenti' && (
       <div
         className="rounded-2xl overflow-hidden"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         {/* Tab bar */}
-        <div className="flex border-b" style={{ borderColor: 'var(--border)' }}>
-          {TABS.map(tab => {
+        <div className="flex border-b" style={{ borderColor: 'var(--border)', padding: '0 8px' }}>
+          {TABS_UTENTI.map(tab => {
             const attiva = tabAttiva === tab.value;
             const count = tab.value === 'tutti' ? (conteggi.totale ?? 0)
               : (conteggi[tab.value] ?? 0);
@@ -215,7 +365,7 @@ export default function Utenze() {
               <button
                 key={tab.value}
                 onClick={() => setTabAttiva(tab.value)}
-                className="px-4 py-3 text-sm font-medium flex items-center gap-2 transition-colors"
+                className="px-5 py-4 text-sm font-medium flex items-center gap-2 transition-colors"
                 style={{
                   color: attiva ? 'var(--accent)' : 'var(--text-muted)',
                   borderBottom: attiva ? '2px solid var(--accent)' : '2px solid transparent',
@@ -367,6 +517,7 @@ export default function Utenze() {
           </div>
         )}
       </div>
+      )}
 
       {/* ── Modale conferma ───────────────────────────────────────────── */}
       {conferma && (
