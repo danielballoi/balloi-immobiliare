@@ -124,10 +124,12 @@ export default function Register() {
     }
   }
 
+  // Padding aumentato per altezza moderna (12/16px) — coerente con Login
   const inputStyle = {
     background: 'var(--bg-input)',
     border: '1px solid rgba(255,255,255,0.1)',
     color: 'var(--text-primary)',
+    padding: '12px 16px',
   };
 
   return (
@@ -138,48 +140,112 @@ export default function Register() {
       <div className="min-h-screen flex" style={{ background: '#080b12' }}>
 
         {/* ══════════════════════════════════════════════════════════════
-            PANNELLO SINISTRO — form registrazione
+            PANNELLO SINISTRO — brand/pitch (identico a Login per coerenza)
         ══════════════════════════════════════════════════════════════ */}
-        <div className="flex-1 flex flex-col justify-center items-center p-6 lg:p-12">
+        <div
+          className="hidden lg:flex flex-col justify-between"
+          style={{
+            width: '50%',
+            padding: '48px 56px',
+            background: 'linear-gradient(145deg, #0a0f1a 0%, #0f1520 50%, #080b12 100%)',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Glow decorativo */}
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)', top: '8%', left: '-15%', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(96,165,250,0.04) 0%, transparent 70%)', bottom: '15%', right: '-8%', pointerEvents: 'none' }} />
+
+          {/* Logo DBI */}
+          <div style={{ position: 'relative' }}>
+            <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare"
+              style={{ height: 40, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+          </div>
+
+          {/* Headline + passi 01/02/03 */}
+          <div style={{ position: 'relative' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 20 }}>
+              Piattaforma Immobiliare
+            </p>
+            <h1 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-0.03em', color: '#e8edf5', marginBottom: 36 }}>
+              Investi su<br />
+              <span style={{ color: 'var(--accent)' }}>Cagliari</span><br />
+              & hinterland.
+            </h1>
+
+            {[
+              { n: '01', tit: 'Compila il modulo',       desc: 'Inserisci i tuoi dati — pochi campi, tutto chiaro.' },
+              { n: '02', tit: 'Attendi approvazione',     desc: "L'admin verifica e attiva il tuo account entro 24h." },
+              { n: '03', tit: 'Accedi alla piattaforma',  desc: 'Analizza prezzi OMI e valuta investimenti a Cagliari.' },
+            ].map(p => (
+              <div key={p.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+                <span style={{ fontSize: 24, fontWeight: 900, color: 'rgba(245,158,11,0.28)', flexShrink: 0, lineHeight: 1 }}>{p.n}</span>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#e8edf5', marginBottom: 2 }}>{p.tit}</p>
+                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.40)', lineHeight: 1.5 }}>{p.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer panel */}
+          <div style={{ position: 'relative' }}>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', marginBottom: 12 }}>Hai già un account?</p>
+            <Link
+              to="/login"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '10px 20px', borderRadius: 8,
+                border: '1px solid rgba(245,158,11,0.3)', color: 'var(--accent)',
+                fontSize: 13, fontWeight: 500, textDecoration: 'none',
+                background: 'rgba(245,158,11,0.05)', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.05)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'; }}
+            >
+              ← Accedi
+            </Link>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════
+            PANNELLO DESTRO — form registrazione
+        ══════════════════════════════════════════════════════════════ */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '40px 24px' }}>
 
           {/* Logo mobile */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: 'var(--accent)' }}
-            >
-              B
-            </div>
-            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Balloi Immobiliare</span>
+          <div className="lg:hidden" style={{ marginBottom: 32, textAlign: 'center' }}>
+            <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare"
+              style={{ height: 44, objectFit: 'contain', margin: '0 auto 8px' }} />
           </div>
 
           <div
-            className="w-full max-w-md rounded-2xl p-8"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-lg)' }}
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 16,
+              padding: '40px 40px',
+              boxShadow: 'var(--shadow-lg)',
+            }}
           >
-            {/* Logo desktop */}
-            <div className="hidden lg:flex items-center justify-center gap-2 mb-5">
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold"
-                style={{ background: 'var(--accent)' }}
-              >
-                B
-              </div>
-              <div className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
-                Balloi Immobiliare
-              </div>
+            {/* Logo DBI centrato sopra il form — desktop */}
+            <div className="hidden lg:flex" style={{ justifyContent: 'center', marginBottom: 28 }}>
+              <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare" style={{ height: 40, objectFit: 'contain' }} />
             </div>
 
             <h2 className="text-2xl font-bold mb-1 text-center" style={{ color: 'var(--text-primary)' }}>
               Crea Account
             </h2>
-            <p className="text-xs text-center mb-5" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs text-center mb-6" style={{ color: 'var(--text-muted)' }}>
               Compila il modulo — l'accesso sarà attivo dopo l'approvazione dell'admin
             </p>
 
             <form onSubmit={handleSubmit} noValidate>
-              {/* Nome + Cognome side-by-side */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* Nome + Cognome affiancati — gap 16px, margine inferiore 20px */}
+              <div className="grid grid-cols-2 gap-4 mb-5" style={{ marginBottom: 20 }}>
                 <div>
                   <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                     Nome <span style={{ color: 'var(--danger)' }}>*</span>
@@ -219,7 +285,7 @@ export default function Register() {
               </div>
 
               {/* Username */}
-              <div className="mb-4">
+              <div style={{ marginBottom: 20 }}>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   Username <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
@@ -240,7 +306,7 @@ export default function Register() {
               </div>
 
               {/* Email */}
-              <div className="mb-4">
+              <div style={{ marginBottom: 20 }}>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   Email <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
@@ -260,7 +326,7 @@ export default function Register() {
               </div>
 
               {/* Password */}
-              <div className="mb-3">
+              <div style={{ marginBottom: 16 }}>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   Password <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
@@ -320,7 +386,7 @@ export default function Register() {
               )}
 
               {/* Conferma password */}
-              <div className="mb-5">
+              <div style={{ marginBottom: 20 }}>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   Conferma Password <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
@@ -355,11 +421,17 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg text-sm font-bold transition-all"
                 style={{
+                  width: '100%',
+                  padding: '13px',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  border: 'none',
                   background: loading ? 'rgba(245,158,11,0.5)' : 'var(--accent)',
                   color: '#0f1117',
                   cursor: loading ? 'not-allowed' : 'pointer',
+                  transition: 'background 0.15s',
                 }}
               >
                 {loading ? 'Invio richiesta…' : 'Invia Richiesta di Registrazione →'}
@@ -381,70 +453,6 @@ export default function Register() {
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════════════════════════
-            PANNELLO DESTRO — pitch
-        ══════════════════════════════════════════════════════════════ */}
-        <div
-          className="hidden lg:flex flex-col justify-between w-5/12 p-10 relative overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0f1117 0%, #1a1d27 60%, #0d1117 100%)' }}
-        >
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at 80% 50%, rgba(245,158,11,0.08) 0%, transparent 60%), radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.05) 0%, transparent 50%)',
-            }}
-          />
-
-          <div className="relative flex items-center gap-2.5 justify-end">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: 'var(--accent)' }}
-            >
-              B
-            </div>
-            <div>
-              <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Balloi</div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Immobiliare</div>
-            </div>
-          </div>
-
-          <div className="relative text-right">
-            <p className="text-xs font-semibold tracking-widest mb-4" style={{ color: 'var(--accent)' }}>
-              COME FUNZIONA
-            </p>
-            <h1 className="text-3xl font-bold leading-tight mb-6" style={{ color: 'var(--text-primary)' }}>
-              Investi su<br />
-              <span style={{ color: 'var(--accent)' }}>Cagliari.</span><br />
-              & hinterland.
-            </h1>
-
-            {/* Passi registrazione */}
-            {[
-              { n: '01', tit: 'Compila il modulo',   desc: 'Inserisci i tuoi dati di accesso' },
-              { n: '02', tit: 'Attendi approvazione', desc: "L'admin verifica e attiva il tuo account" },
-              { n: '03', tit: 'Accedi alla piattaforma', desc: 'Analizza prezzi e valuta investimenti' },
-            ].map(p => (
-              <div key={p.n} className="flex items-start gap-4 mb-5 text-left">
-                <span className="text-2xl font-black shrink-0" style={{ color: 'rgba(245,158,11,0.3)' }}>{p.n}</span>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.tit}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{p.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="relative text-right">
-            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Hai già un account?</p>
-            <Link
-              to="/login"
-              className="inline-block px-6 py-2.5 rounded-lg text-sm font-semibold transition-all"
-              style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-            >
-              ← Accedi
-            </Link>
-          </div>
-        </div>
       </div>
     </>
   );

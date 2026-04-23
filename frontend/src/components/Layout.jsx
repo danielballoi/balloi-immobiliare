@@ -29,6 +29,7 @@ export default function Layout() {
   }, []);
 
   const nomeUtente = user?.nome ?? user?.username ?? 'Utente';
+  const isAdmin    = user?.ruolo === 'admin';
   const ora = new Date().getHours();
   const saluto = ora < 12 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const icona  = ora >= 6 && ora < 12 ? '☀️' : ora >= 12 && ora < 18 ? '🌤️' : '🌙';
@@ -145,10 +146,20 @@ export default function Layout() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Data corrente */}
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', display: isMobile ? 'none' : 'block' }}>
-            {new Date().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-          </span>
+          {/* Ruolo + Data */}
+          <div style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+              background: isAdmin ? 'rgba(245,158,11,0.12)' : 'rgba(100,116,139,0.12)',
+              color: isAdmin ? 'var(--accent)' : 'var(--text-muted)',
+              border: `1px solid ${isAdmin ? 'rgba(245,158,11,0.25)' : 'rgba(100,116,139,0.2)'}`,
+            }}>
+              {isAdmin ? 'Amministratore' : 'Utente'}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {new Date().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
         </header>
 
         {/* ── Contenuto pagina ───────────────────────────────────── */}

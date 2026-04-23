@@ -245,19 +245,17 @@ export default function DettaglioTipologia() {
       ) : (
         <>
           {/* ── Grafico AreaChart ──────────────────────────────────────── */}
-          <div
-            className="rounded-xl p-5"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            {/* Header grafico */}
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                 Andamento Prezzi · {tipo}
               </h2>
-              <span className="text-xs px-2.5 py-1 rounded-lg"
-                style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                 Compravendita + Locazione
               </span>
             </div>
+            <div style={{ padding: '24px' }}>
 
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={dati} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -308,60 +306,64 @@ export default function DettaglioTipologia() {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            </div>{/* fine padding chart */}
           </div>
 
           {/* ── Tabella storica anno per anno ──────────────────────────── */}
-          <div
-            className="rounded-xl overflow-hidden"
-            style={{ border: '1px solid var(--border)' }}
-          >
-            {/* Header tabella */}
-            <div
-              className="px-6 py-4 flex items-start justify-between gap-4 flex-wrap"
-              style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}
-            >
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+
+            {/* ZONA 1 — header con titolo + stato NTN */}
+            <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <div>
-                <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 5, letterSpacing: '-0.01em' }}>
                   Andamento anno per anno · {tipo}
                 </h2>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {nome} · Stato: {stato} · prezzi medi OMI in €/mq
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  {nome} · Stato: <strong style={{ color: 'var(--text-secondary)' }}>{stato}</strong> · prezzi medi OMI in €/mq
                 </p>
               </div>
-              {/* Legenda colonna immobili venduti */}
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0, paddingTop: 2 }}>
                 {Object.keys(ntn).length > 0
-                  ? <span style={{ color: 'var(--success)' }}>✓ Dati NTN disponibili</span>
-                  : <span>Immobili venduti: <span style={{ color: 'var(--warning)' }}>carica NTN per i dati</span></span>
+                  ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Dati NTN disponibili</span>
+                  : <span>Immobili venduti: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>carica NTN per i dati</span></span>
                 }
               </div>
             </div>
 
             {/* Nota prezzi stabili */}
             {dati.length > 1 && dati.slice(0, -1).some((r, i) => r.prezzo_medio_mq === dati[i + 1].prezzo_medio_mq) && (
-              <div
-                className="px-6 py-2 text-xs flex items-center gap-2"
-                style={{ background: 'rgba(100,116,139,0.06)', borderBottom: '1px solid var(--border)' }}
-              >
-                <span style={{ color: 'var(--text-muted)' }}>
-                  ℹ Prezzi identici su più anni = l'OMI non ha aggiornato il benchmark (mercato stabile in quel periodo)
+              <div style={{ padding: '12px 28px', background: 'rgba(100,116,139,0.06)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>ℹ</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Prezzi identici su più anni = l'OMI non ha aggiornato il benchmark (mercato stabile in quel periodo)
                 </span>
               </div>
             )}
 
+            {/* ZONA 2 — tabella */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr style={{ background: 'var(--bg-secondary)' }}>
+                  <tr style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
                     {[
-                      { label: 'Anno',                        w: 'w-24' },
-                      { label: 'Prezzo Medio Compravendita',  w: '' },
-                      { label: 'Locazione Media',             w: '' },
-                      { label: 'Var. anno prec.',             w: 'w-32' },
+                      { label: 'Anno',                       w: '120px' },
+                      { label: 'Prezzo Medio Compravendita', w: '' },
+                      { label: 'Locazione Media',            w: '' },
+                      { label: 'Var. anno prec.',            w: '160px' },
                     ].map(({ label, w }) => (
-                      <th key={label}
-                        className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${w}`}
-                        style={{ color: 'var(--text-muted)' }}>
+                      <th
+                        key={label}
+                        style={{
+                          padding: '14px 28px',
+                          textAlign: 'left',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.07em',
+                          color: 'var(--text-muted)',
+                          width: w || undefined,
+                        }}
+                      >
                         {label}
                       </th>
                     ))}
@@ -387,14 +389,13 @@ export default function DettaglioTipologia() {
                         }}
                       >
                         {/* Anno + badge attuale */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>
+                        <td style={{ padding: '18px 28px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 700, fontSize: 17, lineHeight: 1, color: 'var(--text-primary)' }}>
                               {r.anno}
                             </span>
                             {isUltimo && (
-                              <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                                style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
+                              <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 600, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
                                 attuale
                               </span>
                             )}
@@ -402,48 +403,52 @@ export default function DettaglioTipologia() {
                         </td>
 
                         {/* Prezzo medio compravendita — metrica principale */}
-                        <td className="px-6 py-4">
-                          <span className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                            {formatEuro(r.prezzo_medio_mq)}
-                          </span>
-                          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>/mq</span>
-                          {/* Range min-max in piccolo sotto il valore principale */}
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        <td style={{ padding: '18px 28px' }}>
+                          <div>
+                            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {formatEuro(r.prezzo_medio_mq)}
+                            </span>
+                            <span style={{ fontSize: 12, marginLeft: 4, color: 'var(--text-muted)' }}>/mq</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                             {formatEuro(r.prezzo_min)} – {formatEuro(r.prezzo_max)}
                           </p>
                         </td>
 
                         {/* Locazione media */}
-                        <td className="px-6 py-4">
-                          <span className="text-base font-semibold" style={{ color: 'var(--info)' }}>
+                        <td style={{ padding: '18px 28px' }}>
+                          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--info)' }}>
                             {r.locazione_media_mq > 0 ? `€ ${r.locazione_media_mq}` : '–'}
                           </span>
                           {r.locazione_media_mq > 0 && (
-                            <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>/mq/mese</span>
+                            <span style={{ fontSize: 12, marginLeft: 4, color: 'var(--text-muted)' }}>/mq/mese</span>
                           )}
                         </td>
 
                         {/* Variazione percentuale vs anno precedente */}
-                        <td className="px-6 py-4">
+                        <td style={{ padding: '18px 28px' }}>
                           {varAnno !== null ? (
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="text-sm font-bold px-3 py-1 rounded-full"
-                                style={{
-                                  background: varAnno > 0 ? 'rgba(16,185,129,0.12)'
-                                    : varAnno < 0 ? 'rgba(239,68,68,0.12)'
-                                    : 'rgba(100,116,139,0.12)',
-                                  color: varAnno > 0 ? 'var(--success)'
-                                    : varAnno < 0 ? 'var(--danger)'
-                                    : 'var(--text-muted)',
-                                }}
-                              >
-                                {varAnno > 0 ? '▲' : varAnno < 0 ? '▼' : '='}{' '}
-                                {varAnno === 0 ? 'Stabile' : `${Math.abs(varAnno).toFixed(1)}%`}
-                              </span>
-                            </div>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                padding: '5px 12px',
+                                borderRadius: 20,
+                                background: varAnno > 0 ? 'rgba(16,185,129,0.12)'
+                                  : varAnno < 0 ? 'rgba(239,68,68,0.12)'
+                                  : 'rgba(100,116,139,0.12)',
+                                color: varAnno > 0 ? 'var(--success)'
+                                  : varAnno < 0 ? 'var(--danger)'
+                                  : 'var(--text-muted)',
+                              }}
+                            >
+                              {varAnno > 0 ? '▲' : varAnno < 0 ? '▼' : '='}{' '}
+                              {varAnno === 0 ? 'Stabile' : `${Math.abs(varAnno).toFixed(1)}%`}
+                            </span>
                           ) : (
-                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>–</span>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>–</span>
                           )}
                         </td>
                       </tr>

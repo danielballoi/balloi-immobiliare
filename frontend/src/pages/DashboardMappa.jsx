@@ -236,6 +236,79 @@ function ComuneAutocomplete({ comuni, onSeleziona, onSvuota, placeholder }) {
   );
 }
 
+/* ── QuartierePickerModal — scelta quartiere OMI per un comune ──────── */
+function QuartierePickerModal({ zones, nomeComune, onSeleziona, onChiudi }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} onClick={onChiudi} />
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 480, borderRadius: 16, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 4 }}>
+              Seleziona il quartiere OMI
+            </p>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+              {nomeComune}
+            </h3>
+          </div>
+          <button
+            onClick={onChiudi}
+            style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Lista quartieri */}
+        <div style={{ overflowY: 'auto', padding: '8px 0' }}>
+          {zones.map((z, idx) => (
+            <button
+              key={z.link_zona}
+              onClick={() => onSeleziona(z)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 24px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: idx < zones.length - 1 ? '1px solid var(--border)' : 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+                  {cleanNome(z.descrizione_zona)}
+                </p>
+                {z.prezzo_medio && (
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {formatEuro(z.prezzo_medio)}/mq
+                    {z.locazione_media ? ` · ${formatEuro(z.locazione_media)}/mq/mese` : ''}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 12 }}>
+                <BadgeFascia fascia={z.fascia} />
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                  <path d="M5 2l5 5-5 5" />
+                </svg>
+              </div>
+            </button>
+          ))}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 /* ── SelettoreArea — tab Cagliari Comune / Hinterland ───────────────── */
 function SelettoreArea({ area, onCambio }) {
   return (
@@ -282,6 +355,7 @@ export default function DashboardMappa() {
   const [expandedRows, setExpandedRows]   = useState(new Set());
   const [mostraLocazione, setMostraLocazione] = useState(false);
   const [tipologie, setTipologie]         = useState([]);
+  const [comunePicker, setComunePicker]   = useState(null);
   const [filtri, setFiltri]               = useState({
     fasce:    [],
     prezzoMin: '',
@@ -338,8 +412,12 @@ export default function DashboardMappa() {
   function handleComuneSelezionato(nomeComune) {
     setComuneFocused(nomeComune);
     setViaRicercata('');
-    const prima = zone.find(z => z.comune === nomeComune);
-    if (prima) setZonaSelezionata(prima);
+    const zonesComune = zone.filter(z => z.comune === nomeComune);
+    if (zonesComune.length === 1) {
+      setZonaSelezionata(zonesComune[0]);
+    } else if (zonesComune.length > 1) {
+      setComunePicker(nomeComune);
+    }
   }
 
   function tornaAllaLista() {
@@ -347,6 +425,7 @@ export default function DashboardMappa() {
     setZonaFocused(null);
     setComuneFocused('');
     setViaRicercata('');
+    setComunePicker(null);
   }
 
   const zoneFiltrate = useMemo(() => {
@@ -537,26 +616,60 @@ export default function DashboardMappa() {
   return (
     <div className="flex flex-col gap-5">
 
-      {/* ── Hero image ─────────────────────────────────────────────── */}
-      <div className="relative rounded-2xl overflow-hidden" style={{ height: 260 }}>
-        <img src="/cagliari-hd.jpg" alt="Cagliari skyline"
-          className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, rgba(15,17,23,0.2) 0%, rgba(15,17,23,0.80) 100%)' }} />
+      {/* ── Picker quartieri hinterland ───────────────────────────── */}
+      {comunePicker && (
+        <QuartierePickerModal
+          zones={zone.filter(z => z.comune === comunePicker)}
+          nomeComune={comunePicker}
+          onSeleziona={(z) => { setZonaSelezionata(z); setComunePicker(null); }}
+          onChiudi={() => setComunePicker(null)}
+        />
+      )}
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
+      {/* ── Hero image ─────────────────────────────────────────────── */}
+      {/* paddingBottom: '40%' → hero più alto, dà respiro verticale per spostare il contenuto in alto */}
+      <div className="relative rounded-2xl overflow-hidden" style={{ paddingBottom: '40%', minHeight: 260 }}>
+
+        <img
+          src="/cagliari-hero.jpg"
+          alt="Cagliari skyline"
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', objectPosition: 'center 38%',
+          }}
+        />
+
+        {/* Gradiente a 4 step: cielo quasi trasparente → mare/orizzonte → rocce scure in basso */}
+        <div className="absolute inset-0"
+          style={{ background: 'linear-gradient(to bottom, rgba(10,12,15,0.05) 0%, rgba(10,12,15,0.18) 30%, rgba(10,12,15,0.55) 65%, rgba(10,12,15,0.90) 100%)' }} />
+
+        {/* Titolo nella zona del cielo/orizzonte (top ~18%) — sopra rocce e zona scura */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '18%',
+            left: 0,
+            right: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 20,
+            padding: '0 24px',
+          }}
+        >
+          {/* Titolo — allineato al centro dell'orizzonte (sopra città e lagune) */}
           <div className="text-center">
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.5)', marginBottom: 4 }}>
+            <h1 style={{ fontSize: 27, fontWeight: 800, color: '#fff', textShadow: '0 2px 12px rgba(0,0,0,0.6)', marginBottom: 6, letterSpacing: '-0.02em' }}>
               Mercato Immobiliare
               {isHinterland ? ' — Cagliari Hinterland' : ' — Cagliari Comune'}
             </h1>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.80)', textShadow: '0 1px 6px rgba(0,0,0,0.45)' }}>
               Dati OMI aggiornati · {zone.length} {isHinterland ? 'comuni' : 'quartieri'} monitorati
             </p>
           </div>
 
-          {/* Barra di ricerca */}
-          <div style={{ width: '100%', maxWidth: 540 }}>
+          {/* Barra di ricerca — posizionata nella zona celeste/mare (sfondo pulito e omogeneo) */}
+          <div style={{ width: '100%', maxWidth: 560 }}>
             {area === 'CAGLIARI' ? (
               <StradeAutocomplete
                 onSeleziona={handleStradeSeleziona}
@@ -633,153 +746,161 @@ export default function DashboardMappa() {
       </div>
 
       {/* ── Filtri ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
 
-          {/* Toggle compravendita / locazione */}
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>Modalità</p>
-            <button
-              onClick={() => setMostraLocazione(v => !v)}
-              title={mostraLocazione ? 'Passa a compravendita' : 'Passa a locazione'}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                border: `1px solid ${mostraLocazione ? 'var(--accent)' : 'var(--border)'}`,
-                background: mostraLocazione ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)',
-                color: mostraLocazione ? 'var(--accent)' : 'var(--text-muted)',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 16V4m0 0L3 8m4-4l4 4" />
-                <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
-              </svg>
-              {mostraLocazione ? 'Locazione' : 'Compravendita'}
-            </button>
-          </div>
-
-          {/* Fascia */}
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>Fascia</p>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {['A', 'B', 'C', 'D', 'E'].map(f => {
-                const sel = filtri.fasce.includes(f);
-                return (
-                  <button
-                    key={f}
-                    onClick={() => setFiltri(prev => ({
-                      ...prev,
-                      fasce: sel ? prev.fasce.filter(x => x !== f) : [...prev.fasce, f],
-                    }))}
-                    style={{
-                      width: 32, height: 32, borderRadius: 6, fontSize: 12, fontWeight: 700,
-                      border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
-                      background: sel ? 'var(--accent)' : 'var(--bg-secondary)',
-                      color: sel ? '#000' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >{f}</button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Prezzo min */}
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>{mostraLocazione ? 'Canone min €/mq' : 'Prezzo min €/mq'}</p>
-            <input
-              type="number" value={filtri.prezzoMin}
-              onChange={e => setFiltri(p => ({ ...p, prezzoMin: e.target.value }))}
-              placeholder="Es. 1000"
-              style={{ width: 110, padding: '7px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
-            />
-          </div>
-
-          {/* Prezzo max */}
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>{mostraLocazione ? 'Canone max €/mq' : 'Prezzo max €/mq'}</p>
-            <input
-              type="number" value={filtri.prezzoMax}
-              onChange={e => setFiltri(p => ({ ...p, prezzoMax: e.target.value }))}
-              placeholder="Es. 3000"
-              style={{ width: 110, padding: '7px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
-            />
-          </div>
-
-          {/* ROI */}
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>ROI annuo %</p>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <select
-                value={filtri.roiOp}
-                onChange={e => setFiltri(p => ({ ...p, roiOp: e.target.value }))}
-                style={{ padding: '7px 8px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
-              >
-                <option value=">">&gt;</option>
-                <option value="<">&lt;</option>
-              </select>
-              <input
-                type="number" step="0.5" value={filtri.roiVal}
-                onChange={e => setFiltri(p => ({ ...p, roiVal: e.target.value }))}
-                placeholder="Es. 5"
-                style={{ width: 72, padding: '7px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
-              />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
-            </div>
-          </div>
-
-          {/* Varianza vs media */}
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>Vs. media mercato</p>
-            <select
-              value={filtri.varOp}
-              onChange={e => setFiltri(p => ({ ...p, varOp: e.target.value }))}
-              style={{ padding: '7px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
-            >
-              <option value="">Tutte le zone</option>
-              <option value="sopra">Sopra media</option>
-              <option value="sotto">Sotto media</option>
-            </select>
-          </div>
-
-          {/* Tipologia / Abitazione */}
-          {tipologie.length > 0 && (
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>Tipologia</p>
-              <select
-                value={filtri.tipologia}
-                onChange={e => setFiltri(p => ({ ...p, tipologia: e.target.value }))}
-                style={{ width: 170, padding: '7px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
-              >
-                <option value="">Tutte le tipologie</option>
-                {tipologie.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              {filtri.tipologia && (
-                <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>
-                  Clicca una zona → analisi per tipologia
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Reset */}
+        {/* Header filtri — separato dal contenuto con bordo */}
+        <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', margin: 0 }}>Filtri</p>
           {(filtri.fasce.length > 0 || filtri.prezzoMin || filtri.prezzoMax || filtri.roiVal || filtri.varOp || filtri.tipologia) && (
             <button
               onClick={() => setFiltri({ fasce: [], prezzoMin: '', prezzoMax: '', roiOp: '>', roiVal: '', varOp: '', tipologia: '' })}
-              style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', fontSize: 13, cursor: 'pointer', alignSelf: 'flex-end' }}
+              style={{ padding: '5px 12px', borderRadius: 6, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', fontSize: 12, cursor: 'pointer' }}
             >
               × Reset filtri
             </button>
           )}
         </div>
 
-        {/* Contatore risultati filtrati */}
-        {(filtri.fasce.length > 0 || filtri.prezzoMin || filtri.prezzoMax || filtri.roiVal || filtri.varOp) && (
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>
-            {zoneFiltrate.length} {isHinterland ? 'comuni' : 'quartieri'} corrispondono ai filtri applicati
-          </p>
-        )}
+        {/* Contenuto filtri — padding generoso su tutti i lati */}
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, rowGap: 20, alignItems: 'flex-end' }}>
+
+            {/* Toggle compravendita / locazione */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Modalità</p>
+              <button
+                onClick={() => setMostraLocazione(v => !v)}
+                title={mostraLocazione ? 'Passa a compravendita' : 'Passa a locazione'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  border: `1px solid ${mostraLocazione ? 'var(--accent)' : 'var(--border)'}`,
+                  background: mostraLocazione ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)',
+                  color: mostraLocazione ? 'var(--accent)' : 'var(--text-muted)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 16V4m0 0L3 8m4-4l4 4" />
+                  <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                {mostraLocazione ? 'Locazione' : 'Compravendita'}
+              </button>
+            </div>
+
+            {/* Fascia */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Fascia</p>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['A', 'B', 'C', 'D', 'E'].map(f => {
+                  const sel = filtri.fasce.includes(f);
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setFiltri(prev => ({
+                        ...prev,
+                        fasce: sel ? prev.fasce.filter(x => x !== f) : [...prev.fasce, f],
+                      }))}
+                      style={{
+                        width: 34, height: 34, borderRadius: 6, fontSize: 12, fontWeight: 700,
+                        border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
+                        background: sel ? 'var(--accent)' : 'var(--bg-secondary)',
+                        color: sel ? '#000' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >{f}</button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Prezzo min */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>{mostraLocazione ? 'Canone min €/mq' : 'Prezzo min €/mq'}</p>
+              <input
+                type="number" value={filtri.prezzoMin}
+                onChange={e => setFiltri(p => ({ ...p, prezzoMin: e.target.value }))}
+                placeholder="Es. 1000"
+                style={{ width: 116, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
+              />
+            </div>
+
+            {/* Prezzo max */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>{mostraLocazione ? 'Canone max €/mq' : 'Prezzo max €/mq'}</p>
+              <input
+                type="number" value={filtri.prezzoMax}
+                onChange={e => setFiltri(p => ({ ...p, prezzoMax: e.target.value }))}
+                placeholder="Es. 3000"
+                style={{ width: 116, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
+              />
+            </div>
+
+            {/* ROI */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>ROI annuo %</p>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <select
+                  value={filtri.roiOp}
+                  onChange={e => setFiltri(p => ({ ...p, roiOp: e.target.value }))}
+                  style={{ padding: '9px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  <option value=">">&gt;</option>
+                  <option value="<">&lt;</option>
+                </select>
+                <input
+                  type="number" step="0.5" value={filtri.roiVal}
+                  onChange={e => setFiltri(p => ({ ...p, roiVal: e.target.value }))}
+                  placeholder="Es. 5"
+                  style={{ width: 76, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
+              </div>
+            </div>
+
+            {/* Varianza vs media */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Vs. media mercato</p>
+              <select
+                value={filtri.varOp}
+                onChange={e => setFiltri(p => ({ ...p, varOp: e.target.value }))}
+                style={{ padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
+              >
+                <option value="">Tutte le zone</option>
+                <option value="sopra">Sopra media</option>
+                <option value="sotto">Sotto media</option>
+              </select>
+            </div>
+
+            {/* Tipologia / Abitazione */}
+            {tipologie.length > 0 && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Tipologia</p>
+                <select
+                  value={filtri.tipologia}
+                  onChange={e => setFiltri(p => ({ ...p, tipologia: e.target.value }))}
+                  style={{ width: 176, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  <option value="">Tutte le tipologie</option>
+                  {tipologie.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {filtri.tipologia && (
+                  <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 6 }}>
+                    Clicca una zona → analisi per tipologia
+                  </p>
+                )}
+              </div>
+            )}
+
+          </div>
+
+          {/* Contatore risultati filtrati */}
+          {(filtri.fasce.length > 0 || filtri.prezzoMin || filtri.prezzoMax || filtri.roiVal || filtri.varOp) && (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              {zoneFiltrate.length} {isHinterland ? 'comuni' : 'quartieri'} corrispondono ai filtri applicati
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── Layout principale: lista + right panel ─────────────────── */}
@@ -931,9 +1052,9 @@ export default function DashboardMappa() {
             style={{ opacity: 0.18 }} />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(15,17,23,0.2), rgba(15,17,23,0.72))' }} />
           <div className="relative z-10 flex flex-col items-center gap-2 px-5 py-7">
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent)', color: '#000', fontSize: 15, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-              DB
-            </div>
+            {/* Logo DBI — brand banner panel */}
+          <img src="/dbi-logo.png" alt="Daniel Balloi Immobiliare"
+            style={{ height: 48, objectFit: 'contain', marginBottom: 4, filter: 'brightness(0) invert(1)' }} />
             <p style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: 18, color: '#fff', textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
               Daniel Balloi
             </p>

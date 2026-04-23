@@ -61,36 +61,45 @@ function TabSelector({ attiva, onCambio }) {
   );
 }
 
-// ── MODAL GENERICO ──────────────────────────────────────────────────────────
+// ── MODAL GENERICO — due zone: header (titolo) + contenuto (form) ─────────────
 function Modal({ titolo, onChiudi, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onChiudi} />
       <div
-        className="relative z-10 w-full max-w-lg rounded-2xl p-8 flex flex-col gap-6 overflow-y-auto max-h-[90vh]"
+        className="relative z-10 w-full max-w-xl rounded-2xl overflow-hidden flex flex-col overflow-y-auto max-h-[92vh]"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
-        <div className="flex items-center justify-between">
-          <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{titolo}</h2>
+        {/* Header modal con sfondo differenziato */}
+        <div style={{ padding: '20px 36px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{titolo}</h2>
           <button
             onClick={onChiudi}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none"
-            style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}
+            style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
           >
             ×
           </button>
         </div>
-        {children}
+        {/* Contenuto con padding generoso */}
+        <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
-// ── INPUT HELPER ─────────────────────────────────────────────────────────────
-const inputCls = "w-full px-4 py-3 rounded-xl text-sm";
-const inputStyle = { background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' };
-const labelCls = "block text-sm font-medium mb-2";
-const labelStyle = { color: 'var(--text-muted)' };
+// ── INPUT HELPER — padding 12/16px coerente con il resto dell'app ────────────
+const inputCls = "w-full rounded-xl text-sm";
+const inputStyle = {
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
+  padding: '12px 16px',
+  outline: 'none',
+};
+const labelCls = "block text-sm font-semibold mb-2";
+const labelStyle = { color: 'var(--text-muted)', letterSpacing: '0.01em' };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB 1 — CENSIMENTI IMMOBILI
@@ -277,6 +286,7 @@ function CensimentiTab() {
       {/* Modal form censimento */}
       {modale && (
         <Modal titolo={editItem ? 'Modifica Censimento' : 'Nuovo Censimento'} onChiudi={() => setModale(false)}>
+          {/* — Identificazione ——————————————————————————— */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
               <label className={labelCls} style={labelStyle}>Titolo / Riferimento</label>
@@ -288,6 +298,14 @@ function CensimentiTab() {
               <input value={form.indirizzo} onChange={e => setForm(f => ({ ...f, indirizzo: e.target.value }))}
                 placeholder="Via Roma, 12" className={inputCls} style={inputStyle} />
             </div>
+          </div>
+
+          {/* — Dettagli Immobile ———————————————————————— */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Dettagli Immobile</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className={labelCls} style={labelStyle}>Quartiere</label>
               <input value={form.quartiere} onChange={e => setForm(f => ({ ...f, quartiere: e.target.value }))}
@@ -308,6 +326,14 @@ function CensimentiTab() {
               <input type="number" value={form.prezzo_richiesto} onChange={e => setForm(f => ({ ...f, prezzo_richiesto: e.target.value }))}
                 placeholder="Es. 150000" className={inputCls} style={inputStyle} />
             </div>
+          </div>
+
+          {/* — Stato ————————————————————————————————————— */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Stato</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className={labelCls} style={labelStyle}>Stato Interesse</label>
               <select value={form.stato_interesse} onChange={e => setForm(f => ({ ...f, stato_interesse: e.target.value }))}
@@ -325,6 +351,14 @@ function CensimentiTab() {
                 <option value="SCADENTE">Scadente / Da ristrutturare</option>
               </select>
             </div>
+          </div>
+
+          {/* — Note & Contatto ——————————————————————————— */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Note & Contatto</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
               <label className={labelCls} style={labelStyle}>Venditore / Contatto</label>
               <input value={form.venditore} onChange={e => setForm(f => ({ ...f, venditore: e.target.value }))}
@@ -337,7 +371,9 @@ function CensimentiTab() {
                 className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+
+          <div style={{ height: 1, background: 'var(--border)' }} />
+          <div className="flex justify-center gap-3">
             <button onClick={() => setModale(false)} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
               Annulla
             </button>
@@ -624,7 +660,7 @@ function LocazioniTab() {
                 rows={2} className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-center gap-3 pt-2">
             <button onClick={() => setModale(false)} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
               Annulla
             </button>

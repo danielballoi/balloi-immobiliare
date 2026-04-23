@@ -125,28 +125,28 @@ export default function Sidebar({ isOpen, onToggle }) {
             gap: 10,
           }}
         >
-          {/* Monogramma */}
+          {/* Logo DBI — sostituisce il vecchio monogramma DB */}
           <button
             onClick={() => navigate('/')}
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: 'var(--accent)',
-              color: '#000',
-              fontSize: 12,
-              fontWeight: 800,
+              width: 32,
+              height: 32,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
               border: 'none',
               cursor: 'pointer',
-              letterSpacing: '-0.02em',
+              background: 'transparent',
+              padding: 0,
             }}
             title="Dashboard"
           >
-            DB
+            <img
+              src="/dbi-logo.png"
+              alt="DBI"
+              style={{ width: 32, height: 32, objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+            />
           </button>
 
           {/* Testo marca — visibile solo aperto */}
@@ -310,42 +310,6 @@ export default function Sidebar({ isOpen, onToggle }) {
           padding: '10px 8px',
           flexShrink: 0,
         }}>
-          {/* Info utente — solo aperta */}
-          {isOpen && user && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 8px',
-              borderRadius: 8,
-              marginBottom: 6,
-            }}>
-              <div style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--accent) 0%, #f97316 100%)',
-                color: '#000',
-                fontSize: 11,
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                {initiali}
-              </div>
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.nome ?? user.username ?? user.email}
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>
-                  {isAdmin ? 'Amministratore' : 'Utente'}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Logout */}
           <button
             onClick={logout}

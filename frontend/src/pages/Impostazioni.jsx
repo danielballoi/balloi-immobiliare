@@ -53,163 +53,166 @@ export default function Impostazioni() {
   }
 
   return (
-    <div className="max-w-2xl flex flex-col gap-6">
+    <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Intestazione */}
       <div>
-        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Impostazioni</h1>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Configurazione e stato del sistema</p>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Impostazioni</h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Configurazione e stato del sistema</p>
       </div>
 
-      {/* Stato backend */}
-      <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <h2 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Stato Sistema</h2>
-        {loading ? (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Verifica in corso...</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {/* Backend */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Backend Express (porta 5000)</span>
-              <span
-                className="flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded"
-                style={{
-                  background: healthStatus ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                  color: healthStatus ? 'var(--success)' : 'var(--danger)',
-                }}
-              >
-                <span className={`w-2 h-2 rounded-full ${healthStatus ? 'bg-green-500' : 'bg-red-500'}`} />
-                {healthStatus ? 'Connesso' : 'Non raggiungibile'}
-              </span>
+      {/* ── Stato Sistema ───────────────────────────────────────────────── */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Stato Sistema</h2>
+        </div>
+        <div style={{ padding: '20px 24px' }}>
+          {loading ? (
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Verifica in corso...</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                {
+                  label: 'Backend Express (porta 5000)',
+                  ok: !!healthStatus,
+                  text: healthStatus ? 'Connesso' : 'Non raggiungibile',
+                },
+                {
+                  label: 'Database MySQL (omi)',
+                  ok: !!dbStats,
+                  text: dbStats ? `Connesso · ${Number(dbStats.totale_valori).toLocaleString()} record` : 'Non raggiungibile',
+                },
+              ].map(({ label, ok, text }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '5px 10px', borderRadius: 8, flexShrink: 0, background: ok ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: ok ? 'var(--success)' : 'var(--danger)' }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: ok ? '#10b981' : '#ef4444' }} />
+                    {text}
+                  </span>
+                </div>
+              ))}
+              {healthStatus && (
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', paddingTop: 4 }}>
+                  Ultimo check: {new Date(healthStatus.timestamp).toLocaleString('it-IT')}
+                </p>
+              )}
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Database */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Database MySQL (omi)</span>
-              <span
-                className="flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded"
-                style={{
-                  background: dbStats ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                  color: dbStats ? 'var(--success)' : 'var(--danger)',
-                }}
-              >
-                <span className={`w-2 h-2 rounded-full ${dbStats ? 'bg-green-500' : 'bg-red-500'}`} />
-                {dbStats ? `Connesso · ${Number(dbStats.totale_valori).toLocaleString()} record` : 'Non raggiungibile'}
-              </span>
+      {/* ── Database OMI ────────────────────────────────────────────────── */}
+      {dbStats && (
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Database OMI</h2>
+          </div>
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center' }}>
+              {[
+                { val: Number(dbStats.totale_valori).toLocaleString(), label: 'Record Valori',   color: 'var(--accent)' },
+                { val: dbStats.totale_zone,                            label: 'Zone Mappate',    color: 'var(--text-primary)' },
+                { val: dbStats.anni_disponibili?.[0] ?? '–',           label: 'Anno Più Recente',color: 'var(--text-primary)' },
+              ].map(({ val, label, color }) => (
+                <div key={label} style={{ padding: '16px 12px', borderRadius: 10, background: 'var(--bg-secondary)' }}>
+                  <p style={{ fontSize: 24, fontWeight: 700, color, lineHeight: 1, marginBottom: 8 }}>{val}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{label}</p>
+                </div>
+              ))}
             </div>
-
-            {healthStatus && (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Ultimo check: {new Date(healthStatus.timestamp).toLocaleString('it-IT')}
+            {dbStats.anni_disponibili?.length > 0 && (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                Annate disponibili: {dbStats.anni_disponibili.join(', ')}
               </p>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Info DB */}
-      {dbStats && (
-        <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <h2 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Database OMI</h2>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>{Number(dbStats.totale_valori).toLocaleString()}</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Record Valori</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{dbStats.totale_zone}</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Zone Mappate</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{dbStats.anni_disponibili?.[0] ?? '–'}</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Anno Più Recente</p>
-            </div>
-          </div>
-          {dbStats.anni_disponibili?.length > 0 && (
-            <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-              Annate disponibili: {dbStats.anni_disponibili.join(', ')}
-            </p>
-          )}
         </div>
       )}
 
-      {/* Configurazione accesso DB */}
-      <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <h2 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Connessione Database</h2>
-        <div className="flex flex-col gap-2 text-sm font-mono">
-          {[
-            { k: 'Host',     v: 'localhost' },
-            { k: 'Porta',    v: '3306' },
-            { k: 'Database', v: 'omi' },
-            { k: 'Utente',   v: 'root' },
-          ].map(({ k, v }) => (
-            <div key={k} className="flex gap-3">
-              <span className="w-20" style={{ color: 'var(--text-muted)' }}>{k}</span>
-              <span style={{ color: 'var(--text-primary)' }}>{v}</span>
-            </div>
-          ))}
-          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-            Modifica le credenziali nel file <code className="px-1 rounded" style={{ background: 'var(--bg-hover)' }}>backend/.env</code>
+      {/* ── Connessione Database ────────────────────────────────────────── */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Connessione Database</h2>
+        </div>
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'monospace' }}>
+            {[
+              { k: 'Host',     v: 'localhost' },
+              { k: 'Porta',    v: '3306' },
+              { k: 'Database', v: 'omi' },
+              { k: 'Utente',   v: 'root' },
+            ].map(({ k, v }) => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 14px', borderRadius: 8, background: 'var(--bg-secondary)' }}>
+                <span style={{ width: 72, fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{k}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16 }}>
+            Modifica le credenziali nel file{' '}
+            <code style={{ padding: '2px 6px', borderRadius: 4, fontSize: 11, background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>backend/.env</code>
           </p>
         </div>
       </div>
-      {/* ── Segnala un problema ─────────────────────────────────────────── */}
-      <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <h2 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Segnala un Problema</h2>
-        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-          Invia una segnalazione o un bug report all'amministratore. L'admin risponderà via email all'indirizzo con cui sei registrato.
-        </p>
 
-        {segnEsito === 'ok' ? (
-          <div className="p-4 rounded-xl text-sm font-medium" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: 'var(--success)' }}>
-            ✓ Segnalazione inviata con successo! L'admin ti risponderà via email.
-            <button
-              onClick={() => setSegnEsito(null)}
-              className="block mt-2 text-xs underline"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Invia un'altra segnalazione
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={inviaSegnalazioneForm} className="flex flex-col gap-3">
-            {segnEsito === 'errore' && (
-              <p className="text-xs p-2 rounded" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
-                Errore durante l'invio. Riprova.
-              </p>
-            )}
-            <div>
-              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Oggetto</label>
-              <input
-                value={segnOggetto}
-                onChange={e => setSegnOggetto(e.target.value)}
-                placeholder="Es. Bug nella dashboard, Richiesta funzionalità…"
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              />
-            </div>
-            <div>
-              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Messaggio *</label>
-              <textarea
-                required
-                value={segnMessaggio}
-                onChange={e => setSegnMessaggio(e.target.value)}
-                rows={4}
-                placeholder="Descrivi il problema o la richiesta nel dettaglio…"
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', resize: 'vertical' }}
-              />
-            </div>
-            <div className="flex justify-end">
+      {/* ── Segnala un Problema ─────────────────────────────────────────── */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, letterSpacing: '-0.01em' }}>Segnala un Problema</h2>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            Invia una segnalazione o un bug report all'amministratore. L'admin risponderà via email all'indirizzo con cui sei registrato.
+          </p>
+        </div>
+        <div style={{ padding: '24px' }}>
+          {segnEsito === 'ok' ? (
+            <div style={{ padding: '16px 20px', borderRadius: 12, fontSize: 13, fontWeight: 500, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: 'var(--success)' }}>
+              ✓ Segnalazione inviata con successo! L'admin ti risponderà via email.
               <button
-                type="submit"
-                disabled={segnInvio || !segnMessaggio.trim()}
-                className="disabled:opacity-50"
-                style={{ padding: '10px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                onClick={() => setSegnEsito(null)}
+                style={{ display: 'block', marginTop: 10, fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
               >
-                {segnInvio ? 'Invio in corso…' : 'Invia Segnalazione'}
+                Invia un'altra segnalazione
               </button>
             </div>
-          </form>
-        )}
+          ) : (
+            <form onSubmit={inviaSegnalazioneForm} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {segnEsito === 'errore' && (
+                <p style={{ padding: '10px 14px', borderRadius: 8, fontSize: 12, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  Errore durante l'invio. Riprova.
+                </p>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.01em' }}>Oggetto</label>
+                <input
+                  value={segnOggetto}
+                  onChange={e => setSegnOggetto(e.target.value)}
+                  placeholder="Es. Bug nella dashboard, Richiesta funzionalità…"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.01em' }}>Messaggio *</label>
+                <textarea
+                  required
+                  value={segnMessaggio}
+                  onChange={e => setSegnMessaggio(e.target.value)}
+                  rows={5}
+                  placeholder="Descrivi il problema o la richiesta nel dettaglio…"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <button
+                  type="submit"
+                  disabled={segnInvio || !segnMessaggio.trim()}
+                  style={{ padding: '12px 32px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: segnInvio ? 'not-allowed' : 'pointer', opacity: (segnInvio || !segnMessaggio.trim()) ? 0.5 : 1 }}
+                >
+                  {segnInvio ? 'Invio in corso…' : 'Invia Segnalazione'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

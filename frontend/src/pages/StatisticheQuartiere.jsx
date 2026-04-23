@@ -224,152 +224,154 @@ export default function StatisticheQuartiere() {
 
             {/* Grafico AreaChart (occupa 2/3) */}
             <div
-              className="lg:col-span-2 rounded-xl p-5"
+              className="lg:col-span-2 rounded-xl overflow-hidden"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  Andamento Prezzi Storici · {nomeEffettivo}
+              {/* Header */}
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  Andamento Prezzi Storici · {nomeEffettivo?.replace(/^'+|'+$/g, '').trim()}
                 </h2>
-                <span className="text-xs px-2 py-1 rounded-lg" style={{
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-muted)',
-                }}>
+                <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   2020 – 2025
                 </span>
               </div>
-
-              {trend.length === 0 ? (
-                <EmptyState
-                  icon="📊"
-                  title="Nessun dato storico"
-                  message="Non ci sono dati di trend disponibili per questo quartiere."
-                />
-              ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={trend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="gradCompra" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="gradLoc" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.20} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis
-                      dataKey="anno"
-                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                      axisLine={{ stroke: 'var(--border)' }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={v => v >= 1000 ? `€${(v / 1000).toFixed(0)}k` : `€${v}`}
-                    />
-                    <Tooltip content={<TooltipGrafico />} />
-                    <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 8 }} />
-                    <Area
-                      type="monotone"
-                      dataKey="prezzo_medio_mq"
-                      name="Compravendita €/mq"
-                      stroke="#f59e0b"
-                      strokeWidth={2.5}
-                      fill="url(#gradCompra)"
-                      dot={{ fill: '#f59e0b', r: 4, strokeWidth: 0 }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="locazione_media_mq"
-                      name="Locazione €/mq/mese"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      fill="url(#gradLoc)"
-                      dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }}
-                      activeDot={{ r: 5 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
+              {/* Contenuto */}
+              <div style={{ padding: '24px' }}>
+                {trend.length === 0 ? (
+                  <EmptyState
+                    icon="📊"
+                    title="Nessun dato storico"
+                    message="Non ci sono dati di trend disponibili per questo quartiere."
+                  />
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={trend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="gradCompra" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+                        </linearGradient>
+                        <linearGradient id="gradLoc" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.20} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis
+                        dataKey="anno"
+                        tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={v => v >= 1000 ? `€${(v / 1000).toFixed(0)}k` : `€${v}`}
+                      />
+                      <Tooltip content={<TooltipGrafico />} />
+                      <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 8 }} />
+                      <Area
+                        type="monotone"
+                        dataKey="prezzo_medio_mq"
+                        name="Compravendita €/mq"
+                        stroke="#f59e0b"
+                        strokeWidth={2.5}
+                        fill="url(#gradCompra)"
+                        dot={{ fill: '#f59e0b', r: 4, strokeWidth: 0 }}
+                        activeDot={{ r: 6 }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="locazione_media_mq"
+                        name="Locazione €/mq/mese"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        fill="url(#gradLoc)"
+                        dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
 
             {/* Indice Rischio/Opportunità (1/3) */}
             <div
-              className="rounded-xl p-5 flex flex-col gap-5"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              className="rounded-xl overflow-hidden"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}
             >
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Indice Opportunità
-              </h2>
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative w-32 h-32">
-                  <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                    <circle cx="18" cy="18" r="15.9" fill="none"
-                      stroke="var(--border)" strokeWidth="3" />
-                    <circle
-                      cx="18" cy="18" r="15.9"
-                      fill="none"
-                      stroke={
-                        indiceOpportunita > 70 ? 'var(--success)'
-                          : indiceOpportunita > 40 ? 'var(--warning)'
-                          : 'var(--danger)'
-                      }
-                      strokeWidth="3"
-                      strokeDasharray={`${indiceOpportunita} 100`}
-                      strokeLinecap="round"
-                      style={{ transition: 'stroke-dasharray 0.5s ease' }}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                      {indiceOpportunita}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>/100</span>
-                  </div>
-                </div>
-                <span
-                  className="text-sm font-semibold px-3 py-1 rounded-full"
-                  style={{
-                    background: indiceOpportunita > 70
-                      ? 'rgba(16,185,129,0.12)'
-                      : indiceOpportunita > 40 ? 'rgba(245,158,11,0.12)'
-                      : 'rgba(239,68,68,0.12)',
-                    color: indiceOpportunita > 70 ? 'var(--success)'
-                      : indiceOpportunita > 40 ? 'var(--warning)'
-                      : 'var(--danger)',
-                  }}
-                >
-                  {indiceOpportunita > 70 ? 'Alta Opportunità'
-                    : indiceOpportunita > 40 ? 'Opportunità Media'
-                    : 'Bassa Opportunità'}
-                </span>
+              {/* Header */}
+              <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  Indice Opportunità
+                </h2>
               </div>
-              {/* Metriche in grid 2x2 per maggiore leggibilità */}
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: 'ROI lordo',            val: `${roiLordo.toFixed(1)}%`,   color: roiLordo > 5 ? 'var(--success)' : 'var(--warning)' },
-                  { label: 'Tipologie analizzate', val: statistiche.length,           color: 'var(--text-primary)' },
-                  { label: 'Anni di storico',      val: trend.length,                 color: 'var(--text-primary)' },
-                  { label: 'Variazione mercato',   val: variazionePerc !== null ? `${variazionePerc > 0 ? '+' : ''}${variazionePerc.toFixed(1)}%` : '–', color: variazionePerc > 0 ? 'var(--success)' : 'var(--danger)' },
-                ].map(({ label, val, color }) => (
-                  <div
-                    key={label}
-                    className="rounded-lg p-2.5 text-center"
-                    style={{ background: 'var(--bg-secondary)' }}
-                  >
-                    <p className="text-lg font-bold leading-none mb-1" style={{ color }}>
-                      {val}
-                    </p>
-                    <p className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>
-                      {label}
-                    </p>
+              {/* Contenuto */}
+              <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+                  <div className="relative w-32 h-32">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <circle cx="18" cy="18" r="15.9" fill="none"
+                        stroke="var(--border)" strokeWidth="3" />
+                      <circle
+                        cx="18" cy="18" r="15.9"
+                        fill="none"
+                        stroke={
+                          indiceOpportunita > 70 ? 'var(--success)'
+                            : indiceOpportunita > 40 ? 'var(--warning)'
+                            : 'var(--danger)'
+                        }
+                        strokeWidth="3"
+                        strokeDasharray={`${indiceOpportunita} 100`}
+                        strokeLinecap="round"
+                        style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                        {indiceOpportunita}
+                      </span>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>/100</span>
+                    </div>
                   </div>
-                ))}
+                  <span
+                    style={{
+                      fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 20,
+                      background: indiceOpportunita > 70
+                        ? 'rgba(16,185,129,0.12)'
+                        : indiceOpportunita > 40 ? 'rgba(245,158,11,0.12)'
+                        : 'rgba(239,68,68,0.12)',
+                      color: indiceOpportunita > 70 ? 'var(--success)'
+                        : indiceOpportunita > 40 ? 'var(--warning)'
+                        : 'var(--danger)',
+                    }}
+                  >
+                    {indiceOpportunita > 70 ? 'Alta Opportunità'
+                      : indiceOpportunita > 40 ? 'Opportunità Media'
+                      : 'Bassa Opportunità'}
+                  </span>
+                </div>
+
+                {/* Metriche 2×2 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { label: 'ROI lordo',            val: `${roiLordo.toFixed(1)}%`,   color: roiLordo > 5 ? 'var(--success)' : 'var(--warning)' },
+                    { label: 'Tipologie analizzate', val: statistiche.length,           color: 'var(--text-primary)' },
+                    { label: 'Anni di storico',      val: trend.length,                 color: 'var(--text-primary)' },
+                    { label: 'Variazione mercato',   val: variazionePerc !== null ? `${variazionePerc > 0 ? '+' : ''}${variazionePerc.toFixed(1)}%` : '–', color: variazionePerc > 0 ? 'var(--success)' : 'var(--danger)' },
+                  ].map(({ label, val, color }) => (
+                    <div
+                      key={label}
+                      style={{ borderRadius: 10, padding: '12px 10px', textAlign: 'center', background: 'var(--bg-secondary)' }}
+                    >
+                      <p style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, marginBottom: 6, color }}>{val}</p>
+                      <p style={{ fontSize: 11, lineHeight: 1.4, color: 'var(--text-muted)' }}>{label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -377,26 +379,26 @@ export default function StatisticheQuartiere() {
           {/* ── Tabella analisi per tipologia ─────────────────────────────── */}
           {statistiche.length > 0 && (
             <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              <div
-                className="px-5 py-3.5 flex items-center justify-between flex-wrap gap-2"
-                style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}
-              >
-                <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+
+              {/* ZONA 1 — header */}
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                   Analisi per Tipologia · Anno più recente
                 </h2>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   Clicca su una riga per vedere l'andamento storico →
                 </span>
               </div>
+
+              {/* ZONA 2 — tabella */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ background: 'var(--bg-secondary)' }}>
+                    <tr style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
                       {['Tipologia', 'Stato', 'Min €/mq', 'Medio €/mq', 'Max €/mq', 'Loc. €/mq/m'].map(h => (
                         <th
                           key={h}
-                          className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider"
-                          style={{ color: 'var(--text-muted)' }}
+                          style={{ padding: '14px 24px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}
                         >
                           {h}
                         </th>
@@ -412,27 +414,27 @@ export default function StatisticheQuartiere() {
                             `/tipologia?nome=${encodeURIComponent(nomeEffettivo)}&tipo=${encodeURIComponent(r.descrizione_tipologia)}&stato=${r.stato}`
                           )
                         }
-                        className="cursor-pointer"
                         style={{
                           background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
                           borderTop: '1px solid var(--border)',
                           transition: 'background 0.15s',
+                          cursor: 'pointer',
                         }}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'}
                       >
-                        <td className="px-5 py-4 font-medium" style={{ color: 'var(--accent)' }}>
-                          <span className="flex items-center gap-1.5">
+                        <td style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--accent)' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {r.descrizione_tipologia}
-                            <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg style={{ width: 12, height: 12, opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-sm">
+                        <td style={{ padding: '16px 24px' }}>
                           <span
-                            className="px-2 py-0.5 rounded text-xs font-medium"
                             style={{
+                              padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
                               background: r.stato === 'OTTIMO' ? 'rgba(16,185,129,0.15)'
                                 : r.stato === 'SCADENTE' ? 'rgba(239,68,68,0.15)'
                                 : 'rgba(245,158,11,0.15)',
@@ -444,10 +446,10 @@ export default function StatisticheQuartiere() {
                             {r.stato}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_min)}</td>
-                        <td className="px-5 py-3 font-semibold" style={{ color: 'var(--text-primary)' }}>{formatEuro(r.prezzo_medio_mq)}</td>
-                        <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_max)}</td>
-                        <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+                        <td style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_min)}</td>
+                        <td style={{ padding: '16px 24px', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{formatEuro(r.prezzo_medio_mq)}</td>
+                        <td style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_max)}</td>
+                        <td style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>
                           {r.locazione_media_mq ? `€ ${parseFloat(r.locazione_media_mq).toFixed(1)}` : '–'}
                         </td>
                       </tr>
