@@ -1,46 +1,146 @@
 /* Tailwind CSS v4 */
 @import "tailwindcss";
 
-/*
-  Variabili CSS del tema scuro Balloi Immobiliare.
-  Definirle qui centralizza i colori: se vuoi cambiare il tema,
-  modifichi solo questo file e tutto si aggiorna.
-*/
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS — Daniel Balloi Immobiliare
+   Dark theme ispirato a Linear / Vercel / Stripe
+   ═══════════════════════════════════════════════════════════════ */
 :root {
-  --bg-primary:   #0f1117;
-  --bg-secondary: #1a1d27;
-  --bg-card:      #1e2130;
-  --bg-hover:     #252840;
-  --accent:       #f59e0b;
-  --accent-hover: #d97706;
-  --text-primary: #f1f5f9;
-  --text-muted:   #64748b;
-  --border:       #2d3148;
-  --success:      #10b981;
-  --danger:       #ef4444;
-  --warning:      #f59e0b;
-  --info:         #3b82f6;
+  /* ── Backgrounds (blue-tinted darks) ── */
+  --bg-primary:    #080b12;   /* sfondo pagina */
+  --bg-secondary:  #0d1017;   /* sidebar / nav */
+  --bg-card:       #111827;   /* card surfaces */
+  --bg-elevated:   #171f30;   /* hover / panel */
+  --bg-hover:      #1a2236;   /* hover overlay */
+  --bg-input:      #0f1520;   /* input fields */
 
-  /* Ombre cards — usate inline per profondità */
-  --shadow-card:     0 4px 12px rgba(0,0,0,0.25);
-  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.40);
+  /* ── Borders ── */
+  --border:        rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.12);
+  --border-accent: rgba(245,158,11,0.35);
+
+  /* ── Brand accent (amber) ── */
+  --accent:        #f59e0b;
+  --accent-hover:  #d97706;
+  --accent-dim:    rgba(245,158,11,0.1);
+  --accent-dim2:   rgba(245,158,11,0.06);
+
+  /* ── Text ── */
+  --text-primary:   #e8edf5;
+  --text-secondary: #8b98b0;
+  --text-muted:     #4d5a72;
+  --text-disabled:  #2a3347;
+
+  /* ── Semantic colors ── */
+  --success:      #22c55e;
+  --success-dim:  rgba(34,197,94,0.1);
+  --danger:       #f43f5e;
+  --danger-dim:   rgba(244,63,94,0.1);
+  --warning:      #f59e0b;
+  --warning-dim:  rgba(245,158,11,0.1);
+  --info:         #60a5fa;
+  --info-dim:     rgba(96,165,250,0.1);
+
+  /* ── Shadows ── */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:   0 4px 8px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+  --shadow-lg:   0 12px 28px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 4px 16px rgba(0,0,0,0.3);
+
+  /* ── Sidebar ── */
+  --sidebar-width:       220px;
+  --sidebar-width-sm:    48px;
+
+  /* ── Radius ── */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  18px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Base ───────────────────────────────────────────────────────── */
+html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
+  line-height: 1.5;
 }
 
-/* Scrollbar sottile stile dark */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg-secondary); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+/* ── Typography helpers ─────────────────────────────────────────── */
+.text-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 
-/* Leaflet: override sfondo mappa per tema scuro */
-.leaflet-container { background: #1a1d27 !important; border-radius: 8px; }
-.leaflet-control-attribution { background: rgba(15,17,23,0.8) !important; color: #64748b !important; }
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+/* ── Focus ring ─────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Input base ─────────────────────────────────────────────────── */
+input, select, textarea {
+  font-family: inherit;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+}
+input::placeholder, textarea::placeholder { color: var(--text-disabled); }
+
+/* ── Button base ────────────────────────────────────────────────── */
+button { font-family: inherit; cursor: pointer; }
+
+/* ── Leaflet dark override ──────────────────────────────────────── */
+.leaflet-container { background: #0d1017 !important; border-radius: 8px; }
+.leaflet-control-attribution { background: rgba(8,11,18,0.85) !important; color: var(--text-muted) !important; }
+
+/* ── Micro-animations ───────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.2s ease; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slideIn { animation: slideIn 0.2s ease; }
+
+/* ── Card pattern ───────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Gradient text ──────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #f59e0b 0%, #fcd34d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

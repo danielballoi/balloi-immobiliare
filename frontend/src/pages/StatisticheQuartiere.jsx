@@ -149,7 +149,7 @@ export default function StatisticheQuartiere() {
   return (
     <div className="flex flex-col gap-6">
 
-      {/* ── Intestazione + selettore quartiere ──────────────────────────── */}
+      {/* ── Intestazione ────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -160,92 +160,6 @@ export default function StatisticheQuartiere() {
           </p>
         </div>
 
-        {/* Barra ricerca avanzata — toggle Cagliari Città/Comune + autocomplete */}
-        <div className="relative" style={{ minWidth: 300 }}>
-          {loadingZone ? (
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Caricamento zone…</span>
-          ) : (
-            <>
-              {/* Toggle area: Cagliari Città | Cagliari Comune */}
-              <div className="flex gap-1 mb-2">
-                {[
-                  { value: 'CAGLIARI',   label: 'Cagliari Città'  },
-                  { value: 'HINTERLAND', label: 'Cagliari Comune' },
-                ].map(tab => (
-                  <button
-                    key={tab.value}
-                    onClick={() => { setAreaRicerca(tab.value); setTestoCerca(''); }}
-                    className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
-                    style={{
-                      background: areaRicerca === tab.value ? 'var(--accent)' : 'var(--bg-secondary)',
-                      color:      areaRicerca === tab.value ? '#000'          : 'var(--text-muted)',
-                      border:     `1px solid ${areaRicerca === tab.value ? 'var(--accent)' : 'var(--border)'}`,
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Input testo + dropdown autocomplete */}
-              <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  value={testoCerca}
-                  onChange={e => { setTestoCerca(e.target.value); setDropdownAperto(true); }}
-                  onFocus={() => setDropdownAperto(true)}
-                  onBlur={() => setTimeout(() => setDropdownAperto(false), 150)}
-                  placeholder={areaRicerca === 'CAGLIARI' ? 'Cerca quartiere…' : 'Cerca comune…'}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm"
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                  }}
-                />
-
-                {/* Dropdown suggerimenti autocomplete */}
-                {dropdownAperto && zoneSuggerite.length > 0 && (
-                  <div
-                    className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden shadow-2xl z-50"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-                  >
-                    {zoneSuggerite.map((z, i) => (
-                      <button
-                        key={z.link_zona ?? z.descrizione_zona}
-                        onMouseDown={() => onCambioZona(z.descrizione_zona)}
-                        className="w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-2"
-                        style={{
-                          background: 'transparent',
-                          color: 'var(--text-primary)',
-                          borderTop: i > 0 ? '1px solid var(--border)' : 'none',
-                          transition: 'background 0.1s',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <span className="truncate">{z.descrizione_zona}</span>
-                        {areaRicerca === 'HINTERLAND' && z.comune && (
-                          <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
-                            {z.comune}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       {/* ── Contenuto principale ─────────────────────────────────────────── */}
@@ -259,14 +173,16 @@ export default function StatisticheQuartiere() {
         <LoadingSpinner text={`Caricamento dati ${nomeEffettivo}…`} />
       ) : (
         <>
-          {/* Breadcrumb */}
+          {/* Breadcrumb — cleanNome rimuove apostrofi iniziali/finali */}
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
             {infoZona?.comune && infoZona.comune !== 'Cagliari'
               ? <span>{infoZona.comune}</span>
               : <span>Cagliari</span>
             }
             <span>›</span>
-            <span style={{ color: 'var(--accent)' }}>{nomeEffettivo}</span>
+            <span style={{ color: 'var(--accent)' }}>
+              {nomeEffettivo?.replace(/^'+|'+$/g, '').trim() ?? nomeEffettivo}
+            </span>
             {infoZona?.fascia && (
               <span
                 className="px-2 py-0.5 rounded text-xs font-medium"
@@ -433,16 +349,25 @@ export default function StatisticheQuartiere() {
                     : 'Bassa Opportunità'}
                 </span>
               </div>
-              <div className="flex flex-col gap-3 text-xs">
+              {/* Metriche in grid 2x2 per maggiore leggibilità */}
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'ROI lordo',             val: `${roiLordo.toFixed(1)}%` },
-                  { label: 'Tipologie analizzate',  val: statistiche.length },
-                  { label: 'Anni di storico',       val: trend.length },
-                  { label: 'Variazione mercato',    val: variazionePerc !== null ? `${variazionePerc > 0 ? '+' : ''}${variazionePerc.toFixed(1)}%` : '–' },
-                ].map(({ label, val }) => (
-                  <div key={label} className="flex justify-between items-center">
-                    <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{val}</span>
+                  { label: 'ROI lordo',            val: `${roiLordo.toFixed(1)}%`,   color: roiLordo > 5 ? 'var(--success)' : 'var(--warning)' },
+                  { label: 'Tipologie analizzate', val: statistiche.length,           color: 'var(--text-primary)' },
+                  { label: 'Anni di storico',      val: trend.length,                 color: 'var(--text-primary)' },
+                  { label: 'Variazione mercato',   val: variazionePerc !== null ? `${variazionePerc > 0 ? '+' : ''}${variazionePerc.toFixed(1)}%` : '–', color: variazionePerc > 0 ? 'var(--success)' : 'var(--danger)' },
+                ].map(({ label, val, color }) => (
+                  <div
+                    key={label}
+                    className="rounded-lg p-2.5 text-center"
+                    style={{ background: 'var(--bg-secondary)' }}
+                  >
+                    <p className="text-lg font-bold leading-none mb-1" style={{ color }}>
+                      {val}
+                    </p>
+                    <p className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>
+                      {label}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -464,13 +389,13 @@ export default function StatisticheQuartiere() {
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full">
                   <thead>
                     <tr style={{ background: 'var(--bg-secondary)' }}>
-                      {['Tipologia', 'Stato', 'Min €/mq', 'Medio €/mq', 'Max €/mq', 'Loc. €/mq/m', 'Records'].map(h => (
+                      {['Tipologia', 'Stato', 'Min €/mq', 'Medio €/mq', 'Max €/mq', 'Loc. €/mq/m'].map(h => (
                         <th
                           key={h}
-                          className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                          className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider"
                           style={{ color: 'var(--text-muted)' }}
                         >
                           {h}
@@ -496,7 +421,7 @@ export default function StatisticheQuartiere() {
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'}
                       >
-                        <td className="px-5 py-3 font-medium" style={{ color: 'var(--accent)' }}>
+                        <td className="px-5 py-4 font-medium" style={{ color: 'var(--accent)' }}>
                           <span className="flex items-center gap-1.5">
                             {r.descrizione_tipologia}
                             <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -504,7 +429,7 @@ export default function StatisticheQuartiere() {
                             </svg>
                           </span>
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-5 py-4 text-sm">
                           <span
                             className="px-2 py-0.5 rounded text-xs font-medium"
                             style={{
@@ -519,14 +444,11 @@ export default function StatisticheQuartiere() {
                             {r.stato}
                           </span>
                         </td>
-                        <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_min)}</td>
+                        <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_min)}</td>
                         <td className="px-5 py-3 font-semibold" style={{ color: 'var(--text-primary)' }}>{formatEuro(r.prezzo_medio_mq)}</td>
-                        <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_max)}</td>
-                        <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>
+                        <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{formatEuro(r.prezzo_max)}</td>
+                        <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
                           {r.locazione_media_mq ? `€ ${parseFloat(r.locazione_media_mq).toFixed(1)}` : '–'}
-                        </td>
-                        <td className="px-5 py-3 text-center font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {r.num_records}
                         </td>
                       </tr>
                     ))}

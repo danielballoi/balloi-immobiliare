@@ -17,7 +17,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { searchStrade } from '../services/api';
 
-export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder = 'Cerca via…', className = '' }) {
+/**
+ * compact=true → stile input normale (per wizard form)
+ * compact=false (default) → stile glassmorphism (per hero image)
+ */
+export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder = 'Cerca via…', className = '', compact = false }) {
   const [query,     setQuery]     = useState('');
   const [risultati, setRisultati] = useState([]);
   const [loading,   setLoading]   = useState(false);
@@ -116,26 +120,31 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
   return (
     <div className={`relative ${className}`}>
 
-      {/* Input di ricerca */}
+      {/* Input di ricerca — stile diverso a seconda di compact */}
       <div
         className="flex items-center rounded-xl"
-        style={{
-          background:     'rgba(15,17,23,0.65)',
+        style={compact ? {
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+        } : {
+          background:     'rgba(15,17,23,0.70)',
           backdropFilter: 'blur(12px)',
-          border:         '1px solid rgba(255,255,255,0.20)',
+          border:         '1px solid rgba(255,255,255,0.25)',
         }}
       >
-        {/* Icona lente o spinner */}
-        <div className="ml-4 w-4 h-4 shrink-0 flex items-center justify-center">
+        <div className="ml-4 w-5 h-5 shrink-0 flex items-center justify-center">
           {loading ? (
-            // Spinner animato mentre carica
             <div
               className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: 'rgba(255,255,255,0.45)', borderTopColor: 'transparent' }}
+              style={compact
+                ? { borderColor: 'var(--text-muted)', borderTopColor: 'transparent' }
+                : { borderColor: 'rgba(255,255,255,0.45)', borderTopColor: 'transparent' }
+              }
             />
           ) : (
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              className="w-4 h-4"
+              style={{ color: compact ? 'var(--text-muted)' : 'rgba(255,255,255,0.45)' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M17.657 16.657L22 21m-4.343-4.343A8 8 0 1 0 5.686 5.686a8 8 0 0 0 11.971 10.971z" />
             </svg>
@@ -150,16 +159,21 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
           onFocus={() => risultati.length > 0 && setAperto(true)}
           placeholder={placeholder}
           autoComplete="off"
-          className="flex-1 px-3 py-3 text-sm placeholder:text-white/40 bg-transparent"
-          style={{ color: '#fff', outline: 'none' }}
+          className={`flex-1 bg-transparent ${compact ? 'px-3 py-2 text-sm' : 'px-4 py-4 text-base'}`}
+          style={compact
+            ? { color: 'var(--text-primary)', outline: 'none' }
+            : { color: '#fff', outline: 'none' }
+          }
         />
 
-        {/* X per svuotare */}
         {query && (
           <button
             onClick={svuota}
             className="mr-3 w-5 h-5 rounded-full flex items-center justify-center text-xs leading-none"
-            style={{ background: 'rgba(255,255,255,0.20)', color: '#fff' }}
+            style={compact
+              ? { background: 'var(--bg-hover)', color: 'var(--text-muted)' }
+              : { background: 'rgba(255,255,255,0.20)', color: '#fff' }
+            }
           >
             ×
           </button>
@@ -177,27 +191,44 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
             <button
               key={item.via}
               onMouseDown={(e) => {
-                // mousedown invece di onClick per evitare il blur dell'input
                 e.preventDefault();
                 seleziona(item);
               }}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-left text-sm transition-colors"
               style={{
-                background:   idx === indiceFocus ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '11px 20px',
+                textAlign: 'left',
+                fontSize: 14,
+                cursor: 'pointer',
+                border: 'none',
                 borderBottom: idx < risultati.length - 1 ? '1px solid var(--border)' : 'none',
-                color:        'var(--text-primary)',
+                background: idx === indiceFocus ? 'var(--bg-hover)' : 'transparent',
+                color: 'var(--text-primary)',
+                transition: 'background 0.1s',
               }}
               onMouseEnter={() => setIndiceFocus(idx)}
             >
-              {/* Sinistra: nome via in formato leggibile (es. "DELLE LIBELLULE") */}
-              <span className="font-medium truncate">
+              {/* Via */}
+              <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                 <HighlightMatch testo={formatVia(item.via)} query={query} />
               </span>
 
-              {/* Destra: zona OMI ufficiale (se disponibile) o quartiere stradario */}
+              {/* Zona / quartiere */}
               <span
-                className="ml-3 px-2 py-0.5 rounded text-xs shrink-0 font-medium"
-                style={{ background: 'rgba(99,179,237,0.15)', color: '#63b3ed' }}
+                style={{
+                  marginLeft: 12,
+                  marginRight: 4,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  flexShrink: 0,
+                  background: 'rgba(99,179,237,0.15)',
+                  color: '#63b3ed',
+                }}
               >
                 {item.zona_nome || item.quartiere}
               </span>

@@ -17,6 +17,7 @@ const express      = require('express');
 const requireAuth  = require('../middleware/auth');
 const requireAdmin = require('../middleware/requireAdmin');
 const User         = require('../models/User');
+const { pool }     = require('../config/db');
 
 const router = express.Router();
 
@@ -33,7 +34,13 @@ router.get('/', async (req, res) => {
     const conteggi = { pending: 0, attivo: 0, bloccato: 0, totale: utenti.length };
     utenti.forEach(u => { if (conteggi[u.stato] !== undefined) conteggi[u.stato]++; });
 
-    console.log(`[UTENZE] Lista richiesta da admin ${req.user.email}: ${utenti.length} utenti`);
+    // Conta segnalazioni nuove — per il badge "nuovo messaggio"
+    const [[rowSeg]] = await pool.query(
+      "SELECT COUNT(*) as nuove FROM segnalazioni WHERE stato = 'NUOVO'"
+    );
+    conteggi.messaggi_nuovi = rowSeg.nuove;
+
+    console.log(`[UTENZE] Lista richiesta da admin ${req.user.email}: ${utenti.length} utenti, ${rowSeg.nuove} messaggi nuovi`);
     res.json({ utenti, conteggi });
   } catch (err) {
     console.error('[UTENZE] Errore lista:', err.message);

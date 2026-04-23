@@ -197,6 +197,67 @@ async function initDB() {
       );
     }
 
+    // Tabella censimenti_immobili — immobili registrati manualmente dall'utente
+    // stato_interesse: COMPRATO (verde) o INTERESSATO (giallo)
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS censimenti_immobili (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        titolo VARCHAR(200),
+        indirizzo VARCHAR(200),
+        quartiere VARCHAR(100),
+        tipologia VARCHAR(100),
+        superficie_mq DECIMAL(8,2),
+        prezzo_richiesto DECIMAL(12,2),
+        stato_interesse ENUM('COMPRATO','INTERESSATO') DEFAULT 'INTERESSATO',
+        stato_immobile VARCHAR(20),
+        venditore VARCHAR(100),
+        note TEXT,
+        data_inserimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Tabella locazioni_attive — contratti di affitto gestiti dall'utente
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS locazioni_attive (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        indirizzo VARCHAR(200),
+        quartiere VARCHAR(100),
+        tipologia VARCHAR(100),
+        superficie_mq DECIMAL(8,2),
+        canone_mensile DECIMAL(10,2),
+        nome_inquilino VARCHAR(100),
+        cognome_inquilino VARCHAR(100),
+        email_inquilino VARCHAR(255),
+        telefono_inquilino VARCHAR(30),
+        data_inizio DATE,
+        data_fine DATE,
+        stato ENUM('ATTIVA','SCADUTA','TERMINATA') DEFAULT 'ATTIVA',
+        note TEXT,
+        data_inserimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Tabella segnalazioni — messaggi inviati dagli utenti all'admin
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS segnalazioni (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        oggetto VARCHAR(200),
+        messaggio TEXT NOT NULL,
+        stato ENUM('NUOVO','LETTO') DEFAULT 'NUOVO',
+        data_invio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Aggiunge user_id alle tabelle valutazioni e portafoglio (idempotente)
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN user_id INT DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN user_id INT DEFAULT NULL`).catch(() => {});
+
     console.log('[DB] Tabelle verificate/create con successo');
   } finally {
     conn.release();
