@@ -1,61 +1,165 @@
 /**
- * Layout - Struttura principale dell'applicazione
- *
- * Questo componente definisce lo "scheletro" visivo dell'app:
- * - Sidebar a sinistra (navigazione)
- * - Area di contenuto a destra (dove vengono renderizzate le pagine)
- *
- * React Router renderizza le pagine nell'<Outlet />,
- * che è il "segnaposto" dove appare il contenuto della route attiva.
+ * Layout — Struttura principale dell'applicazione
+ * Header in alto con saluto + Sidebar a sinistra + area contenuto.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
-  // Stato per il menu mobile (collassato/espanso su schermi piccoli)
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+
+  const [sidebarOpen, setSidebarOpen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
+
+  useEffect(() => {
+    function onResize() {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) setSidebarOpen(true);
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const nomeUtente = user?.nome ?? user?.username ?? 'Utente';
+  const ora = new Date().getHours();
+  const saluto = ora < 12 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
+  const icona  = ora >= 6 && ora < 12 ? '☀️' : ora >= 12 && ora < 18 ? '🌤️' : '🌙';
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary)' }}>
 
-      {/* ── Overlay mobile: sfondo scuro quando sidebar è aperta ─────────── */}
-      {sidebarOpen && (
+      {/* ── Overlay mobile ──────────────────────────────────────────── */}
+      {isMobile && sidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/60 lg:hidden"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 20,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(2px)',
+          }}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* ── Sidebar sinistra ──────────────────────────────────────────────── */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* ── Sidebar ────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: isMobile ? 'fixed' : 'relative',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          zIndex: 30,
+          transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+          transition: 'transform 0.22s ease',
+        }}
+      >
+        <Sidebar
+          isOpen={isMobile ? true : sidebarOpen}
+          onToggle={() => setSidebarOpen(v => !v)}
+        />
+      </div>
 
-      {/* ── Area principale (header + contenuto pagina) ───────────────────── */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      {/* ── Area principale ────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minWidth: 0 }}>
 
-        {/* Header mobile: mostra il pulsante hamburger solo su schermi piccoli */}
+        {/* ── Header con saluto ───────────────────────────────────── */}
         <header
-          className="flex items-center gap-3 px-4 py-3 border-b lg:hidden"
-          style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border)' }}
+          style={{
+            height: 52,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '0 20px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--bg-secondary)',
+            flexShrink: 0,
+          }}
         >
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-            aria-label="Apri menu"
-          >
-            {/* Icona hamburger (3 linee) */}
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <span className="font-semibold" style={{ color: 'var(--accent)' }}>Balloi Imm.</span>
+          {/* Hamburger mobile */}
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              aria-label="Apri menu"
+            >
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+                <path d="M1.5 3.5h12M1.5 7.5h12M1.5 11.5h12" />
+              </svg>
+            </button>
+          )}
+
+          {/* Toggle sidebar desktop — visibile solo quando chiusa */}
+          {!isMobile && !sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+              aria-label="Apri sidebar"
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 5l5 5-5 5" />
+              </svg>
+            </button>
+          )}
+
+          {/* Saluto */}
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>{icona}</span>
+            {saluto},{' '}
+            <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{nomeUtente}</span>
+          </span>
+
+          <div style={{ flex: 1 }} />
+
+          {/* Data corrente */}
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', display: isMobile ? 'none' : 'block' }}>
+            {new Date().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
         </header>
 
-        {/* ── Contenuto pagina: scrollabile indipendentemente dalla sidebar ── */}
-        <main className="flex-1 overflow-y-auto p-5 lg:p-8">
-          {/* Outlet è il punto dove React Router inserisce la pagina attiva */}
+        {/* ── Contenuto pagina ───────────────────────────────────── */}
+        <main
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: isMobile ? '20px 16px' : '28px 32px',
+          }}
+        >
           <Outlet />
         </main>
       </div>

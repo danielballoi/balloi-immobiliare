@@ -9,12 +9,18 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getImportStats } from '../services/api';
+import { getImportStats, inviaSegnalazione } from '../services/api';
 
 export default function Impostazioni() {
   const [healthStatus, setHealthStatus] = useState(null);
   const [dbStats, setDbStats]           = useState(null);
   const [loading, setLoading]           = useState(true);
+
+  // Segnalazione form
+  const [segnOggetto, setSegnOggetto]   = useState('');
+  const [segnMessaggio, setSegnMessaggio] = useState('');
+  const [segnInvio, setSegnInvio]       = useState(false); // in corso
+  const [segnEsito, setSegnEsito]       = useState(null);  // 'ok' | 'errore'
 
   useEffect(() => {
     console.log('[IMPOSTAZIONI] Verifica connessione backend');
@@ -26,6 +32,25 @@ export default function Impostazioni() {
       setDbStats(stats);
     }).finally(() => setLoading(false));
   }, []);
+
+  async function inviaSegnalazioneForm(e) {
+    e.preventDefault();
+    if (!segnMessaggio.trim()) return;
+    setSegnInvio(true);
+    setSegnEsito(null);
+    try {
+      await inviaSegnalazione({ oggetto: segnOggetto || 'Segnalazione', messaggio: segnMessaggio });
+      console.log('[IMPOSTAZIONI] Segnalazione inviata');
+      setSegnEsito('ok');
+      setSegnOggetto('');
+      setSegnMessaggio('');
+    } catch (err) {
+      console.error('[IMPOSTAZIONI] Errore invio segnalazione:', err);
+      setSegnEsito('errore');
+    } finally {
+      setSegnInvio(false);
+    }
+  }
 
   return (
     <div className="max-w-2xl flex flex-col gap-6">
@@ -125,6 +150,66 @@ export default function Impostazioni() {
             Modifica le credenziali nel file <code className="px-1 rounded" style={{ background: 'var(--bg-hover)' }}>backend/.env</code>
           </p>
         </div>
+      </div>
+      {/* ── Segnala un problema ─────────────────────────────────────────── */}
+      <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <h2 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Segnala un Problema</h2>
+        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          Invia una segnalazione o un bug report all'amministratore. L'admin risponderà via email all'indirizzo con cui sei registrato.
+        </p>
+
+        {segnEsito === 'ok' ? (
+          <div className="p-4 rounded-xl text-sm font-medium" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: 'var(--success)' }}>
+            ✓ Segnalazione inviata con successo! L'admin ti risponderà via email.
+            <button
+              onClick={() => setSegnEsito(null)}
+              className="block mt-2 text-xs underline"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Invia un'altra segnalazione
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={inviaSegnalazioneForm} className="flex flex-col gap-3">
+            {segnEsito === 'errore' && (
+              <p className="text-xs p-2 rounded" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
+                Errore durante l'invio. Riprova.
+              </p>
+            )}
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Oggetto</label>
+              <input
+                value={segnOggetto}
+                onChange={e => setSegnOggetto(e.target.value)}
+                placeholder="Es. Bug nella dashboard, Richiesta funzionalità…"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Messaggio *</label>
+              <textarea
+                required
+                value={segnMessaggio}
+                onChange={e => setSegnMessaggio(e.target.value)}
+                rows={4}
+                placeholder="Descrivi il problema o la richiesta nel dettaglio…"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', resize: 'vertical' }}
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={segnInvio || !segnMessaggio.trim()}
+                className="disabled:opacity-50"
+                style={{ padding: '10px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {segnInvio ? 'Invio in corso…' : 'Invia Segnalazione'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

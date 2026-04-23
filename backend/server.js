@@ -22,8 +22,11 @@ app.use('/api/valori', require('./routes/valori'));
 app.use('/api/valutazioni', require('./routes/valutazioni'));
 app.use('/api/portafoglio', require('./routes/portafoglio'));
 app.use('/api/import', require('./routes/import'));
-app.use('/api/ntn',    require('./routes/ntn'));
-app.use('/api/strade', require('./routes/strade'));
+app.use('/api/ntn',          require('./routes/ntn'));
+app.use('/api/strade',       require('./routes/strade'));
+app.use('/api/censimenti',   require('./routes/censimenti'));
+app.use('/api/locazioni',    require('./routes/locazioni'));
+app.use('/api/segnalazioni', require('./routes/segnalazioni'));
 
 // Health check
 app.get('/api/health', (req, res) => {
