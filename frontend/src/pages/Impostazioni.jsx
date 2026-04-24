@@ -53,7 +53,7 @@ export default function Impostazioni() {
   }
 
   return (
-    <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* Intestazione */}
       <div>

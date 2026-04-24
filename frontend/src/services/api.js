@@ -302,10 +302,12 @@ export const eliminaUtente = (id) =>
 // CENSIMENTI IMMOBILI
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const getCensimenti      = ()        => api.get('/censimenti').then(r => r.data);
-export const creaCensimento     = (dati)    => api.post('/censimenti', dati).then(r => r.data);
-export const aggiornaCensimento = (id, d)   => api.put(`/censimenti/${id}`, d).then(r => r.data);
-export const eliminaCensimento  = (id)      => api.delete(`/censimenti/${id}`).then(r => r.data);
+export const getCensimenti           = ()           => api.get('/censimenti').then(r => r.data);
+export const creaCensimento          = (dati)       => api.post('/censimenti', dati).then(r => r.data);
+export const aggiornaCensimento      = (id, d)      => api.put(`/censimenti/${id}`, d).then(r => r.data);
+export const eliminaCensimento       = (id)         => api.delete(`/censimenti/${id}`).then(r => r.data);
+export const togglePreferitoImmobile = (id, val)   => api.patch(`/censimenti/${id}/preferito`, { preferito: val }).then(r => r.data);
+export const cambiaStatoImmobile     = (id, stato) => api.patch(`/censimenti/${id}/stato`, { stato_interesse: stato }).then(r => r.data);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOCAZIONI ATTIVE

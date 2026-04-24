@@ -59,7 +59,8 @@
       "Bash(node -e \"require\\('./config/db'\\).initDB\\(\\).then\\(\\(\\) => { console.log\\('OK'\\); process.exit\\(0\\); }\\).catch\\(e => { console.error\\('ERRORE:', e.message\\); process.exit\\(1\\); }\\)\")",
       "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"danielballoi1995@outlook.it\\\\\",\\\\\"password\\\\\":\\\\\"Daniel12345!\\\\\"}\")",
       "Bash(echo \"PID: $!\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(xargs grep *)"
     ]
   }
 }
