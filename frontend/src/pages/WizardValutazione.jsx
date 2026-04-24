@@ -145,7 +145,6 @@ export default function WizardValutazione() {
   const [tipologie, setTipologie] = useState([]);
   const [loading, setLoading]     = useState(false);
   const [errore, setErrore]       = useState(null);
-  const [salvato, setSalvato]     = useState(false);
 
   // ── Stato globale valutazione ─────────────────────────────────────────
   const [val, setVal] = useState({
@@ -300,85 +299,85 @@ export default function WizardValutazione() {
   };
 
   // ── Salvataggio valutazione ──────────────────────────────────────────
-  const salvaRisultati = async (aggiungiPortafoglio = false) => {
+  const salvaRisultati = async () => {
     setLoading(true);
+    setErrore(null);
+    // Converte stringa vuota → null per i campi numerici (evita errori MySQL strict mode)
+    const n = v => (v === '' || v === null || v === undefined) ? null : Number(v);
     try {
       const payload = {
-        indirizzo:        val.indirizzo,
-        zona_codice:      val.zona_codice,
-        tipologia:        val.tipologia,
-        stato_immobile:   val.stato_immobile,
-        superficie_mq:    val.superficie_mq,
-        piano:            val.piano,
-        anno_costruzione: val.anno_costruzione || null,
-        ascensore:        val.ascensore,
-        box_auto:         val.box_auto,
-        balcone_terrazza: val.balcone_terrazza,
-        cantina:          val.cantina,
+        indirizzo:        val.indirizzo || null,
+        zona_codice:      val.zona_codice || null,
+        tipologia:        val.tipologia || null,
+        stato_immobile:   val.stato_immobile || null,
+        superficie_mq:    n(val.superficie_mq),
+        piano:            n(val.piano),
+        anno_costruzione: n(val.anno_costruzione),
+        ascensore:        val.ascensore ? 1 : 0,
+        box_auto:         val.box_auto ? 1 : 0,
+        balcone_terrazza: val.balcone_terrazza ? 1 : 0,
+        cantina:          val.cantina ? 1 : 0,
         ...(val.vcm && {
-          vcm_prezzo_base_mq:     val.vcm.prezzo_base_mq,
-          vcm_valore_min:         val.vcm.valore_min,
-          vcm_valore_medio:       val.vcm.valore_medio,
-          vcm_valore_max:         val.vcm.valore_max,
-          vcm_numero_comparabili: val.vcm.numero_comparabili,
+          vcm_prezzo_base_mq:     n(val.vcm.prezzo_base_mq),
+          vcm_valore_min:         n(val.vcm.valore_min),
+          vcm_valore_medio:       n(val.vcm.valore_medio),
+          vcm_valore_max:         n(val.vcm.valore_max),
+          vcm_numero_comparabili: n(val.vcm.numero_comparabili),
         }),
         ...(val.reddituale && {
-          red_canone_mensile_lordo: val.canone_mensile,
-          red_noi_annuo:            val.reddituale.noi_annuo,
-          red_spese_annue:          val.spese_annue,
-          red_vacancy_pct:          val.vacancy_pct,
-          red_cap_rate_pct:         val.cap_rate_pct,
-          red_valore_mercato:       val.reddituale.valore_mercato,
-          red_rendimento_lordo_pct: val.reddituale.rendimento_lordo_pct,
-          red_rendimento_netto_pct: val.reddituale.rendimento_netto_pct,
+          red_canone_mensile_lordo: n(val.canone_mensile),
+          red_noi_annuo:            n(val.reddituale.noi_annuo),
+          red_spese_annue:          n(val.spese_annue),
+          red_vacancy_pct:          n(val.vacancy_pct),
+          red_cap_rate_pct:         n(val.cap_rate_pct),
+          red_valore_mercato:       n(val.reddituale.valore_mercato),
+          red_rendimento_lordo_pct: n(val.reddituale.rendimento_lordo_pct),
+          red_rendimento_netto_pct: n(val.reddituale.rendimento_netto_pct),
         }),
         ...(val.dcf && {
-          dcf_prezzo_acquisto:            val.prezzo_acquisto,
-          dcf_costi_acquisto_pct:         val.costi_acquisto_pct,
-          dcf_costi_ristrutturazione:     val.costi_ristrutturazione,
-          dcf_capitale_investito:         val.dcf.equity,
-          dcf_ltv_pct:                    val.ltv_pct,
-          dcf_tasso_mutuo_pct:            val.tasso_mutuo_pct,
-          dcf_durata_mutuo_anni:          val.durata_mutuo_anni,
-          dcf_rata_mensile:               val.dcf.rata_mensile,
-          dcf_orizzonte_anni:             val.orizzonte_anni,
-          dcf_tasso_crescita_noi_pct:     val.tasso_crescita_noi_pct,
-          dcf_tasso_attualizzazione_pct:  val.tasso_attualizzazione_pct,
-          dcf_valore_rivendita_finale:    val.dcf.valore_rivendita_finale,
-          dcf_van:                        val.dcf.van,
-          dcf_tir_pct:                    val.dcf.tir_pct,
-          dcf_roi_totale_pct:             val.dcf.roi_totale_pct,
-          dcf_cash_on_cash_pct:           val.dcf.cash_on_cash_pct,
+          dcf_prezzo_acquisto:            n(val.prezzo_acquisto),
+          dcf_costi_acquisto_pct:         n(val.costi_acquisto_pct),
+          dcf_costi_ristrutturazione:     n(val.costi_ristrutturazione),
+          dcf_capitale_investito:         n(val.dcf.equity),
+          dcf_ltv_pct:                    n(val.ltv_pct),
+          dcf_tasso_mutuo_pct:            n(val.tasso_mutuo_pct),
+          dcf_durata_mutuo_anni:          n(val.durata_mutuo_anni),
+          dcf_rata_mensile:               n(val.dcf.rata_mensile),
+          dcf_orizzonte_anni:             n(val.orizzonte_anni),
+          dcf_tasso_crescita_noi_pct:     n(val.tasso_crescita_noi_pct),
+          dcf_tasso_attualizzazione_pct:  n(val.tasso_attualizzazione_pct),
+          dcf_valore_rivendita_finale:    n(val.dcf.valore_rivendita_finale),
+          dcf_van:                        n(val.dcf.van),
+          dcf_tir_pct:                    n(val.dcf.tir_pct),
+          dcf_roi_totale_pct:             n(val.dcf.roi_totale_pct),
+          dcf_cash_on_cash_pct:           n(val.dcf.cash_on_cash_pct),
         }),
         metodologia_principale: val.dcf ? 'DCF' : val.reddituale ? 'Reddituale' : 'VCM',
-        salvato_portafoglio: aggiungiPortafoglio ? 1 : 0,
+        salvato_portafoglio: 1,
       };
 
       const { valutazione_id } = await salvaValutazione(payload);
       console.log('[WIZARD] Valutazione salvata ID:', valutazione_id);
 
-      if (aggiungiPortafoglio) {
-        await aggiungiAPortafoglio({
-          valutazione_id,
-          indirizzo:       val.indirizzo,
-          zona_codice:     val.zona_codice,
-          tipologia:       val.tipologia,
-          stato_immobile:  val.stato_immobile,
-          superficie_mq:   val.superficie_mq,
-          prezzo_acquisto: val.prezzo_acquisto,
-          canone_mensile:  val.canone_mensile,
-          vcm_valore_medio: val.vcm?.valore_medio,
-          tir_pct:          val.dcf?.tir_pct,
-          roi_totale_pct:   val.dcf?.roi_totale_pct,
-          van:              val.dcf?.van,
-        });
-        navigate('/portafoglio');
-      } else {
-        setSalvato(true);
-      }
+      await aggiungiAPortafoglio({
+        valutazione_id,
+        indirizzo:        val.indirizzo || null,
+        zona_codice:      val.zona_codice || null,
+        tipologia:        val.tipologia || null,
+        stato_immobile:   val.stato_immobile || null,
+        superficie_mq:    n(val.superficie_mq),
+        prezzo_acquisto:  n(val.prezzo_acquisto),
+        canone_mensile:   n(val.canone_mensile),
+        vcm_valore_medio: n(val.vcm?.valore_medio),
+        tir_pct:          n(val.dcf?.tir_pct),
+        roi_totale_pct:   n(val.dcf?.roi_totale_pct),
+        van:              n(val.dcf?.van),
+      });
+
+      navigate('/portafoglio?tab=valutazioni');
     } catch (err) {
       console.error('[WIZARD] Errore salvataggio:', err);
-      setErrore('Errore durante il salvataggio');
+      setErrore('Errore durante il salvataggio. Controlla i dati inseriti.');
     } finally {
       setLoading(false);
     }
@@ -405,7 +404,7 @@ export default function WizardValutazione() {
       </div>
 
       {/* ── Card wizard: due zone visive distinte ─────────────────────────── */}
-      <div className="rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div className="rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
 
         {/* ── ZONA 1: barra avanzamento — bordo inferiore la separa dal form ── */}
         <div style={{ padding: '24px 44px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
@@ -1029,35 +1028,19 @@ export default function WizardValutazione() {
             </div>
 
             {/* Azioni */}
-            {salvato ? (
-              <div className="p-4 rounded-lg text-center" style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success)' }}>
-                ✓ Valutazione salvata — la trovi in I Miei Investimenti › Valutazioni Eseguite!
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-                <button onClick={() => setStepAttivo(3)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
-                  ← Modifica
-                </button>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => salvaRisultati(false)}
-                    disabled={loading}
-                    className="disabled:opacity-40"
-                    style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}
-                  >
-                    Salva Valutazione
-                  </button>
-                  <button
-                    onClick={() => salvaRisultati(true)}
-                    disabled={loading}
-                    className="px-6 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-40"
-                    style={{ background: 'var(--accent)', color: '#000' }}
-                  >
-                    {loading ? 'Salvataggio...' : 'Aggiungi al Portafoglio'}
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-col sm:flex-row justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setStepAttivo(3)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+                ← Modifica
+              </button>
+              <button
+                onClick={salvaRisultati}
+                disabled={loading}
+                className="disabled:opacity-40"
+                style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {loading ? 'Salvataggio...' : 'Aggiungi al Portafoglio'}
+              </button>
+            </div>
           </div>
         )}
 

@@ -250,7 +250,7 @@ export default function ImportDati() {
   const formatData = (iso) => new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
       {/* ── Intestazione ─────────────────────────────────────────────── */}
       <div>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Import Dati Hub</h1>
