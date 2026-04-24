@@ -34,24 +34,25 @@ router.get('/', async (req, res) => {
 // ── POST / — aggiunge nuovo censimento ───────────────────────────────────
 router.post('/', async (req, res) => {
   const {
-    titolo, indirizzo, quartiere, tipologia,
+    indirizzo, quartiere, tipologia,
     superficie_mq, prezzo_richiesto, stato_interesse,
-    stato_immobile, venditore, note,
+    stato_immobile, venditore, note, tipo_acquisizione, link_riferimento,
+    data_inizio_asta,
   } = req.body;
 
-  if (!indirizzo && !titolo) {
-    return res.status(400).json({ error: 'Inserisci almeno titolo o indirizzo' });
+  if (!indirizzo) {
+    return res.status(400).json({ error: 'Inserisci l\'indirizzo' });
   }
 
   try {
     const [result] = await pool.query(
       `INSERT INTO censimenti_immobili
-        (user_id, titolo, indirizzo, quartiere, tipologia, superficie_mq,
-         prezzo_richiesto, stato_interesse, stato_immobile, venditore, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, indirizzo, quartiere, tipologia, superficie_mq,
+         prezzo_richiesto, stato_interesse, stato_immobile, venditore, note,
+         tipo_acquisizione, link_riferimento, data_inizio_asta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.user.id,
-        titolo || null,
         indirizzo || null,
         quartiere || null,
         tipologia || null,
@@ -61,6 +62,9 @@ router.post('/', async (req, res) => {
         stato_immobile || null,
         venditore || null,
         note || null,
+        tipo_acquisizione || null,
+        link_riferimento || null,
+        data_inizio_asta || null,
       ]
     );
     console.log(`[CENSIMENTI] Nuovo censimento ID ${result.insertId} per utente ${req.user.id}`);
@@ -85,22 +89,26 @@ router.put('/:id', async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: 'Censimento non trovato' });
 
     const {
-      titolo, indirizzo, quartiere, tipologia,
+      indirizzo, quartiere, tipologia,
       superficie_mq, prezzo_richiesto, stato_interesse,
-      stato_immobile, venditore, note,
+      stato_immobile, venditore, note, tipo_acquisizione, link_riferimento,
+      data_inizio_asta,
     } = req.body;
 
     await pool.query(
       `UPDATE censimenti_immobili
-       SET titolo=?, indirizzo=?, quartiere=?, tipologia=?,
+       SET indirizzo=?, quartiere=?, tipologia=?,
            superficie_mq=?, prezzo_richiesto=?, stato_interesse=?,
-           stato_immobile=?, venditore=?, note=?
+           stato_immobile=?, venditore=?, note=?,
+           tipo_acquisizione=?, link_riferimento=?, data_inizio_asta=?
        WHERE id = ? AND user_id = ?`,
       [
-        titolo, indirizzo, quartiere, tipologia,
+        indirizzo, quartiere, tipologia,
         superficie_mq || null, prezzo_richiesto || null,
         stato_interesse || 'INTERESSATO', stato_immobile || null,
         venditore || null, note || null,
+        tipo_acquisizione || null, link_riferimento || null,
+        data_inizio_asta || null,
         id, req.user.id,
       ]
     );
@@ -108,6 +116,51 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     console.error('[CENSIMENTI] Errore aggiornamento:', err.message);
     res.status(500).json({ error: 'Errore durante l\'aggiornamento' });
+  }
+});
+
+// ── PATCH /:id/stato — cambia stato_interesse dell'immobile ─────────────
+router.patch('/:id/stato', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
+
+  const { stato_interesse } = req.body;
+  const statiValidi = ['COMPRATO', 'INTERESSATO', 'VENDUTO_TERZI'];
+  if (!statiValidi.includes(stato_interesse)) {
+    return res.status(400).json({ error: 'Stato non valido' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      'UPDATE censimenti_immobili SET stato_interesse = ? WHERE id = ? AND user_id = ?',
+      [stato_interesse, id, req.user.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Censimento non trovato' });
+    console.log(`[CENSIMENTI] Stato aggiornato a ${stato_interesse} per ID ${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[CENSIMENTI] Errore cambio stato:', err.message);
+    res.status(500).json({ error: 'Errore aggiornamento stato' });
+  }
+});
+
+// ── PATCH /:id/preferito — aggiunge/rimuove dai preferiti ───────────────
+router.patch('/:id/preferito', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
+
+  const { preferito } = req.body;
+  try {
+    const [result] = await pool.query(
+      'UPDATE censimenti_immobili SET preferito = ? WHERE id = ? AND user_id = ?',
+      [preferito ? 1 : 0, id, req.user.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Censimento non trovato' });
+    console.log(`[CENSIMENTI] Preferito ${preferito ? 'aggiunto' : 'rimosso'} per ID ${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[CENSIMENTI] Errore toggle preferito:', err.message);
+    res.status(500).json({ error: 'Errore aggiornamento preferito' });
   }
 });
 

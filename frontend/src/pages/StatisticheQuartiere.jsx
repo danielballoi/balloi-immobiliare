@@ -53,6 +53,88 @@ function TooltipGrafico({ active, payload, label }) {
   );
 }
 
+// ── Modal: zona senza dati disponibili ───────────────────────────────────
+// Appare automaticamente quando il quartiere/comune selezionato non ha dati OMI.
+function ModalDatiMancanti({ onChiudi, prezzoCompravendita, locazione }) {
+  const navigate = useNavigate();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/65" onClick={onChiudi} />
+      <div
+        className="relative z-10 w-full max-w-md rounded-2xl overflow-hidden"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        {/* Header */}
+        <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22 }}>📊</span>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+              Dati non disponibili
+            </h2>
+          </div>
+          <button
+            onClick={onChiudi}
+            style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)' }}>
+            Non abbiamo ancora raccolto dati sufficienti per elaborare un'analisi tecnica per questo quartiere o comune.
+          </p>
+
+          {/* Valori medi se disponibili */}
+          {(prezzoCompravendita > 0 || locazione > 0) && (
+            <div className="grid grid-cols-2 gap-3">
+              {prezzoCompravendita > 0 && (
+                <div style={{ padding: '14px 12px', borderRadius: 10, background: 'var(--bg-secondary)', textAlign: 'center' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Prezzo Compravendita
+                  </p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>
+                    {`€ ${Number(prezzoCompravendita).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`}
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>/mq</span>
+                  </p>
+                </div>
+              )}
+              {locazione > 0 && (
+                <div style={{ padding: '14px 12px', borderRadius: 10, background: 'var(--bg-secondary)', textAlign: 'center' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Locazione Media
+                  </p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--info)' }}>
+                    {`€ ${parseFloat(locazione).toFixed(1)}`}
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>/mq/m</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CTA */}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 4 }}>
+            <button
+              onClick={onChiudi}
+              style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}
+            >
+              Chiudi
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              Torna alla Home
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StatisticheQuartiere() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +145,9 @@ export default function StatisticheQuartiere() {
 
   // Stato locale: nome quartiere selezionato (può essere impostato da URL o dal selettore)
   const [zonaSelezionata, setZonaSelezionata] = useState(nomeParam || '');
+
+  // ── Modal dati mancanti: si apre quando la zona non ha dati OMI ──────────
+  const [showModalDatiMancanti, setShowModalDatiMancanti] = useState(false);
 
   // ── Stato per la barra di ricerca avanzata ───────────────────────────────
   // areaRicerca: quale gruppo mostrare nel dropdown (CAGLIARI o HINTERLAND)
@@ -132,6 +217,20 @@ export default function StatisticheQuartiere() {
     }
   }, [zone, nomeEffettivo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apre il modal se la zona selezionata non ha dati OMI disponibili
+  useEffect(() => {
+    if (loading || !nomeEffettivo) {
+      setShowModalDatiMancanti(false);
+      return;
+    }
+    if (statistiche.length === 0) {
+      console.log(`[STATISTICHE] Nessun dato OMI per "${nomeEffettivo}", mostro modal dati mancanti`);
+      setShowModalDatiMancanti(true);
+    } else {
+      setShowModalDatiMancanti(false);
+    }
+  }, [loading, nomeEffettivo, statistiche.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Aggiorna URL e stato quando l'utente seleziona un quartiere
   const onCambioZona = (nome) => {
     setZonaSelezionata(nome);
@@ -148,6 +247,15 @@ export default function StatisticheQuartiere() {
 
   return (
     <div className="flex flex-col gap-6">
+
+      {/* Modal dati mancanti — appare se la zona non ha dati OMI sufficienti */}
+      {showModalDatiMancanti && (
+        <ModalDatiMancanti
+          onChiudi={() => setShowModalDatiMancanti(false)}
+          prezzoCompravendita={prezzoMedioNormale}
+          locazione={locazioneMedioNormale}
+        />
+      )}
 
       {/* ── Intestazione ────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between flex-wrap gap-4">

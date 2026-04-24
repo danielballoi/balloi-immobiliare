@@ -217,6 +217,12 @@ async function initDB() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+    // Aggiunge colonne extra se la tabella esisteva già (idempotenti)
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN tipo_acquisizione ENUM('ASTA','AGENZIA','PRIVATO') DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN preferito TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN link_riferimento TEXT DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN data_inizio_asta DATE DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili MODIFY COLUMN stato_interesse ENUM('COMPRATO','INTERESSATO','VENDUTO_TERZI') DEFAULT 'INTERESSATO'`).catch(() => {});
 
     // Tabella locazioni_attive — contratti di affitto gestiti dall'utente
     await conn.query(`
