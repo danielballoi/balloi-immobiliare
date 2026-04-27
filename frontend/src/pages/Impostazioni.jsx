@@ -11,6 +11,46 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getImportStats, inviaSegnalazione } from '../services/api';
 
+function ModalRichiestaInviata({ onChiudi }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/65" onClick={onChiudi} />
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl overflow-hidden"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22 }}>✅</span>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+              Richiesta Inviata
+            </h2>
+          </div>
+          <button
+            onClick={onChiudi}
+            style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+        <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)' }}>
+            La tua segnalazione è stata inviata con successo. L'amministratore ti risponderà via email all'indirizzo registrato.
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button
+              onClick={onChiudi}
+              style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Impostazioni() {
   const [healthStatus, setHealthStatus] = useState(null);
   const [dbStats, setDbStats]           = useState(null);
@@ -54,6 +94,10 @@ export default function Impostazioni() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {segnEsito === 'ok' && (
+        <ModalRichiestaInviata onChiudi={() => setSegnEsito(null)} />
+      )}
 
       {/* Intestazione */}
       <div>
@@ -164,18 +208,7 @@ export default function Impostazioni() {
           </p>
         </div>
         <div style={{ padding: '24px' }}>
-          {segnEsito === 'ok' ? (
-            <div style={{ padding: '16px 20px', borderRadius: 12, fontSize: 13, fontWeight: 500, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: 'var(--success)' }}>
-              ✓ Segnalazione inviata con successo! L'admin ti risponderà via email.
-              <button
-                onClick={() => setSegnEsito(null)}
-                style={{ display: 'block', marginTop: 10, fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Invia un'altra segnalazione
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={inviaSegnalazioneForm} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <form onSubmit={inviaSegnalazioneForm} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {segnEsito === 'errore' && (
                 <p style={{ padding: '10px 14px', borderRadius: 8, fontSize: 12, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
                   Errore durante l'invio. Riprova.
@@ -211,7 +244,6 @@ export default function Impostazioni() {
                 </button>
               </div>
             </form>
-          )}
         </div>
       </div>
     </div>

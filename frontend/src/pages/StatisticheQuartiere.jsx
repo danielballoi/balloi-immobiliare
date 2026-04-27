@@ -158,8 +158,8 @@ export default function StatisticheQuartiere() {
   const [dropdownAperto, setDropdownAperto] = useState(false);
 
   // ── Hook: lista quartieri per il selettore ───────────────────────────────
-  // useHeatmap carica tutti i quartieri (area=null = tutti)
-  const { zone, loading: loadingZone } = useHeatmap('Cagliari', null);
+  // area=null + comune=null → nessun filtro → carica Cagliari + Hinterland
+  const { zone, loading: loadingZone } = useHeatmap(null, null);
 
   // ── Gestione compatibilità ?zona=CODICE (link vecchi) ────────────────────
   // Se arriva un codice zona, trova il nome corrispondente nella lista
@@ -169,12 +169,25 @@ export default function StatisticheQuartiere() {
   // Usa il nome trovato se non c'è già una selezione
   const nomeEffettivo = zonaSelezionata || zonaTrovata || '';
 
+  // ── Comune della zona selezionata (necessario per Hinterland) ───────────
+  // Calcolato da zone (che include sia Cagliari che Hinterland) per passarlo
+  // a useStatistiche, altrimenti le query userebbero sempre "Cagliari".
+  const comuneZona = useMemo(() => {
+    if (!nomeEffettivo || !zone.length) return 'Cagliari';
+    return zone.find(z => z.descrizione_zona === nomeEffettivo)?.comune || 'Cagliari';
+  }, [zone, nomeEffettivo]);
+
   // ── Hook: statistiche + trend del quartiere ──────────────────────────────
   // useStatistiche ri-carica automaticamente quando cambia nomeEffettivo
-  const { statistiche, trend, loading } = useStatistiche(nomeEffettivo);
+  const { statistiche, trend, loading } = useStatistiche(nomeEffettivo, comuneZona);
 
-  // ── KPI aggregati (solo stato NORMALE) ────────────────────────────────
-  const righeNormali       = statistiche.filter(r => r.stato === 'NORMALE');
+  // ── KPI aggregati (solo stato NORMALE + tipologie residenziali standard) ──
+  // Req 1: calcola prezzi medi solo su "abitazioni civili" e "abitazioni economiche"
+  const TIPOLOGIE_KPI = ['abitazioni civili', 'abitazioni economiche'];
+  const righeNormali = statistiche.filter(r =>
+    r.stato === 'NORMALE' &&
+    TIPOLOGIE_KPI.some(t => r.descrizione_tipologia?.toLowerCase().includes(t))
+  );
   const prezzoMedioNormale = righeNormali.length
     ? righeNormali.reduce((s, r) => s + parseFloat(r.prezzo_medio_mq || 0), 0) / righeNormali.length
     : 0;
@@ -519,7 +532,7 @@ export default function StatisticheQuartiere() {
                         key={i}
                         onClick={() =>
                           navigate(
-                            `/tipologia?nome=${encodeURIComponent(nomeEffettivo)}&tipo=${encodeURIComponent(r.descrizione_tipologia)}&stato=${r.stato}`
+                            `/tipologia?nome=${encodeURIComponent(nomeEffettivo)}&tipo=${encodeURIComponent(r.descrizione_tipologia)}&stato=${r.stato}&comune=${encodeURIComponent(comuneZona)}`
                           )
                         }
                         style={{

@@ -15,26 +15,30 @@
 const { pool } = require('../config/db');
 
 // ─── Tabella coefficienti per piano ───────────────────────────────────────────
-// Fonte: prassi professionale (ABI, Tecnoborsa). Il piano terra è svalutato,
-// i piani alti con ascensore sono rivalutati.
 const COEFF_PIANO = {
-  0:  0.85,  // piano terra/seminterrato
-  1:  0.95,  // primo piano
-  2:  1.00,  // secondo piano (riferimento neutro)
+  0:  0.90,
+  1:  0.95,
+  2:  1.00,  // piano di riferimento neutro
   3:  1.02,
-  4:  1.04,
-  5:  1.05,
-  // oltre il 5° piano: 1.05 costante
+  4:  1.03,
+  5:  1.00,  // oltre 5°: nessuna rivalutazione aggiuntiva
+};
+
+// ─── Coefficienti per stato conservativo ─────────────────────────────────────
+// Il prezzo OMI viene sempre interrogato su stato NORMALE; questo coeff
+// aggiusta il valore per lo stato reale dell'immobile.
+const COEFF_STATO = {
+  NORMALE:   1.00,
+  OTTIMO:    1.10,
+  SCADENTE:  0.85,
 };
 
 // ─── Coefficienti per dotazioni aggiuntive ────────────────────────────────────
-// Ogni dotazione aggiunge una percentuale al prezzo base
 const COEFF_DOTAZIONI = {
-  ascensore:         0.04,  // +4% se presente ascensore
-  box_auto:          0.06,  // +6% se presente box/garage
-  balcone_terrazza:  0.03,  // +3% se presente balcone o terrazza
-  cantina:           0.02,  // +2% se presente cantina
-  giardino:          0.05,  // +5% se presente giardino privato
+  ascensore:         0.03,
+  box_auto:          0.05,
+  balcone_terrazza:  0.02,
+  cantina:           0.01,
 };
 
 /**
@@ -84,11 +88,15 @@ async function calcolaVCM({
     FROM omi_valori
     WHERE zona_codice = ?
       AND descrizione_tipologia LIKE ?
-      AND stato = ?
+      AND stato = 'NORMALE'
       AND anno = (SELECT MAX(anno) FROM omi_valori)
+      AND semestre = (
+        SELECT MAX(semestre) FROM omi_valori
+        WHERE anno = (SELECT MAX(anno) FROM omi_valori)
+      )
     ORDER BY semestre DESC
     LIMIT 10
-  `, [zona_codice, `%${tipologia}%`, stato]);
+  `, [zona_codice, `%${tipologia}%`]);
 
   console.log(`[VCM] Trovati ${righeOMI.length} record OMI comparabili`);
 
@@ -114,39 +122,34 @@ async function calcolaVCM({
   }
 
   // ── Step 3: Coefficiente piano ────────────────────────────────────────────
-  // Se il piano supera 5, usiamo il coefficiente massimo (1.05)
   const pianoClamped = Math.min(piano, 5);
   const coeffPiano = COEFF_PIANO[pianoClamped] ?? 1.00;
   console.log(`[VCM] Coefficiente piano ${piano}: ${coeffPiano}`);
 
-  // ── Step 4: Coefficienti dotazioni ───────────────────────────────────────
+  // ── Step 4: Coefficiente stato conservativo ───────────────────────────────
+  // Il prezzo OMI è interrogato sempre su NORMALE; coeff_stato aggiusta per lo stato reale
+  const coeffStato = COEFF_STATO[stato] ?? 1.00;
+  console.log(`[VCM] Coefficiente stato "${stato}": ${coeffStato}`);
+
+  // ── Step 5: Coefficienti dotazioni ───────────────────────────────────────
   let totaleDotazioni = 0;
   const dotazioniApplicate = [];
 
-  if (ascensore)         { totaleDotazioni += COEFF_DOTAZIONI.ascensore;        dotazioniApplicate.push('ascensore'); }
-  if (box_auto)          { totaleDotazioni += COEFF_DOTAZIONI.box_auto;          dotazioniApplicate.push('box_auto'); }
-  if (balcone_terrazza)  { totaleDotazioni += COEFF_DOTAZIONI.balcone_terrazza;  dotazioniApplicate.push('balcone_terrazza'); }
-  if (cantina)           { totaleDotazioni += COEFF_DOTAZIONI.cantina;           dotazioniApplicate.push('cantina'); }
-  if (giardino)          { totaleDotazioni += COEFF_DOTAZIONI.giardino;          dotazioniApplicate.push('giardino'); }
+  if (ascensore)        { totaleDotazioni += COEFF_DOTAZIONI.ascensore;       dotazioniApplicate.push('ascensore'); }
+  if (box_auto)         { totaleDotazioni += COEFF_DOTAZIONI.box_auto;         dotazioniApplicate.push('box_auto'); }
+  if (balcone_terrazza) { totaleDotazioni += COEFF_DOTAZIONI.balcone_terrazza; dotazioniApplicate.push('balcone_terrazza'); }
+  if (cantina)          { totaleDotazioni += COEFF_DOTAZIONI.cantina;          dotazioniApplicate.push('cantina'); }
 
   console.log(`[VCM] Dotazioni applicate: [${dotazioniApplicate.join(', ')}] → +${(totaleDotazioni * 100).toFixed(1)}%`);
 
-  // ── Step 5: Prezzo corretto finale al mq ─────────────────────────────────
-  // Formula: prezzo_base × coeff_piano × (1 + totale_dotazioni)
-  const coefficienteFinale = coeffPiano * (1 + totaleDotazioni);
+  // ── Step 6: Prezzo corretto finale al mq ─────────────────────────────────
+  // Formula: prezzo_base × coeff_piano × coeff_stato × (1 + totale_dotazioni)
+  const coefficienteFinale = coeffPiano * coeffStato * (1 + totaleDotazioni);
   const prezzo_corretto_mq = prezzo_base_mq * coefficienteFinale;
 
-  // ── Step 6: Range di valori (min/medio/max) ───────────────────────────────
-  // Usiamo il range OMI come spread: ±10% intorno al valore medio
-  let spread_pct = 0.10;
-  if (righeOMI.length > 0) {
-    // Calcola lo spread reale dai dati OMI
-    const spreads = righeOMI.map(r => {
-      const avg = (parseFloat(r.compr_min) + parseFloat(r.compr_max)) / 2;
-      return avg > 0 ? (parseFloat(r.compr_max) - parseFloat(r.compr_min)) / avg / 2 : 0.10;
-    });
-    spread_pct = spreads.reduce((a, b) => a + b, 0) / spreads.length;
-  }
+  // ── Step 7: Range di valori (min/medio/max) ───────────────────────────────
+  // Spread fisso ±8% (non variabile dai dati OMI)
+  const spread_pct = 0.08;
 
   const valore_min    = prezzo_corretto_mq * (1 - spread_pct) * superficie_mq;
   const valore_medio  = prezzo_corretto_mq * superficie_mq;
@@ -166,6 +169,7 @@ async function calcolaVCM({
     prezzo_corretto_mq: Math.round(prezzo_corretto_mq),
     // Coefficienti applicati
     coefficiente_piano: coeffPiano,
+    coefficiente_stato: coeffStato,
     coefficiente_dotazioni: parseFloat(totaleDotazioni.toFixed(4)),
     coefficiente_finale: parseFloat(coefficienteFinale.toFixed(4)),
     dotazioni_applicate: dotazioniApplicate,

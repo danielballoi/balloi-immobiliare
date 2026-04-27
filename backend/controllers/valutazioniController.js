@@ -63,7 +63,7 @@ async function calcolaRedditualeHandler(req, res, next) {
   try {
     const {
       superficie_mq, canone_mensile, vacancy_pct = 5,
-      spese_annue = 0, cap_rate_pct,
+      spese_annue = 0, cap_rate_pct, prezzo_acquisto = null,
     } = req.body;
 
     if (!canone_mensile || !cap_rate_pct) {
@@ -71,11 +71,12 @@ async function calcolaRedditualeHandler(req, res, next) {
     }
 
     const result = calcolaReddituale({
-      superficie_mq:  parseFloat(superficie_mq || 0),
-      canone_mensile: parseFloat(canone_mensile),
-      vacancy_pct:    parseFloat(vacancy_pct),
-      spese_annue:    parseFloat(spese_annue),
-      cap_rate_pct:   parseFloat(cap_rate_pct),
+      superficie_mq:   parseFloat(superficie_mq || 0),
+      canone_mensile:  parseFloat(canone_mensile),
+      vacancy_pct:     parseFloat(vacancy_pct),
+      spese_annue:     parseFloat(spese_annue),
+      cap_rate_pct:    parseFloat(cap_rate_pct),
+      prezzo_acquisto: prezzo_acquisto ? parseFloat(prezzo_acquisto) : null,
     });
 
     res.json(result);

@@ -21,6 +21,7 @@
  * @param {number} params.spese_annue      - Spese operative annue (IMU, assicurazione, ecc.) (€)
  * @param {number} params.cap_rate_pct     - Tasso di capitalizzazione % (es. 5 = 5%)
  * @param {number} params.superficie_mq    - Superficie in mq (opzionale, per calcolo rendimento/mq)
+ * @param {number|null} params.prezzo_acquisto - Se fornito, calcola rendimenti su prezzo reale
  * @returns {object} Risultato valutazione reddituale
  */
 function calcolaReddituale({
@@ -29,6 +30,7 @@ function calcolaReddituale({
   spese_annue = 0,
   cap_rate_pct,
   superficie_mq = 0,
+  prezzo_acquisto = null,
 }) {
   console.log(`[REDDITUALE] Inizio calcolo - canone: €${canone_mensile}/mese, cap_rate: ${cap_rate_pct}%, vacancy: ${vacancy_pct}%`);
 
@@ -39,29 +41,32 @@ function calcolaReddituale({
   // ── Step 2: Perdita per sfitto (vacancy) ──────────────────────────────────
   // Es: 5% di vacancy = l'immobile rimane vuoto in media 18 giorni/anno
   const perdita_sfitto = reddito_lordo_annuo * (vacancy_pct / 100);
-  const reddito_effettivo_annuo = reddito_lordo_annuo - perdita_sfitto;
+  const reddito_effettivo = reddito_lordo_annuo - perdita_sfitto;
 
   // ── Step 3: NOI (Net Operating Income) ───────────────────────────────────
   // Reddito effettivo meno le spese operative (IMU, manutenzione, gestione)
-  const noi_annuo = reddito_effettivo_annuo - spese_annue;
+  const noi_annuo = reddito_effettivo - spese_annue;
 
   // ── Step 4: Valore di mercato per capitalizzazione ────────────────────────
-  // Valore = NOI / Cap Rate
-  // Un cap rate basso → valore alto (mercato "caro"), alto → valore basso (mercato "economico")
   const cap_rate_decimale = cap_rate_pct / 100;
   const valore_mercato = noi_annuo / cap_rate_decimale;
 
   // ── Step 5: Rendimenti ────────────────────────────────────────────────────
-  // Rendimento lordo = reddito lordo / valore × 100
-  const rendimento_lordo_pct = (reddito_lordo_annuo / valore_mercato) * 100;
-  // Rendimento netto = NOI / valore × 100
-  const rendimento_netto_pct = (noi_annuo / valore_mercato) * 100;
+  // Se prezzo_acquisto fornito → rendimenti sul prezzo reale pagato
+  // Altrimenti → null (non calcolabili senza riferimento reale)
+  let rendimento_lordo_pct = null;
+  let rendimento_netto_pct = null;
+  if (prezzo_acquisto && prezzo_acquisto > 0) {
+    rendimento_lordo_pct = parseFloat(((reddito_lordo_annuo / prezzo_acquisto) * 100).toFixed(2));
+    rendimento_netto_pct = parseFloat(((noi_annuo / prezzo_acquisto) * 100).toFixed(2));
+  }
 
   // ── Step 6: Rendimento per mq (opzionale) ────────────────────────────────
   const canone_annuo_mq = superficie_mq > 0 ? (reddito_lordo_annuo / superficie_mq) : null;
 
   console.log(`[REDDITUALE] NOI annuo: €${noi_annuo.toFixed(2)}, Valore mercato: €${valore_mercato.toFixed(0)}`);
-  console.log(`[REDDITUALE] Rendimento lordo: ${rendimento_lordo_pct.toFixed(2)}%, netto: ${rendimento_netto_pct.toFixed(2)}%`);
+  if (rendimento_lordo_pct !== null)
+    console.log(`[REDDITUALE] Rendimento lordo: ${rendimento_lordo_pct}%, netto: ${rendimento_netto_pct}% (su prezzo acquisto)`);
 
   return {
     // Input
@@ -69,15 +74,16 @@ function calcolaReddituale({
     vacancy_pct,
     spese_annue,
     cap_rate_pct,
+    prezzo_acquisto: prezzo_acquisto ?? null,
     // Calcoli intermedi
     reddito_lordo_annuo: Math.round(reddito_lordo_annuo),
     perdita_sfitto: Math.round(perdita_sfitto),
-    reddito_effettivo_annuo: Math.round(reddito_effettivo_annuo),
+    reddito_effettivo: Math.round(reddito_effettivo),
     noi_annuo: Math.round(noi_annuo),
     // Output principale
     valore_mercato: Math.round(valore_mercato),
-    rendimento_lordo_pct: parseFloat(rendimento_lordo_pct.toFixed(2)),
-    rendimento_netto_pct: parseFloat(rendimento_netto_pct.toFixed(2)),
+    rendimento_lordo_pct,
+    rendimento_netto_pct,
     // Extra
     canone_annuo_mq: canone_annuo_mq ? parseFloat(canone_annuo_mq.toFixed(2)) : null,
   };
