@@ -137,10 +137,11 @@ export default function DettaglioTipologia() {
   const navigate          = useNavigate();
   const [searchParams]    = useSearchParams();
 
-  // Parametri dall'URL: nome quartiere + tipologia + stato
-  const nome  = searchParams.get('nome')  || '';
-  const tipo  = searchParams.get('tipo')  || '';
-  const stato = searchParams.get('stato') || 'NORMALE';
+  // Parametri dall'URL: nome quartiere + tipologia + stato + comune
+  const nome   = searchParams.get('nome')   || '';
+  const tipo   = searchParams.get('tipo')   || '';
+  const stato  = searchParams.get('stato')  || 'NORMALE';
+  const comune = searchParams.get('comune') || 'Cagliari';
 
   const [dati, setDati]                             = useState([]);
   const [ntn, setNtn]                               = useState([]);   // volumi transazioni per anno
@@ -157,7 +158,7 @@ export default function DettaglioTipologia() {
 
     // Carica prezzi storici + volumi NTN in parallelo
     Promise.all([
-      getTipologiaAnnuale({ nome, tipo, stato }),
+      getTipologiaAnnuale({ nome, tipo, stato, comune }),
       getNTNZona(nome, tipo),
     ])
       .then(([rows, ntnRows]) => {

@@ -180,35 +180,44 @@ function calcolaDCF({
     });
   }
 
+  // Somma CF operativi puri (anni 1..n, prima dell'exit) — serve per ROI
+  const somma_cf_operativi = flussi_cassa_annui.slice(1).reduce((a, b) => a + b, 0);
+
   // ── Step 4: Valore di rivendita finale (Exit Value) ───────────────────────
-  let valore_rivendita;
+  let valore_rivendita_lordo;
   if (metodo_exit === 'reddituale') {
-    // Capitalizza il NOI dell'anno finale con il cap rate di uscita
     const noi_finale = noi_base * Math.pow(1 + tasso_crescita_noi_pct / 100, orizzonte_anni);
-    valore_rivendita = noi_finale / (cap_rate_exit_pct / 100);
-    console.log(`[DCF] Exit reddituale: NOI finale €${noi_finale.toFixed(0)}, valore rivendita €${valore_rivendita.toFixed(0)}`);
+    valore_rivendita_lordo = noi_finale / (cap_rate_exit_pct / 100);
+    console.log(`[DCF] Exit reddituale: NOI finale €${noi_finale.toFixed(0)}, valore lordo €${valore_rivendita_lordo.toFixed(0)}`);
   } else {
-    // Apprezzamento del valore immobile nel tempo
-    valore_rivendita = prezzo_acquisto * Math.pow(1 + tasso_crescita_valore_pct / 100, orizzonte_anni);
-    console.log(`[DCF] Exit apprezzamento: valore rivendita €${valore_rivendita.toFixed(0)}`);
+    valore_rivendita_lordo = prezzo_acquisto * Math.pow(1 + tasso_crescita_valore_pct / 100, orizzonte_anni);
+    console.log(`[DCF] Exit apprezzamento: valore lordo €${valore_rivendita_lordo.toFixed(0)}`);
   }
 
-  // Saldo mutuo residuo all'anno di exit (approssimazione lineare)
-  const quota_rimborsata = debito > 0
-    ? debito * Math.min(orizzonte_anni / durata_mutuo_anni, 1)
-    : 0;
-  const debito_residuo = debito - quota_rimborsata;
+  // Saldo mutuo residuo esatto (ammortamento alla francese)
+  const i_mensile = debito > 0 && tasso_mutuo_pct > 0 ? (tasso_mutuo_pct / 100) / 12 : 0;
+  const n_mesi_tot = durata_mutuo_anni * 12;
+  const mesi_pagati = Math.min(orizzonte_anni * 12, n_mesi_tot);
+  let debito_residuo_finale;
+  if (debito <= 0 || tasso_mutuo_pct <= 0 || mesi_pagati >= n_mesi_tot) {
+    debito_residuo_finale = 0;
+  } else {
+    const fattoreN = Math.pow(1 + i_mensile, n_mesi_tot);
+    const fattoreP = Math.pow(1 + i_mensile, mesi_pagati);
+    debito_residuo_finale = debito * (fattoreN - fattoreP) / (fattoreN - 1);
+  }
 
-  // Provento netto dalla rivendita (al netto del debito residuo)
-  const provento_netto_exit = valore_rivendita - debito_residuo;
+  // Costi di vendita 3% + incasso netto finale
+  const costi_vendita = valore_rivendita_lordo * 0.03;
+  const incasso_netto_finale = valore_rivendita_lordo - costi_vendita - debito_residuo_finale;
 
   // Aggiungi l'exit al flusso dell'ultimo anno
   const ultimo_cf = flussi_cassa_annui[orizzonte_anni];
-  flussi_cassa_annui[orizzonte_anni] = ultimo_cf + provento_netto_exit;
+  flussi_cassa_annui[orizzonte_anni] = ultimo_cf + incasso_netto_finale;
 
   if (cashflows_dettaglio.length > 0) {
-    cashflows_dettaglio[cashflows_dettaglio.length - 1].exit_value = Math.round(provento_netto_exit);
-    cashflows_dettaglio[cashflows_dettaglio.length - 1].cash_flow_netto += Math.round(provento_netto_exit);
+    cashflows_dettaglio[cashflows_dettaglio.length - 1].exit_value = Math.round(incasso_netto_finale);
+    cashflows_dettaglio[cashflows_dettaglio.length - 1].cash_flow_netto += Math.round(incasso_netto_finale);
   }
 
   // ── Step 5: VAN (NPV) ─────────────────────────────────────────────────────
@@ -221,9 +230,8 @@ function calcolaDCF({
   const tir_pct = calcolaTIR(flussi_cassa_annui);
 
   // ── Step 7: ROI totale ────────────────────────────────────────────────────
-  // ROI = (Guadagno totale - Investimento iniziale) / Investimento iniziale
-  const guadagno_totale = flussi_cassa_annui.slice(1).reduce((a, b) => a + b, 0);
-  const roi_totale_pct = ((guadagno_totale - equity) / equity) * 100;
+  // ROI = (incasso_netto_finale + cf_operativi_puri - equity) / equity
+  const roi_totale_pct = ((incasso_netto_finale + somma_cf_operativi - equity) / equity) * 100;
 
   // ── Step 8: Cash-on-Cash (primo anno) ────────────────────────────────────
   // Misura il rendimento sul capitale proprio nel primo anno operativo
@@ -239,14 +247,15 @@ function calcolaDCF({
     equity: Math.round(equity),
     debito: Math.round(debito),
     rata_mensile,
-    debito_residuo: Math.round(debito_residuo),
     // NOI
     noi_base_annuo: Math.round(noi_base),
     // Cash flows
     cashflows_dettaglio,
     // Exit
-    valore_rivendita_finale: Math.round(valore_rivendita),
-    provento_netto_exit: Math.round(provento_netto_exit),
+    valore_rivendita_finale: Math.round(valore_rivendita_lordo),
+    costi_vendita: Math.round(costi_vendita),
+    debito_residuo_finale: Math.round(debito_residuo_finale),
+    incasso_netto_finale: Math.round(incasso_netto_finale),
     // Metriche finanziarie
     van: Math.round(van),
     tir_pct,

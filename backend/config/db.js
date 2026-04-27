@@ -247,6 +247,9 @@ async function initDB() {
       )
     `);
 
+    // Aggiunge 'VENDUTA' all'ENUM stato locazioni (per tracciare immobili venduti)
+    await conn.query(`ALTER TABLE locazioni_attive MODIFY COLUMN stato ENUM('ATTIVA','SCADUTA','TERMINATA','VENDUTA') DEFAULT 'ATTIVA'`).catch(() => {});
+
     // Tabella segnalazioni — messaggi inviati dagli utenti all'admin
     await conn.query(`
       CREATE TABLE IF NOT EXISTS segnalazioni (
@@ -263,6 +266,19 @@ async function initDB() {
     // Aggiunge user_id alle tabelle valutazioni e portafoglio (idempotente)
     await conn.query(`ALTER TABLE valutazioni ADD COLUMN user_id INT DEFAULT NULL`).catch(() => {});
     await conn.query(`ALTER TABLE portafoglio ADD COLUMN user_id INT DEFAULT NULL`).catch(() => {});
+
+    // Tabella refresh_tokens — sessioni con token di rinnovo httpOnly
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        user_id     INT          NOT NULL,
+        token_hash  VARCHAR(255) NOT NULL UNIQUE,
+        expires_at  DATETIME     NOT NULL,
+        created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_rt_user (user_id)
+      )
+    `);
 
     console.log('[DB] Tabelle verificate/create con successo');
   } finally {

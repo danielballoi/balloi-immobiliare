@@ -250,34 +250,34 @@ export default function ImportDati() {
   const formatData = (iso) => new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className="flex flex-col gap-6" style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+    <div className="flex flex-col gap-8" style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
       {/* ── Intestazione ─────────────────────────────────────────────── */}
       <div>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Import Dati Hub</h1>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mt-1.5" style={{ color: 'var(--text-muted)' }}>
           Importa dati OMI tramite CSV massivo o inserimento manuale
         </p>
       </div>
 
       {/* ── Stats database ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {loadingStats ? <LoadingSpinner /> : stats && (
           <>
-            <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Totale Valori OMI</p>
+            <div className="rounded-xl" style={{ padding: '20px 24px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.07em' }}>Totale Valori OMI</p>
               <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
                 {Number(stats.totale_valori).toLocaleString('it-IT')}
               </p>
             </div>
-            <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Zone Mappate</p>
+            <div className="rounded-xl" style={{ padding: '20px 24px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.07em' }}>Zone Mappate</p>
               <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
                 {stats.totale_zone}
               </p>
             </div>
-            <div className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Annate Disponibili</p>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className="rounded-xl" style={{ padding: '20px 24px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.07em' }}>Annate Disponibili</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)', lineHeight: 1.6 }}>
                 {stats.anni_disponibili?.join(', ') || '–'}
               </p>
             </div>
@@ -451,11 +451,11 @@ export default function ImportDati() {
       </div>
 
       {/* ── Layout 2 colonne: CSV + Manuale ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
         {/* ── Sezione CSV ──────────────────────────────────────────── */}
-        <div className="flex flex-col gap-4">
-          <h2 className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex flex-col gap-5">
+          <h2 className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)', fontSize: 16 }}>
             <span className="text-lg">📥</span> Import CSV Massivo
           </h2>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -551,72 +551,72 @@ export default function ImportDati() {
         </div>
 
         {/* ── Sezione Manuale ─────────────────────────────────────── */}
-        <div className="flex flex-col gap-4">
-          <h2 className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex flex-col gap-5">
+          <h2 className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)', fontSize: 16 }}>
             <span className="text-lg">✏️</span> Inserimento Manuale
           </h2>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Aggiungi un singolo record di valore OMI per zona/tipologia/periodo.
           </p>
 
-          <form onSubmit={salvaManuale} className="flex flex-col gap-3">
+          <form onSubmit={salvaManuale} className="flex flex-col gap-4">
             {/* Zona codice + tipologia */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Codice Zona*</label>
+                <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Codice Zona*</label>
                 <input
                   required
                   value={formManuale.zona_codice}
                   onChange={e => setFormManuale(p => ({ ...p, zona_codice: e.target.value }))}
                   placeholder="es. D12"
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-lg text-sm"
+                  style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 />
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Anno*</label>
+                <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Anno*</label>
                 <input
                   required
                   type="number"
                   value={formManuale.anno}
                   onChange={e => setFormManuale(p => ({ ...p, anno: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-lg text-sm"
+                  style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Tipologia*</label>
+              <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Tipologia*</label>
               <input
                 required
                 value={formManuale.descrizione_tipologia}
                 onChange={e => setFormManuale(p => ({ ...p, descrizione_tipologia: e.target.value }))}
                 placeholder="es. Abitazioni civili"
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                className="w-full rounded-lg text-sm"
+                style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Stato*</label>
+                <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Stato*</label>
                 <select
                   value={formManuale.stato}
                   onChange={e => setFormManuale(p => ({ ...p, stato: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-lg text-sm"
+                  style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 >
                   {STATI_IMMOBILE.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Semestre*</label>
+                <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Semestre*</label>
                 <select
                   value={formManuale.semestre}
                   onChange={e => setFormManuale(p => ({ ...p, semestre: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-lg text-sm"
+                  style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 >
                   <option value={1}>1° Semestre</option>
                   <option value={2}>2° Semestre</option>
@@ -624,35 +624,36 @@ export default function ImportDati() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Compravendita Min (€/mq)*</label>
+                <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Compravendita Min (€/mq)*</label>
                 <input
                   required type="number" step="0.01"
                   value={formManuale.compravendita_min}
                   onChange={e => setFormManuale(p => ({ ...p, compravendita_min: e.target.value }))}
                   placeholder="es. 1500"
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-lg text-sm"
+                  style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 />
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Compravendita Max (€/mq)*</label>
+                <label className="text-xs mb-1.5 block font-medium" style={{ color: 'var(--text-muted)' }}>Compravendita Max (€/mq)*</label>
                 <input
                   required type="number" step="0.01"
                   value={formManuale.compravendita_max}
                   onChange={e => setFormManuale(p => ({ ...p, compravendita_max: e.target.value }))}
                   placeholder="es. 2000"
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-lg text-sm"
+                  style={{ padding: '10px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 />
               </div>
             </div>
 
             {messaggioManuale && (
               <div
-                className="rounded-lg p-3 text-sm"
+                className="rounded-lg text-sm"
                 style={{
+                  padding: '12px 16px',
                   background: messaggioManuale.tipo === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                   color: messaggioManuale.tipo === 'success' ? 'var(--success)' : 'var(--danger)',
                 }}
@@ -664,8 +665,8 @@ export default function ImportDati() {
             <button
               type="submit"
               disabled={salvandoManuale}
-              className="py-2.5 rounded-lg font-semibold text-sm disabled:opacity-40"
-              style={{ background: 'var(--accent)', color: '#000' }}
+              className="rounded-lg font-semibold text-sm disabled:opacity-40"
+              style={{ padding: '12px 20px', background: 'var(--accent)', color: '#000' }}
             >
               {salvandoManuale ? 'Salvataggio...' : 'Salva Record'}
             </button>
@@ -934,11 +935,11 @@ export default function ImportDati() {
 
       {/* ── Log importazioni ─────────────────────────────────────────── */}
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+          <h2 className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 15 }}>
             Storico Importazioni
           </h2>
-          <button onClick={caricaDati} className="text-xs" style={{ color: 'var(--text-muted)' }}>Aggiorna</button>
+          <button onClick={caricaDati} className="text-xs font-medium" style={{ color: 'var(--text-muted)', padding: '6px 12px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>Aggiorna</button>
         </div>
         {logs.length === 0 ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Nessuna importazione effettuata</div>
@@ -948,7 +949,7 @@ export default function ImportDati() {
               <thead>
                 <tr style={{ background: 'var(--bg-secondary)' }}>
                   {['File / Tipo', 'Data', 'Righe', 'OK', 'Errori', 'Stato'].map(h => (
-                    <th key={h} className="px-4 py-2 text-left text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                    <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -961,15 +962,15 @@ export default function ImportDati() {
                       borderTop: '1px solid var(--border)',
                     }}
                   >
-                    <td className="px-4 py-2.5">
-                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{log.filename}</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{log.tipo}</p>
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{log.filename}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{log.tipo}</p>
                     </td>
-                    <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{formatData(log.data_import)}</td>
-                    <td className="px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{log.righe_totali}</td>
-                    <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--success)' }}>{log.righe_importate}</td>
-                    <td className="px-4 py-2.5" style={{ color: log.righe_errore > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{log.righe_errore}</td>
-                    <td className="px-4 py-2.5"><StatoBadge stato={log.stato} /></td>
+                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{formatData(log.data_import)}</td>
+                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{log.righe_totali}</td>
+                    <td className="px-5 py-4 text-sm font-semibold" style={{ color: 'var(--success)' }}>{log.righe_importate}</td>
+                    <td className="px-5 py-4 text-sm" style={{ color: log.righe_errore > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{log.righe_errore}</td>
+                    <td className="px-5 py-4"><StatoBadge stato={log.stato} /></td>
                   </tr>
                 ))}
               </tbody>

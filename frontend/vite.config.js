@@ -16,6 +16,18 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        // Gestisce silenziosamente ECONNREFUSED: il backend potrebbe non essere ancora avviato
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            if (err.code === 'ECONNREFUSED') {
+              console.log('[PROXY] Backend non raggiungibile su porta 5000 — avvia il server con: npm start');
+              if (res && !res.headersSent) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Backend non disponibile. Avvia il server backend.' }));
+              }
+            }
+          });
+        },
       },
     },
   },

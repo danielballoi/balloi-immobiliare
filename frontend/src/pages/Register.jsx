@@ -21,49 +21,71 @@ const REQUISITI_PWD = [
 // ── Popup "registrazione in attesa" ───────────────────────────────────────
 function PopupPending({ onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', padding: '24px 16px' }}
+    >
       <div
-        className="w-full max-w-md rounded-2xl p-8 text-center"
-        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+        className="w-full rounded-2xl overflow-hidden"
+        style={{ maxWidth: 480, background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
       >
-        {/* Icona orologio */}
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
-          style={{ background: 'rgba(245,158,11,0.15)' }}
-        >
-          <svg className="w-8 h-8" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+        {/* Header con icona */}
+        <div style={{ padding: '36px 40px 28px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+          <div
+            style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: 'rgba(245,158,11,0.12)',
+              border: '1px solid rgba(245,158,11,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 24px',
+            }}
+          >
+            <svg width="28" height="28" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>
+            Richiesta inviata
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, maxWidth: 340, margin: '0 auto' }}>
+            La tua richiesta di registrazione è stata ricevuta ed è in attesa di approvazione da parte dell'amministratore.
+          </p>
         </div>
 
-        <h2 className="text-xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-          Richiesta inviata!
-        </h2>
-        <p className="text-sm leading-relaxed mb-2" style={{ color: 'var(--text-muted)' }}>
-          La tua richiesta di registrazione è stata ricevuta ed è in attesa di approvazione da parte
-          dell'amministratore.
-        </p>
-        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Riceverai accesso alla piattaforma non appena il tuo account verrà attivato.
-        </p>
+        {/* Corpo */}
+        <div style={{ padding: '28px 40px' }}>
+          <div style={{
+            borderRadius: 12, padding: '16px 20px',
+            background: 'rgba(245,158,11,0.07)',
+            border: '1px solid rgba(245,158,11,0.18)',
+            marginBottom: 28,
+          }}>
+            <p style={{ fontSize: 13, color: '#f59e0b', lineHeight: 1.7, margin: 0 }}>
+              Il tuo account è attualmente <strong>in attesa di approvazione</strong>.
+              Riceverai accesso non appena l'amministratore attiverà il profilo.
+            </p>
+          </div>
 
-        <div
-          className="rounded-xl px-4 py-3 text-sm mb-6"
-          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}
-        >
-          Il tuo account è <strong>in attesa di approvazione</strong>.<br />
-          Contatta l'amministratore per velocizzare il processo.
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 28, opacity: 0.8 }}>
+            Puoi contattare l'amministratore per velocizzare il processo di attivazione.
+          </p>
+
+          <Link
+            to="/login"
+            onClick={onClose}
+            style={{
+              display: 'block', width: '100%', padding: '13px 0',
+              borderRadius: 10, textAlign: 'center',
+              fontSize: 14, fontWeight: 700, letterSpacing: '0.01em',
+              background: 'var(--accent)', color: '#0f1117',
+              textDecoration: 'none',
+            }}
+          >
+            Torna al Login
+          </Link>
         </div>
-
-        <Link
-          to="/login"
-          className="block w-full py-3 rounded-lg text-sm font-bold text-center transition-all"
-          style={{ background: 'var(--accent)', color: '#0f1117' }}
-          onClick={onClose}
-        >
-          Torna al Login
-        </Link>
       </div>
     </div>
   );
