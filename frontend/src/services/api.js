@@ -16,32 +16,68 @@
 import axios from 'axios';
 
 // ── Istanza Axios configurata ──────────────────────────────────────────────
-// baseURL vuoto = usa il proxy Vite definito in vite.config.js
-// Tutte le chiamate /api/... vengono automaticamente girate a localhost:5000
+// withCredentials: true → invia i cookie httpOnly al backend (XSS-safe auth)
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,  // 30 secondi di timeout
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
-// ── Interceptor risposta: log errori + gestione 401 ──────────────────────
-// Se il server risponde 401 (token scaduto/mancante) → forza logout.
-// Questo evita che l'utente rimanga bloccato su una pagina protetta
-// con un token scaduto senza sapere cosa fare.
+// ── Interceptor risposta: log errori + auto-refresh su 401 ───────────────
+// Quando il token di accesso scade (15min) il backend risponde 401.
+// L'interceptor chiama automaticamente /auth/refresh (che usa il cookie
+// balloi_refresh a 30 giorni) e ripete la richiesta originale.
+// Se anche il refresh fallisce → redirect a /login.
+
+let refreshingToken = false;
+let refreshQueue    = [];
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const url    = error.config?.url ?? 'unknown';
     const status = error.response?.status ?? 'network error';
     const msg    = error.response?.data?.error ?? error.message;
     console.error(`[API] Errore ${status} su ${url}: ${msg}`);
 
-    // 401 fuori dalla route /auth → token scaduto, reindirizza al login
-    if (status === 401 && !url.includes('/auth/')) {
-      console.log('[API] Token scaduto, redirect a /login');
-      localStorage.removeItem('balloi_jwt');
-      localStorage.removeItem('balloi_user');
-      window.location.href = '/login';
+    const isAuthRoute    = url.includes('/auth/');
+    const isRefreshRoute = url.includes('/auth/refresh');
+
+    if (status === 401 && !isAuthRoute) {
+      if (isRefreshRoute) {
+        // Il refresh stesso è fallito → sessione terminata
+        refreshQueue.forEach(({ reject }) => reject(error));
+        refreshQueue = [];
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      if (!refreshingToken) {
+        refreshingToken = true;
+        try {
+          await api.post('/auth/refresh');
+          // Ripete tutte le richieste che erano in attesa
+          const pending = [...refreshQueue];
+          refreshQueue = [];
+          pending.forEach(({ config, resolve, reject }) =>
+            api(config).then(resolve).catch(reject)
+          );
+          return api(error.config);
+        } catch {
+          refreshQueue.forEach(({ reject }) => reject(error));
+          refreshQueue = [];
+          window.location.href = '/login';
+          return Promise.reject(error);
+        } finally {
+          refreshingToken = false;
+        }
+      } else {
+        // Altre richieste arrivate durante il refresh → le accodiamo
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ config: error.config, resolve, reject });
+        });
+      }
     }
 
     return Promise.reject(error);

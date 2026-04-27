@@ -365,6 +365,7 @@ export default function DashboardMappa() {
     varOp:   '',
     tipologia: '',
   });
+  const [filtriAperti, setFiltriAperti]   = useState(false);
 
   useEffect(() => {
     getTipologie().then(setTipologie).catch(() => {});
@@ -745,163 +746,170 @@ export default function DashboardMappa() {
         />
       </div>
 
-      {/* ── Filtri ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+      {/* ── Filtri (collassabile) ───────────────────────────────────── */}
+      {(() => {
+        const haFiltriAttivi = filtri.fasce.length > 0 || filtri.prezzoMin || filtri.prezzoMax || filtri.roiVal || filtri.varOp || filtri.tipologia;
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: `1px solid ${haFiltriAttivi ? 'rgba(245,158,11,0.4)' : 'var(--border)'}` }}>
 
-        {/* Header filtri — separato dal contenuto con bordo */}
-        <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', margin: 0 }}>Filtri</p>
-          {(filtri.fasce.length > 0 || filtri.prezzoMin || filtri.prezzoMax || filtri.roiVal || filtri.varOp || filtri.tipologia) && (
+            {/* ── Toggle header — sempre visibile ─────────────────── */}
             <button
-              onClick={() => setFiltri({ fasce: [], prezzoMin: '', prezzoMax: '', roiOp: '>', roiVal: '', varOp: '', tipologia: '' })}
-              style={{ padding: '5px 12px', borderRadius: 6, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', fontSize: 12, cursor: 'pointer' }}
+              onClick={() => setFiltriAperti(v => !v)}
+              style={{
+                width: '100%', padding: '13px 20px',
+                background: haFiltriAttivi ? 'rgba(245,158,11,0.06)' : 'var(--bg-secondary)',
+                border: 'none', borderBottom: filtriAperti ? '1px solid var(--border)' : 'none',
+                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+              }}
             >
-              × Reset filtri
+              {/* Icona filtro */}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={haFiltriAttivi ? 'var(--accent)' : 'var(--text-muted)'} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: haFiltriAttivi ? 'var(--accent)' : 'var(--text-muted)' }}>
+                Filtri
+              </span>
+              {haFiltriAttivi && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'var(--accent)', color: '#000' }}>
+                  {[filtri.fasce.length > 0, !!filtri.prezzoMin, !!filtri.prezzoMax, !!filtri.roiVal, !!filtri.varOp, !!filtri.tipologia].filter(Boolean).length} attivi
+                </span>
+              )}
+              {/* Chevron */}
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="var(--text-muted)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"
+                style={{ marginLeft: 'auto', transition: 'transform 0.2s', transform: filtriAperti ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
             </button>
-          )}
-        </div>
 
-        {/* Contenuto filtri — padding generoso su tutti i lati */}
-        <div style={{ padding: '20px 24px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, rowGap: 20, alignItems: 'flex-end' }}>
+            {/* ── Contenuto collassabile ───────────────────────────── */}
+            {filtriAperti && (
+              <div style={{ padding: '20px 24px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, rowGap: 20, alignItems: 'flex-end' }}>
 
-            {/* Toggle compravendita / locazione */}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Modalità</p>
-              <button
-                onClick={() => setMostraLocazione(v => !v)}
-                title={mostraLocazione ? 'Passa a compravendita' : 'Passa a locazione'}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  border: `1px solid ${mostraLocazione ? 'var(--accent)' : 'var(--border)'}`,
-                  background: mostraLocazione ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)',
-                  color: mostraLocazione ? 'var(--accent)' : 'var(--text-muted)',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 16V4m0 0L3 8m4-4l4 4" />
-                  <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-                {mostraLocazione ? 'Locazione' : 'Compravendita'}
-              </button>
-            </div>
-
-            {/* Fascia */}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Fascia</p>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {['A', 'B', 'C', 'D', 'E'].map(f => {
-                  const sel = filtri.fasce.includes(f);
-                  return (
+                  {/* Modalità */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Modalità</p>
                     <button
-                      key={f}
-                      onClick={() => setFiltri(prev => ({
-                        ...prev,
-                        fasce: sel ? prev.fasce.filter(x => x !== f) : [...prev.fasce, f],
-                      }))}
+                      onClick={() => setMostraLocazione(v => !v)}
                       style={{
-                        width: 34, height: 34, borderRadius: 6, fontSize: 12, fontWeight: 700,
-                        border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
-                        background: sel ? 'var(--accent)' : 'var(--bg-secondary)',
-                        color: sel ? '#000' : 'var(--text-muted)',
-                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${mostraLocazione ? 'var(--accent)' : 'var(--border)'}`,
+                        background: mostraLocazione ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)',
+                        color: mostraLocazione ? 'var(--accent)' : 'var(--text-muted)',
+                        cursor: 'pointer', transition: 'all 0.15s',
                       }}
-                    >{f}</button>
-                  );
-                })}
-              </div>
-            </div>
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M7 16V4m0 0L3 8m4-4l4 4" /><path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      {mostraLocazione ? 'Locazione' : 'Compravendita'}
+                    </button>
+                  </div>
 
-            {/* Prezzo min */}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>{mostraLocazione ? 'Canone min €/mq' : 'Prezzo min €/mq'}</p>
-              <input
-                type="number" value={filtri.prezzoMin}
-                onChange={e => setFiltri(p => ({ ...p, prezzoMin: e.target.value }))}
-                placeholder="Es. 1000"
-                style={{ width: 116, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
-              />
-            </div>
+                  {/* Fascia */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Fascia</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {['A', 'B', 'C', 'D', 'E'].map(f => {
+                        const sel = filtri.fasce.includes(f);
+                        return (
+                          <button key={f}
+                            onClick={() => setFiltri(prev => ({ ...prev, fasce: sel ? prev.fasce.filter(x => x !== f) : [...prev.fasce, f] }))}
+                            style={{ width: 34, height: 34, borderRadius: 6, fontSize: 12, fontWeight: 700, border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`, background: sel ? 'var(--accent)' : 'var(--bg-secondary)', color: sel ? '#000' : 'var(--text-muted)', cursor: 'pointer' }}
+                          >{f}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-            {/* Prezzo max */}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>{mostraLocazione ? 'Canone max €/mq' : 'Prezzo max €/mq'}</p>
-              <input
-                type="number" value={filtri.prezzoMax}
-                onChange={e => setFiltri(p => ({ ...p, prezzoMax: e.target.value }))}
-                placeholder="Es. 3000"
-                style={{ width: 116, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
-              />
-            </div>
+                  {/* Prezzo min */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>{mostraLocazione ? 'Canone min €/mq' : 'Prezzo min €/mq'}</p>
+                    <input type="number" value={filtri.prezzoMin}
+                      onChange={e => setFiltri(p => ({ ...p, prezzoMin: e.target.value }))}
+                      placeholder="Es. 1000"
+                      style={{ width: 116, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }} />
+                  </div>
 
-            {/* ROI */}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>ROI annuo %</p>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <select
-                  value={filtri.roiOp}
-                  onChange={e => setFiltri(p => ({ ...p, roiOp: e.target.value }))}
-                  style={{ padding: '9px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
-                >
-                  <option value=">">&gt;</option>
-                  <option value="<">&lt;</option>
-                </select>
-                <input
-                  type="number" step="0.5" value={filtri.roiVal}
-                  onChange={e => setFiltri(p => ({ ...p, roiVal: e.target.value }))}
-                  placeholder="Es. 5"
-                  style={{ width: 76, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }}
-                />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
-              </div>
-            </div>
+                  {/* Prezzo max */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>{mostraLocazione ? 'Canone max €/mq' : 'Prezzo max €/mq'}</p>
+                    <input type="number" value={filtri.prezzoMax}
+                      onChange={e => setFiltri(p => ({ ...p, prezzoMax: e.target.value }))}
+                      placeholder="Es. 3000"
+                      style={{ width: 116, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }} />
+                  </div>
 
-            {/* Varianza vs media */}
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Vs. media mercato</p>
-              <select
-                value={filtri.varOp}
-                onChange={e => setFiltri(p => ({ ...p, varOp: e.target.value }))}
-                style={{ padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
-              >
-                <option value="">Tutte le zone</option>
-                <option value="sopra">Sopra media</option>
-                <option value="sotto">Sotto media</option>
-              </select>
-            </div>
+                  {/* ROI */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>ROI annuo %</p>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <select value={filtri.roiOp} onChange={e => setFiltri(p => ({ ...p, roiOp: e.target.value }))}
+                        style={{ padding: '9px 10px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                        <option value=">">&gt;</option>
+                        <option value="<">&lt;</option>
+                      </select>
+                      <input type="number" step="0.5" value={filtri.roiVal}
+                        onChange={e => setFiltri(p => ({ ...p, roiVal: e.target.value }))}
+                        placeholder="Es. 5"
+                        style={{ width: 76, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none' }} />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
+                    </div>
+                  </div>
 
-            {/* Tipologia / Abitazione */}
-            {tipologie.length > 0 && (
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Tipologia</p>
-                <select
-                  value={filtri.tipologia}
-                  onChange={e => setFiltri(p => ({ ...p, tipologia: e.target.value }))}
-                  style={{ width: 176, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
-                >
-                  <option value="">Tutte le tipologie</option>
-                  {tipologie.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                {filtri.tipologia && (
-                  <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 6 }}>
-                    Clicca una zona → analisi per tipologia
+                  {/* Vs. media */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Vs. media mercato</p>
+                    <select value={filtri.varOp} onChange={e => setFiltri(p => ({ ...p, varOp: e.target.value }))}
+                      style={{ padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                      <option value="">Tutte le zone</option>
+                      <option value="sopra">Sopra media</option>
+                      <option value="sotto">Sotto media</option>
+                    </select>
+                  </div>
+
+                  {/* Tipologia */}
+                  {tipologie.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 10 }}>Tipologia</p>
+                      <select value={filtri.tipologia} onChange={e => setFiltri(p => ({ ...p, tipologia: e.target.value }))}
+                        style={{ width: 176, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                        <option value="">Tutte le tipologie</option>
+                        {tipologie.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      {filtri.tipologia && (
+                        <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 6 }}>Clicca una zona → analisi per tipologia</p>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Footer: contatore + reset */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                    {haFiltriAttivi
+                      ? `${zoneFiltrate.length} ${isHinterland ? 'comuni' : 'quartieri'} corrispondono ai filtri`
+                      : `${zoneFiltrate.length} ${isHinterland ? 'comuni' : 'quartieri'} totali`}
                   </p>
-                )}
+                  {haFiltriAttivi && (
+                    <button
+                      onClick={() => setFiltri({ fasce: [], prezzoMin: '', prezzoMax: '', roiOp: '>', roiVal: '', varOp: '', tipologia: '' })}
+                      style={{ padding: '6px 14px', borderRadius: 8, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', fontSize: 12, cursor: 'pointer' }}
+                    >
+                      × Reset filtri
+                    </button>
+                  )}
+                </div>
               </div>
             )}
-
           </div>
-
-          {/* Contatore risultati filtrati */}
-          {(filtri.fasce.length > 0 || filtri.prezzoMin || filtri.prezzoMax || filtri.roiVal || filtri.varOp) && (
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-              {zoneFiltrate.length} {isHinterland ? 'comuni' : 'quartieri'} corrispondono ai filtri applicati
-            </p>
-          )}
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── Layout principale: lista + right panel ─────────────────── */}
       <div className="flex gap-5 flex-col lg:flex-row items-start">

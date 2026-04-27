@@ -60,7 +60,9 @@
       "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"danielballoi1995@outlook.it\\\\\",\\\\\"password\\\\\":\\\\\"Daniel12345!\\\\\"}\")",
       "Bash(echo \"PID: $!\")",
       "Bash(node *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(python -c ' *)",
+      "Bash(python *)"
     ]
   }
 }
