@@ -56,30 +56,20 @@ function TooltipDettaglio({ active, payload, label }) {
 function ModalDatiMancanti({ onChiudi, prezzoCompravendita, locazione }) {
   const navigate = useNavigate();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/65" onClick={onChiudi} />
-      <div
-        className="relative z-10 w-full max-w-md rounded-2xl overflow-hidden"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      >
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-sm">
         {/* Header */}
-        <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 22 }}>📊</span>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              Dati non disponibili
-            </h2>
+            <h2 className="modal-title">Dati non disponibili</h2>
           </div>
-          <button
-            onClick={onChiudi}
-            style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
-          >
-            ×
-          </button>
+          <button className="modal-close" onClick={onChiudi}>×</button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="modal-body-col">
           <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)' }}>
             Non abbiamo ancora raccolto dati sufficienti per elaborare un'analisi tecnica per questo quartiere o comune.
           </p>
@@ -113,15 +103,17 @@ function ModalDatiMancanti({ onChiudi, prezzoCompravendita, locazione }) {
           )}
 
           {/* CTA: torna alla dashboard mappa */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 4 }}>
+          <div className="modal-footer" style={{ borderTop: 'none', padding: 0, justifyContent: 'center' }}>
             <button
               onClick={onChiudi}
+              className="btn-touch"
               style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}
             >
               Chiudi
             </button>
             <button
               onClick={() => navigate('/')}
+              className="btn-touch"
               style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
             >
               Torna alla Home
@@ -188,6 +180,10 @@ export default function DettaglioTipologia() {
   }, [nome, tipo, stato]);
 
   // ── KPI sintetici ────────────────────────────────────────────────────
+  // dati è in ordine cronologico ASC (2020→2025) — usato dal grafico
+  // datiTabella è invertito (2025→2020) — usato dalla tabella storica
+  const datiTabella = [...dati].reverse();
+
   const prezzoAttuale   = dati.at(-1)?.prezzo_medio_mq ?? 0;
   const prezzoIniziale  = dati[0]?.prezzo_medio_mq ?? 0;
   const variazionePerc  = prezzoIniziale > 0
@@ -219,7 +215,7 @@ export default function DettaglioTipologia() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="page-content">
 
       {/* Modal dati mancanti — appare automaticamente se non ci sono dati storici */}
       {showModalDatiMancanti && (
@@ -269,47 +265,6 @@ export default function DettaglioTipologia() {
         </p>
       </div>
 
-      {/* ── Banner NTN non caricato ─────────────────────────────────── */}
-      {Object.keys(ntn).length === 0 && (
-        <div
-          className="flex items-start gap-3 rounded-xl p-4 cursor-pointer"
-          style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}
-          onClick={() => window.location.href = '/import'}
-        >
-          <span className="text-lg shrink-0 mt-0.5">📊</span>
-          <div className="text-xs leading-relaxed flex-1" style={{ color: 'var(--text-muted)' }}>
-            <strong style={{ color: 'var(--accent)' }}>Dati transazioni non caricati</strong>
-            <br />
-            La colonna mostra i campioni OMI invece delle transazioni reali.
-            Per vedere <em>quante compravendite avvengono ogni anno</em> in questo quartiere,
-            importa il <strong>file NTN</strong> dall'Agenzia delle Entrate
-            (Portale → Statistiche → Mercato Immobiliare → Download NTN per Comune).
-            <span className="ml-2 font-medium" style={{ color: 'var(--accent)' }}>
-              → Vai a Import Dati
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ── Info banner: cosa sono i dati OMI ────────────────────────── */}
-      <div
-        className="flex items-start gap-3 rounded-xl p-4"
-        style={{
-          background: 'rgba(59,130,246,0.08)',
-          border: '1px solid rgba(59,130,246,0.25)',
-        }}
-      >
-        <span className="text-lg shrink-0 mt-0.5">ℹ️</span>
-        <div className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          <strong style={{ color: 'var(--info)' }}>Cosa sono le "Rilevazioni OMI"?</strong>
-          <br />
-          I dati provengono dall'<strong>Osservatorio del Mercato Immobiliare</strong> dell'Agenzia delle Entrate.
-          L'OMI pubblica semestralmente delle <em>fasce di prezzo per tipologia e zona</em> — non il numero
-          effettivo di transazioni. Ogni "rilevazione" è un campione statistico di prezzo rilevato in quella zona.
-          Più rilevazioni = dato più solido e basato su più sottozone.
-        </div>
-      </div>
-
       {/* ── KPI Cards ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -344,9 +299,9 @@ export default function DettaglioTipologia() {
       ) : (
         <>
           {/* ── Grafico AreaChart ──────────────────────────────────────── */}
-          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div className="chart-card">
             {/* Header grafico */}
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="chart-card-header">
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                 Andamento Prezzi · {tipo}
               </h2>
@@ -354,7 +309,7 @@ export default function DettaglioTipologia() {
                 Compravendita + Locazione
               </span>
             </div>
-            <div style={{ padding: '24px' }}>
+            <div className="chart-card-body">
 
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={dati} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -368,14 +323,17 @@ export default function DettaglioTipologia() {
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                {/* vertical={false} riduce il rumore visivo su mobile */}
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis
                   dataKey="anno"
                   tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                   axisLine={{ stroke: 'var(--border)' }}
                   tickLine={false}
                 />
+                {/* width={52} evita che i tick "€XXk" vengano tagliati su mobile */}
                 <YAxis
+                  width={52}
                   tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
@@ -409,10 +367,10 @@ export default function DettaglioTipologia() {
           </div>
 
           {/* ── Tabella storica anno per anno ──────────────────────────── */}
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+          <div className="card-section">
 
             {/* ZONA 1 — header con titolo + stato NTN */}
-            <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div className="card-section-header">
               <div>
                 <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 5, letterSpacing: '-0.01em' }}>
                   Andamento anno per anno · {tipo}
@@ -441,7 +399,7 @@ export default function DettaglioTipologia() {
 
             {/* ZONA 2 — tabella */}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-responsive">
                 <thead>
                   <tr style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
                     {[
@@ -469,12 +427,16 @@ export default function DettaglioTipologia() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dati.map((r, i) => {
-                    const prev    = dati[i - 1];
+                  {/* [FIX] datiTabella è l'array invertito (2025→2020) per mostrare il più recente in cima */}
+                  {datiTabella.map((r, i) => {
+                    // Recupera l'anno precedente dall'array ORIGINALE (cronologico) per la variazione corretta
+                    const idxOriginale = dati.findIndex(x => x.anno === r.anno);
+                    const prev    = dati[idxOriginale - 1];
                     const varAnno = prev?.prezzo_medio_mq > 0
                       ? ((r.prezzo_medio_mq - prev.prezzo_medio_mq) / prev.prezzo_medio_mq) * 100
                       : null;
-                    const isUltimo = i === dati.length - 1;
+                    // Badge "attuale" sull'anno più recente (ultimo nell'array originale = primo nella tabella invertita)
+                    const isUltimo = r.anno === dati.at(-1)?.anno;
                     const ntnAnno  = ntn[r.anno];
 
                     return (

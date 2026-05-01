@@ -120,6 +120,8 @@ function calcolaDCF({
   cap_rate_exit_pct = 5,
   tasso_crescita_valore_pct = 2,
   capex_straordinari = [],
+  costi_vendita_pct = 3,       // NUOVO: era hardcoded 0.03
+  calcola_sensitivity = false, // NUOVO: se true, calcola matrice TIR per sensitivity analysis
 }) {
   console.log(`[DCF] Inizio calcolo - prezzo: €${prezzo_acquisto}, canone: €${canone_mensile}/mese, orizzonte: ${orizzonte_anni} anni`);
 
@@ -207,8 +209,8 @@ function calcolaDCF({
     debito_residuo_finale = debito * (fattoreN - fattoreP) / (fattoreN - 1);
   }
 
-  // Costi di vendita 3% + incasso netto finale
-  const costi_vendita = valore_rivendita_lordo * 0.03;
+  // Costi di vendita parametrici (default 3%) + incasso netto finale
+  const costi_vendita = valore_rivendita_lordo * (costi_vendita_pct / 100);
   const incasso_netto_finale = valore_rivendita_lordo - costi_vendita - debito_residuo_finale;
 
   // Aggiungi l'exit al flusso dell'ultimo anno
@@ -240,6 +242,34 @@ function calcolaDCF({
 
   console.log(`[DCF] VAN: €${van.toFixed(0)}, TIR: ${tir_pct}%, ROI: ${roi_totale_pct.toFixed(2)}%`);
 
+  // ── Step 9: Sensitivity analysis (opzionale) ─────────────────────────────
+  // Calcola una matrice TIR al variare di cap_rate_exit e tasso_crescita_noi
+  let sensitivity = null;
+  if (calcola_sensitivity) {
+    const cap_values = [
+      Math.max(2, cap_rate_exit_pct - 2),
+      Math.max(2, cap_rate_exit_pct - 1),
+      cap_rate_exit_pct,
+      cap_rate_exit_pct + 1,
+      cap_rate_exit_pct + 2,
+    ];
+    const crescita_values = [0, 1, tasso_crescita_noi_pct, tasso_crescita_noi_pct + 1, tasso_crescita_noi_pct + 2];
+    // Rimuovi duplicati e ordina
+    const capUniq    = [...new Set(cap_values)].sort((a, b) => a - b);
+    const crescUniq  = [...new Set(crescita_values)].sort((a, b) => a - b);
+    sensitivity = calcolaSensitivity(
+      {
+        prezzo_acquisto, costi_acquisto_pct, costi_ristrutturazione,
+        ltv_pct, tasso_mutuo_pct, durata_mutuo_anni,
+        canone_mensile, vacancy_pct, spese_operative_annue,
+        orizzonte_anni, tasso_attualizzazione_pct, metodo_exit,
+        tasso_crescita_valore_pct, capex_straordinari, costi_vendita_pct,
+      },
+      capUniq, crescUniq
+    );
+    console.log(`[DCF] Sensitivity calcolata: ${capUniq.length}×${crescUniq.length} celle`);
+  }
+
   return {
     // Struttura capitale
     investimento_totale: Math.round(investimento_totale),
@@ -263,7 +293,39 @@ function calcolaDCF({
     cash_on_cash_pct: parseFloat(cash_on_cash_pct.toFixed(2)),
     // Flag interpretativo
     investimento_conveniente: van > 0,
+    // Sensitivity analysis (null se calcola_sensitivity=false)
+    sensitivity,
   };
 }
 
-module.exports = { calcolaDCF, calcolaRataMutuo };
+/**
+ * calcolaSensitivity - Calcola matrice TIR per sensitivity analysis
+ *
+ * Varia cap_rate_exit e tasso_crescita_noi e restituisce la matrice di TIR risultanti.
+ * Utile per visualizzare come cambiano i rendimenti al variare degli scenari di exit.
+ *
+ * @param {object} baseParams     - Tutti i parametri base per calcolaDCF
+ * @param {number[]} cap_values   - Valori di cap_rate_exit da testare
+ * @param {number[]} crescita_values - Valori di tasso_crescita_noi da testare
+ * @returns {{ cap_values, crescita_values, matrice }} Matrice TIR [cap][crescita]
+ */
+function calcolaSensitivity(baseParams, cap_values, crescita_values) {
+  const matrice = cap_values.map(cap =>
+    crescita_values.map(crescita => {
+      try {
+        const ris = calcolaDCF({
+          ...baseParams,
+          cap_rate_exit_pct: cap,
+          tasso_crescita_noi_pct: crescita,
+          calcola_sensitivity: false, // evita ricorsione infinita
+        });
+        return ris.tir_pct ?? 0;
+      } catch {
+        return 0;
+      }
+    })
+  );
+  return { cap_values, crescita_values, matrice };
+}
+
+module.exports = { calcolaDCF, calcolaRataMutuo, calcolaSensitivity };

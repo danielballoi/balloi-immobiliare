@@ -163,12 +163,13 @@ export default function Layout() {
         </header>
 
         {/* ── Contenuto pagina ───────────────────────────────────── */}
+        {/* [SPACING] padding mobile 24/20px per respiro visivo adeguato; desktop 32/40px */}
         <main
           style={{
             flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
-            padding: isMobile ? '20px 16px' : '28px 32px',
+            padding: isMobile ? '24px 20px 32px' : '32px 40px 40px',
           }}
         >
           <Outlet />

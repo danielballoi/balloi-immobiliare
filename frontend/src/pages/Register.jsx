@@ -21,23 +21,18 @@ const REQUISITI_PWD = [
 // ── Popup "registrazione in attesa" ───────────────────────────────────────
 function PopupPending({ onClose }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', padding: '24px 16px' }}
-    >
-      <div
-        className="w-full rounded-2xl overflow-hidden"
-        style={{ maxWidth: 480, background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
-      >
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-box modal-box-sm">
         {/* Header con icona */}
-        <div style={{ padding: '36px 40px 28px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ padding: '28px 24px 20px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
           <div
             style={{
               width: 64, height: 64, borderRadius: '50%',
               background: 'rgba(245,158,11,0.12)',
               border: '1px solid rgba(245,158,11,0.25)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 24px',
+              margin: '0 auto 20px',
             }}
           >
             <svg width="28" height="28" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
@@ -49,18 +44,17 @@ function PopupPending({ onClose }) {
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>
             Richiesta inviata
           </h2>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, maxWidth: 340, margin: '0 auto' }}>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
             La tua richiesta di registrazione è stata ricevuta ed è in attesa di approvazione da parte dell'amministratore.
           </p>
         </div>
 
         {/* Corpo */}
-        <div style={{ padding: '28px 40px' }}>
+        <div className="modal-body-col">
           <div style={{
             borderRadius: 12, padding: '16px 20px',
             background: 'rgba(245,158,11,0.07)',
             border: '1px solid rgba(245,158,11,0.18)',
-            marginBottom: 28,
           }}>
             <p style={{ fontSize: 13, color: '#f59e0b', lineHeight: 1.7, margin: 0 }}>
               Il tuo account è attualmente <strong>in attesa di approvazione</strong>.
@@ -68,19 +62,20 @@ function PopupPending({ onClose }) {
             </p>
           </div>
 
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 28, opacity: 0.8 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, opacity: 0.8 }}>
             Puoi contattare l'amministratore per velocizzare il processo di attivazione.
           </p>
 
           <Link
             to="/login"
             onClick={onClose}
+            className="btn-touch"
             style={{
               display: 'block', width: '100%', padding: '13px 0',
               borderRadius: 10, textAlign: 'center',
               fontSize: 14, fontWeight: 700, letterSpacing: '0.01em',
               background: 'var(--accent)', color: '#0f1117',
-              textDecoration: 'none',
+              textDecoration: 'none', boxSizing: 'border-box',
             }}
           >
             Torna al Login

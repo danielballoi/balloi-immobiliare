@@ -249,7 +249,7 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
  * @param {string} via - nome via nel formato DB (es. "LIBELLULE (DELLE)")
  * @returns {string} formato leggibile (es. "DELLE LIBELLULE")
  */
-function formatVia(via) {
+export function formatVia(via) {
   if (!via) return via;
   // Pattern: "PAROLA (ARTICOLO)" o "PAROLE MULTIPLE (ARTICOLO)"
   const match = via.match(/^(.+?)\s+\(([^)]+)\)(.*)$/);

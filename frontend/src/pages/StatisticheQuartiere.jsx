@@ -58,30 +58,20 @@ function TooltipGrafico({ active, payload, label }) {
 function ModalDatiMancanti({ onChiudi, prezzoCompravendita, locazione }) {
   const navigate = useNavigate();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/65" onClick={onChiudi} />
-      <div
-        className="relative z-10 w-full max-w-md rounded-2xl overflow-hidden"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      >
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-sm">
         {/* Header */}
-        <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 22 }}>📊</span>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              Dati non disponibili
-            </h2>
+            <h2 className="modal-title">Dati non disponibili</h2>
           </div>
-          <button
-            onClick={onChiudi}
-            style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
-          >
-            ×
-          </button>
+          <button className="modal-close" onClick={onChiudi}>×</button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="modal-body-col">
           <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)' }}>
             Non abbiamo ancora raccolto dati sufficienti per elaborare un'analisi tecnica per questo quartiere o comune.
           </p>
@@ -115,20 +105,255 @@ function ModalDatiMancanti({ onChiudi, prezzoCompravendita, locazione }) {
           )}
 
           {/* CTA */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 4 }}>
+          <div className="modal-footer" style={{ borderTop: 'none', padding: 0, justifyContent: 'center' }}>
             <button
               onClick={onChiudi}
+              className="btn-touch"
               style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}
             >
               Chiudi
             </button>
             <button
               onClick={() => navigate('/')}
+              className="btn-touch"
               style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
             >
               Torna alla Home
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Calcolatrice professionale ────────────────────────────────────────────
+function CalcolatriceModal({ onChiudi }) {
+  const [display, setDisplay]               = useState('0');
+  const [operazione, setOperazione]         = useState('');
+  const [valoreIn, setValoreIn]             = useState(null);
+  const [resettaDisplay, setResettaDisplay] = useState(false);
+  const [espressione, setEspressione]       = useState('');
+
+  // Formatta il numero nel display con localizzazione italiana
+  const formatDisplay = (str) => {
+    if (str === 'Errore') return 'Errore';
+    if (str.endsWith('.')) {
+      const n = parseFloat(str);
+      return (isNaN(n) ? '0' : n.toLocaleString('it-IT')) + ',';
+    }
+    const num = parseFloat(str);
+    if (isNaN(num)) return str;
+    const decimali = str.includes('.') ? str.split('.')[1].length : 0;
+    return num.toLocaleString('it-IT', {
+      minimumFractionDigits: Math.min(decimali, 10),
+      maximumFractionDigits: 10,
+    });
+  };
+
+  const premCifra = (c) => {
+    if (resettaDisplay) {
+      setDisplay(c === '.' ? '0.' : c);
+      setResettaDisplay(false);
+    } else {
+      if (c === '.' && display.includes('.')) return;
+      setDisplay(display === '0' && c !== '.' ? c : display + c);
+    }
+  };
+
+  const calcola = (a, b, op) => {
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '×': return a * b;
+      case '÷': return b !== 0 ? a / b : 'Errore';
+      default:  return b;
+    }
+  };
+
+  const premOp = (op) => {
+    const val = parseFloat(display);
+    let newVal = valoreIn;
+    if (valoreIn !== null && !resettaDisplay) {
+      const ris = calcola(valoreIn, val, operazione);
+      newVal = typeof ris === 'number' ? ris : null;
+      setDisplay(typeof ris === 'number' ? String(parseFloat(ris.toFixed(10))) : String(ris));
+    } else {
+      newVal = isNaN(val) ? 0 : val;
+    }
+    setValoreIn(newVal);
+    setOperazione(op);
+    setEspressione(newVal !== null
+      ? `${formatDisplay(String(newVal))} ${op === '-' ? '−' : op}`
+      : '');
+    setResettaDisplay(true);
+  };
+
+  const premUguali = () => {
+    if (valoreIn === null) return;
+    const val = parseFloat(display);
+    const ris = calcola(valoreIn, val, operazione);
+    const opLabel = operazione === '-' ? '−' : operazione;
+    setEspressione(`${formatDisplay(String(valoreIn))} ${opLabel} ${formatDisplay(display)} =`);
+    const displayRis = typeof ris === 'number'
+      ? String(parseFloat(ris.toFixed(10)))
+      : String(ris);
+    setDisplay(displayRis);
+    setValoreIn(null);
+    setOperazione('');
+    setResettaDisplay(true);
+  };
+
+  const premC = () => {
+    setDisplay('0');
+    setValoreIn(null);
+    setOperazione('');
+    setEspressione('');
+    setResettaDisplay(false);
+  };
+
+  const premPlusMinus = () => {
+    if (display === 'Errore' || display === '0') return;
+    setDisplay(display.startsWith('-') ? display.slice(1) : '-' + display);
+  };
+
+  const premPerc = () => {
+    const n = parseFloat(display);
+    if (!isNaN(n)) setDisplay(String(n / 100));
+  };
+
+  const displayLen = display.replace('-', '').replace('.', '').length;
+  const fontSize = displayLen > 12 ? 20 : displayLen > 9 ? 26 : displayLen > 6 ? 32 : 40;
+
+  const TASTI = [
+    [
+      { label: 'C',   fn: premC,             tipo: 'func' },
+      { label: '+/-', fn: premPlusMinus,     tipo: 'func' },
+      { label: '%',   fn: premPerc,          tipo: 'func' },
+      { label: '÷',   fn: () => premOp('÷'), tipo: 'op', op: '÷' },
+    ],
+    [
+      { label: '7', fn: () => premCifra('7'), tipo: 'num' },
+      { label: '8', fn: () => premCifra('8'), tipo: 'num' },
+      { label: '9', fn: () => premCifra('9'), tipo: 'num' },
+      { label: '×', fn: () => premOp('×'),   tipo: 'op', op: '×' },
+    ],
+    [
+      { label: '4', fn: () => premCifra('4'), tipo: 'num' },
+      { label: '5', fn: () => premCifra('5'), tipo: 'num' },
+      { label: '6', fn: () => premCifra('6'), tipo: 'num' },
+      { label: '−', fn: () => premOp('-'),    tipo: 'op', op: '-' },
+    ],
+    [
+      { label: '1', fn: () => premCifra('1'), tipo: 'num' },
+      { label: '2', fn: () => premCifra('2'), tipo: 'num' },
+      { label: '3', fn: () => premCifra('3'), tipo: 'num' },
+      { label: '+', fn: () => premOp('+'),    tipo: 'op', op: '+' },
+    ],
+    [
+      { label: '0', fn: () => premCifra('0'), tipo: 'num', wide: true },
+      { label: ',', fn: () => premCifra('.'), tipo: 'num' },
+      { label: '=', fn: premUguali,           tipo: 'eq'  },
+    ],
+  ];
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div style={{
+        position: 'relative', zIndex: 1001,
+        background: 'var(--bg-card)', border: '1px solid var(--border)',
+        borderRadius: 24, overflow: 'hidden',
+        width: 'min(340px, 92vw)',
+        boxShadow: '0 30px 80px rgba(0,0,0,0.45)',
+      }}>
+        {/* Header calcolatrice */}
+        <div style={{
+          padding: '14px 18px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--bg-secondary)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2"/>
+              <line x1="8" y1="6" x2="16" y2="6"/>
+              <line x1="16" y1="14" x2="16" y2="18"/>
+              <path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>
+              <path d="M8 14h.01"/><path d="M12 14h.01"/>
+              <path d="M8 18h.01"/><path d="M12 18h.01"/>
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Calcolatrice</span>
+          </div>
+          <button onClick={onChiudi} style={{
+            background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+            color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16,
+            lineHeight: 1, padding: '4px 9px', borderRadius: 8,
+          }}>×</button>
+        </div>
+
+        {/* Display numerico */}
+        <div style={{
+          padding: '16px 20px 14px', background: 'var(--bg-elevated)',
+          borderBottom: '1px solid var(--border)', textAlign: 'right',
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', height: 16, marginBottom: 6, opacity: 0.65 }}>
+            {espressione}
+          </div>
+          <div style={{
+            fontSize, fontWeight: 700, lineHeight: 1.2,
+            color: display === 'Errore' ? 'var(--danger)' : 'var(--text-primary)',
+            fontFamily: "'SF Mono', 'Consolas', monospace",
+            letterSpacing: '-0.02em', wordBreak: 'break-all',
+            transition: 'font-size 0.1s',
+          }}>
+            {formatDisplay(display)}
+          </div>
+        </div>
+
+        {/* Tastierino */}
+        <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6, background: 'var(--bg-card)' }}>
+          {TASTI.map((riga, ri) => (
+            <div key={ri} style={{
+              display: 'grid',
+              gridTemplateColumns: riga.some(t => t.wide) ? '2fr 1fr 1fr' : '1fr 1fr 1fr 1fr',
+              gap: 6,
+            }}>
+              {riga.map((t, ti) => {
+                const isOp    = t.tipo === 'op';
+                const isEq    = t.tipo === 'eq';
+                const isFunc  = t.tipo === 'func';
+                const isAttivo = isOp && operazione === t.op;
+                return (
+                  <button key={ti} onClick={t.fn}
+                    style={{
+                      padding: '17px 0', borderRadius: 10, fontSize: 18,
+                      fontWeight: isEq ? 700 : isOp ? 600 : 400,
+                      cursor: 'pointer', border: 'none', outline: 'none',
+                      transition: 'opacity 0.08s, transform 0.05s',
+                      background: isEq      ? 'var(--accent)'
+                        : isAttivo          ? 'rgba(245,158,11,0.28)'
+                        : isOp              ? 'rgba(245,158,11,0.10)'
+                        : isFunc            ? 'var(--bg-secondary)'
+                        :                     'var(--bg-elevated)',
+                      color: isEq           ? '#000'
+                        : isOp              ? 'var(--accent)'
+                        : isFunc            ? 'var(--text-secondary)'
+                        :                     'var(--text-primary)',
+                      boxShadow: isEq ? '0 2px 10px rgba(245,158,11,0.3)' : 'none',
+                    }}
+                    onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.93)'; e.currentTarget.style.opacity = '0.75'; }}
+                    onMouseUp={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.opacity = ''; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.opacity = ''; }}
+                    onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.93)'; e.currentTarget.style.opacity = '0.75'; }}
+                    onTouchEnd={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.opacity = ''; }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -148,6 +373,9 @@ export default function StatisticheQuartiere() {
 
   // ── Modal dati mancanti: si apre quando la zona non ha dati OMI ──────────
   const [showModalDatiMancanti, setShowModalDatiMancanti] = useState(false);
+
+  // ── Calcolatrice: aperta dal pulsante accanto al titolo della tabella ────
+  const [showCalcolatrice, setShowCalcolatrice] = useState(false);
 
   // ── Stato per la barra di ricerca avanzata ───────────────────────────────
   // areaRicerca: quale gruppo mostrare nel dropdown (CAGLIARI o HINTERLAND)
@@ -259,7 +487,7 @@ export default function StatisticheQuartiere() {
     : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="page-content">
 
       {/* Modal dati mancanti — appare se la zona non ha dati OMI sufficienti */}
       {showModalDatiMancanti && (
@@ -268,6 +496,11 @@ export default function StatisticheQuartiere() {
           prezzoCompravendita={prezzoMedioNormale}
           locazione={locazioneMedioNormale}
         />
+      )}
+
+      {/* Calcolatrice — aperta dal pulsante accanto a "Analisi per Tipologia" */}
+      {showCalcolatrice && (
+        <CalcolatriceModal onChiudi={() => setShowCalcolatrice(false)} />
       )}
 
       {/* ── Intestazione ────────────────────────────────────────────────── */}
@@ -296,10 +529,14 @@ export default function StatisticheQuartiere() {
         <>
           {/* Breadcrumb — cleanNome rimuove apostrofi iniziali/finali */}
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-            {infoZona?.comune && infoZona.comune !== 'Cagliari'
-              ? <span>{infoZona.comune}</span>
-              : <span>Cagliari</span>
-            }
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="hover:underline"
+              style={{ color: 'var(--text-muted)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              {infoZona?.comune && infoZona.comune !== 'Cagliari' ? infoZona.comune : 'Cagliari'}
+            </button>
             <span>›</span>
             <span style={{ color: 'var(--accent)' }}>
               {nomeEffettivo?.replace(/^'+|'+$/g, '').trim() ?? nomeEffettivo}
@@ -344,12 +581,9 @@ export default function StatisticheQuartiere() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
             {/* Grafico AreaChart (occupa 2/3) */}
-            <div
-              className="lg:col-span-2 rounded-xl overflow-hidden"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            >
+            <div className="lg:col-span-2 chart-card">
               {/* Header */}
-              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="chart-card-header">
                 <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                   Andamento Prezzi Storici · {nomeEffettivo?.replace(/^'+|'+$/g, '').trim()}
                 </h2>
@@ -358,7 +592,7 @@ export default function StatisticheQuartiere() {
                 </span>
               </div>
               {/* Contenuto */}
-              <div style={{ padding: '24px' }}>
+              <div className="chart-card-body">
                 {trend.length === 0 ? (
                   <EmptyState
                     icon="📊"
@@ -378,21 +612,24 @@ export default function StatisticheQuartiere() {
                           <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      {/* vertical={false}: riduce rumore visivo su mobile */}
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                       <XAxis
                         dataKey="anno"
                         tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                         axisLine={{ stroke: 'var(--border)' }}
                         tickLine={false}
                       />
+                      {/* width={52}: evita che i tick €XXk vengano tagliati su mobile */}
                       <YAxis
+                        width={52}
                         tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={v => v >= 1000 ? `€${(v / 1000).toFixed(0)}k` : `€${v}`}
                       />
                       <Tooltip content={<TooltipGrafico />} />
-                      <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 8 }} />
+                      <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 16 }} />
                       <Area
                         type="monotone"
                         dataKey="prezzo_medio_mq"
@@ -499,13 +736,38 @@ export default function StatisticheQuartiere() {
 
           {/* ── Tabella analisi per tipologia ─────────────────────────────── */}
           {statistiche.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <div className="card-section">
 
               {/* ZONA 1 — header */}
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-                  Analisi per Tipologia · Anno più recente
-                </h2>
+              <div className="card-section-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                    Analisi per Tipologia · Anno più recente
+                  </h2>
+                  {/* Pulsante calcolatrice */}
+                  <button
+                    onClick={() => setShowCalcolatrice(true)}
+                    title="Apri calcolatrice"
+                    style={{
+                      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                      borderRadius: 8, padding: '4px 7px', cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-muted)', transition: 'all 0.15s', flexShrink: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="4" y="2" width="16" height="20" rx="2"/>
+                      <line x1="8" y1="6" x2="16" y2="6"/>
+                      <line x1="16" y1="14" x2="16" y2="18"/>
+                      <path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>
+                      <path d="M8 14h.01"/><path d="M12 14h.01"/>
+                      <path d="M8 18h.01"/><path d="M12 18h.01"/>
+                    </svg>
+                  </button>
+                </div>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   Clicca su una riga per vedere l'andamento storico →
                 </span>
@@ -513,13 +775,13 @@ export default function StatisticheQuartiere() {
 
               {/* ZONA 2 — tabella */}
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full table-responsive">
                   <thead>
                     <tr style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
                       {['Tipologia', 'Stato', 'Min €/mq', 'Medio €/mq', 'Max €/mq', 'Loc. €/mq/m'].map(h => (
                         <th
                           key={h}
-                          style={{ padding: '14px 24px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}
+                          style={{ textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}
                         >
                           {h}
                         </th>

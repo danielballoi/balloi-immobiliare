@@ -18,8 +18,10 @@ import { useNavigate } from 'react-router-dom';
 import useHeatmap from '../hooks/useHeatmap';
 import StatCard from '../components/StatCard';
 import LoadingSpinner from '../components/LoadingSpinner';
-import StradeAutocomplete from '../components/StradeAutocomplete';
+import StradeAutocomplete, { formatVia } from '../components/StradeAutocomplete';
 import { getTipologie } from '../services/api';
+import { CATASTALE_LOOKUP } from '../data/tipologieData';
+import { formatAddress } from '../utils/addressNormalizer';
 
 const formatEuro = (n) =>
   n ? `€ ${Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })}` : '–';
@@ -239,26 +241,19 @@ function ComuneAutocomplete({ comuni, onSeleziona, onSvuota, placeholder }) {
 /* ── QuartierePickerModal — scelta quartiere OMI per un comune ──────── */
 function QuartierePickerModal({ zones, nomeComune, onSeleziona, onChiudi }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} onClick={onChiudi} />
-      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 480, borderRadius: 16, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-sm" style={{ maxHeight: '80vh' }}>
 
         {/* Header */}
-        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div className="modal-header">
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 4 }}>
               Seleziona il quartiere OMI
             </p>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              {nomeComune}
-            </h3>
+            <h3 className="modal-title">{nomeComune}</h3>
           </div>
-          <button
-            onClick={onChiudi}
-            style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
-          >
-            ×
-          </button>
+          <button className="modal-close" onClick={onChiudi}>×</button>
         </div>
 
         {/* Lista quartieri */}
@@ -404,7 +399,7 @@ export default function DashboardMappa() {
       zona = zone.find(z => cleanNome(z.descrizione_zona).toUpperCase().includes(q));
     }
     if (zona) {
-      setViaRicercata(item.via || '');
+      setViaRicercata(formatAddress(formatVia(item.via || '')));
       setZonaFocused(zona);
       setZonaSelezionata(zona);
     }
@@ -573,7 +568,7 @@ export default function DashboardMappa() {
   /* ── LAYOUT DETTAGLIO: zona selezionata ─────────────────────────── */
   if (zonaSelezionata) {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="page-content">
         <button
           onClick={tornaAllaLista}
           style={{
@@ -615,7 +610,7 @@ export default function DashboardMappa() {
 
   /* ── LAYOUT NORMALE ─────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col gap-5">
+    <div className="page-content">
 
       {/* ── Picker quartieri hinterland ───────────────────────────── */}
       {comunePicker && (
@@ -628,21 +623,24 @@ export default function DashboardMappa() {
       )}
 
       {/* ── Hero image ─────────────────────────────────────────────── */}
-      {/* paddingBottom: '40%' → hero più alto, dà respiro verticale per spostare il contenuto in alto */}
-      <div className="relative rounded-2xl overflow-hidden" style={{ paddingBottom: '40%', minHeight: 260 }}>
+      {/* overflow-hidden solo sul layer background, NON sul container principale
+          così il dropdown StradeAutocomplete può estendersi oltre il bordo dell'hero */}
+      <div className="relative" style={{ paddingBottom: '40%', minHeight: 260 }}>
 
-        <img
-          src="/cagliari-hero.jpg"
-          alt="Cagliari skyline"
-          style={{
-            position: 'absolute', inset: 0, width: '100%', height: '100%',
-            objectFit: 'cover', objectPosition: 'center 38%',
-          }}
-        />
-
-        {/* Gradiente a 4 step: cielo quasi trasparente → mare/orizzonte → rocce scure in basso */}
-        <div className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, rgba(10,12,15,0.05) 0%, rgba(10,12,15,0.18) 30%, rgba(10,12,15,0.55) 65%, rgba(10,12,15,0.90) 100%)' }} />
+        {/* Layer background: immagine + gradiente, clippato con border-radius */}
+        <div className="absolute inset-0 rounded-2xl overflow-hidden">
+          <img
+            src="/cagliari-hero.jpg"
+            alt="Cagliari skyline"
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              objectFit: 'cover', objectPosition: 'center 38%',
+            }}
+          />
+          {/* Gradiente a 4 step */}
+          <div className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, rgba(10,12,15,0.05) 0%, rgba(10,12,15,0.18) 30%, rgba(10,12,15,0.55) 65%, rgba(10,12,15,0.90) 100%)' }} />
+        </div>
 
         {/* Titolo nella zona del cielo/orizzonte (top ~18%) — sopra rocce e zona scura */}
         <div
@@ -656,6 +654,7 @@ export default function DashboardMappa() {
             alignItems: 'center',
             gap: 20,
             padding: '0 24px',
+            zIndex: 10,
           }}
         >
           {/* Titolo — allineato al centro dell'orizzonte (sopra città e lagune) */}
@@ -690,7 +689,7 @@ export default function DashboardMappa() {
       </div>
 
       {/* ── Tab + Nuova Valutazione ─────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
         <SelettoreArea area={area} onCambio={(nuova) => {
           setArea(nuova);
           setZonaSelezionata(null);
@@ -879,7 +878,11 @@ export default function DashboardMappa() {
                       <select value={filtri.tipologia} onChange={e => setFiltri(p => ({ ...p, tipologia: e.target.value }))}
                         style={{ width: 176, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}>
                         <option value="">Tutte le tipologie</option>
-                        {tipologie.map(t => <option key={t} value={t}>{t}</option>)}
+                        {tipologie.map(t => (
+                          <option key={t} value={t}>
+                            {CATASTALE_LOOKUP[t] ? `${t} (${CATASTALE_LOOKUP[t]})` : t}
+                          </option>
+                        ))}
                       </select>
                       {filtri.tipologia && (
                         <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 6 }}>Clicca una zona → analisi per tipologia</p>
@@ -912,7 +915,8 @@ export default function DashboardMappa() {
       })()}
 
       {/* ── Layout principale: lista + right panel ─────────────────── */}
-      <div className="flex gap-5 flex-col lg:flex-row items-start">
+      {/* [FIX MOBILE] items-stretch su mobile → card occupa tutta la larghezza; items-start solo su desktop */}
+      <div className="flex gap-5 flex-col lg:flex-row lg:items-start">
 
         {/* ── Lista ─────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0">
@@ -1051,9 +1055,10 @@ export default function DashboardMappa() {
         </div>
 
         {/* ── Right panel: banner brand ─────────────────────────────── */}
+        {/* [FIX MOBILE] w-full su mobile, lg:w-72 fisso su desktop; lg:self-start per non stirarsi in altezza su desktop */}
         <div
-          className="lg:w-72 shrink-0 rounded-xl flex flex-col items-center justify-center text-center overflow-hidden self-start"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', minHeight: 200, position: 'relative' }}
+          className="w-full lg:w-72 shrink-0 rounded-xl flex flex-col items-center justify-center text-center overflow-hidden lg:self-start"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', minHeight: 160, position: 'relative' }}
         >
           <img src="/cagliari-hd.jpg" alt="Cagliari"
             className="absolute inset-0 w-full h-full object-cover"
