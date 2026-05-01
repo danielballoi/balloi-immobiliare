@@ -33,28 +33,30 @@ function BadgeStato({ stato }) {
 // ── Popup conferma ─────────────────────────────────────────────────────────
 function ModalConferma({ titolo, messaggio, onConferma, onAnnulla, pericoloso }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div
-        className="w-full max-w-sm mx-4 rounded-2xl p-6"
-        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-      >
-        <h3 className="text-base font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{titolo}</h3>
-        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>{messaggio}</p>
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onAnnulla}
-            className="px-4 py-2 rounded-lg text-sm"
-            style={{ background: 'var(--bg-primary)', color: 'var(--text-muted)' }}
-          >
-            Annulla
-          </button>
-          <button
-            onClick={onConferma}
-            className="px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: pericoloso ? 'var(--danger)' : 'var(--accent)', color: '#fff' }}
-          >
-            Conferma
-          </button>
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onAnnulla} />
+      <div className="modal-box modal-box-sm">
+        <div className="modal-confirm-body">
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{titolo}</h3>
+            <p style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--text-muted)' }}>{messaggio}</p>
+          </div>
+          <div className="modal-footer" style={{ borderTop: 'none', padding: 0, justifyContent: 'center' }}>
+            <button
+              onClick={onAnnulla}
+              className="btn-touch"
+              style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}
+            >
+              Annulla
+            </button>
+            <button
+              onClick={onConferma}
+              className="btn-touch"
+              style={{ padding: '10px 20px', borderRadius: 10, background: pericoloso ? 'var(--danger)' : 'var(--accent)', color: pericoloso ? '#fff' : '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              Conferma
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -348,7 +350,7 @@ export default function Utenze() {
                       <div style={{ flexShrink: 0 }}>
                         <button
                           onClick={() => marcaLetta(seg.id)}
-                          style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                          style={{ padding: '10px 16px', minHeight: 36, borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer' }}
                         >
                           Segna letto
                         </button>
@@ -477,7 +479,7 @@ export default function Utenze() {
                         {u.stato === 'pending' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'approva', email: u.email })}
-                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(16,185,129,0.15)', color: '#10b981' }}
+                            style={{ padding: '8px 16px', minHeight: 36, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(16,185,129,0.15)', color: '#10b981' }}
                           >
                             Approva
                           </button>
@@ -485,7 +487,7 @@ export default function Utenze() {
                         {u.stato === 'attivo' && u.ruolo !== 'admin' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'blocca', email: u.email })}
-                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                            style={{ padding: '8px 16px', minHeight: 36, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
                           >
                             Blocca
                           </button>
@@ -493,7 +495,7 @@ export default function Utenze() {
                         {u.stato === 'bloccato' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'riattiva', email: u.email })}
-                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                            style={{ padding: '8px 16px', minHeight: 36, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
                           >
                             Riattiva
                           </button>
@@ -501,7 +503,7 @@ export default function Utenze() {
                         {u.ruolo !== 'admin' && (
                           <button
                             onClick={() => setConferma({ id: u.id, azione: 'elimina', email: u.email })}
-                            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(239,68,68,0.07)', color: 'var(--text-muted)' }}
+                            style={{ padding: '8px 16px', minHeight: 36, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(239,68,68,0.07)', color: 'var(--text-muted)' }}
                           >
                             Elimina
                           </button>

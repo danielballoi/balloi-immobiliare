@@ -92,7 +92,7 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', { email: form.email.trim(), password: form.password });
-      login(data.token, data.user);
+      login(data.user);
       navigate('/', { replace: true });
     } catch (err) {
       setErrore(err.response?.data?.error ?? 'Errore di connessione al server');

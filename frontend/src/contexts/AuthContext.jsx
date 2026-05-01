@@ -1,91 +1,57 @@
 /**
  * AuthContext.jsx - Contesto globale di autenticazione
  *
- * React Context è un modo per condividere stato tra componenti
- * senza passare props manualmente attraverso ogni livello.
+ * Il token JWT NON è più in localStorage (vulnerabile a XSS).
+ * Viene gestito interamente tramite cookie httpOnly impostati dal backend:
+ *   - balloi_token   → access token (15 min)
+ *   - balloi_refresh → refresh token (30 giorni, ruotante)
  *
- * Questo contesto gestisce:
- *   - user: dati utente corrente (o null se non loggato)
- *   - token: JWT salvato in localStorage
- *   - login(): salva token + user dopo autenticazione
- *   - logout(): pulisce tutto e reindirizza a /login
- *   - loading: true durante il controllo iniziale del token
- *
- * Sicurezza localStorage:
- *   - È vulnerabile a XSS se l'app ha dipendenze malevole
- *   - React previene XSS per default (escaping automatico)
- *   - Alternativa più sicura: httpOnly cookie (ma richiede proxy)
- *   - Per questa app locale è accettabile
+ * Al mount verifica la sessione chiamando /auth/me (il cookie viene
+ * inviato automaticamente dal browser grazie a withCredentials: true).
+ * Se il token è scaduto, l'interceptor axios in api.js chiama /auth/refresh
+ * in modo trasparente prima di restituire il controllo qui.
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
-// Crea il contesto vuoto — verrà popolato dal Provider
 const AuthContext = createContext(null);
-
-// ── Chiavi localStorage ────────────────────────────────────────────────────
-const TOKEN_KEY = 'balloi_jwt';
-const USER_KEY  = 'balloi_user';
 
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true); // true finché non verifichiamo il token
+  const [loading, setLoading] = useState(true);
 
-  /**
-   * Al primo avvio: controlla se c'è un token salvato in localStorage.
-   * Se sì, lo verifica con il backend per assicurarsi che non sia scaduto.
-   */
   useEffect(() => {
-    async function verificaTokenSalvato() {
-      const tokenSalvato = localStorage.getItem(TOKEN_KEY);
-      if (!tokenSalvato) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Imposta il token sull'istanza axios prima di chiamare /me
-        api.defaults.headers.common['Authorization'] = `Bearer ${tokenSalvato}`;
-        const { data } = await api.get('/auth/me');
+    api.get('/auth/me')
+      .then(({ data }) => {
         setUser(data.user);
-        console.log('[AUTH] Sessione ripristinata per:', data.user.email);
-      } catch {
-        // Token scaduto o non valido: pulisce tutto
-        console.log('[AUTH] Token scaduto, richiede nuovo login');
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        delete api.defaults.headers.common['Authorization'];
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    verificaTokenSalvato();
+        console.log('[AUTH] Sessione ripristinata:', data.user.email);
+      })
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
   /**
-   * login() — chiamata dopo /api/auth/login riuscito
-   * Salva token e user in localStorage e imposta l'header axios
+   * login() — chiamata dopo /api/auth/login riuscito.
+   * Il token è già nel cookie httpOnly; qui salviamo solo i dati utente in memoria.
    */
-  const login = useCallback((token, userData) => {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(userData));
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  const login = useCallback((userData) => {
     setUser(userData);
     console.log('[AUTH] Login completato:', userData.email);
   }, []);
 
   /**
-   * logout() — rimuove tutto e reindirizza alla pagina di login
+   * logout() — revoca il refresh token sul backend, cancella i cookie,
+   * azzera lo stato React e reindirizza al login.
    */
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    delete api.defaults.headers.common['Authorization'];
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Se la chiamata fallisce puliamo comunque lo stato locale
+    }
     setUser(null);
     console.log('[AUTH] Logout eseguito');
-    // Reindirizza hard: pulisce lo stato React completamente
     window.location.href = '/login';
   }, []);
 
@@ -96,10 +62,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-/**
- * Hook custom per usare il contesto auth in qualsiasi componente:
- *   const { user, login, logout } = useAuth();
- */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth deve essere usato dentro <AuthProvider>');

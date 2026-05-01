@@ -14,12 +14,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  getZone, getTipologie, calcolaVCM, calcolaReddituale,
+  getZone, calcolaVCM, calcolaReddituale,
   calcolaDCF, salvaValutazione, aggiungiAPortafoglio,
   getHeatmap,
 } from '../services/api';
 import StradeAutocomplete from '../components/StradeAutocomplete';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { TIPOLOGIE_CATASTALI, GRUPPI_TIPOLOGIE } from '../data/tipologieData';
 
 // ── Costanti ───────────────────────────────────────────────────────────────
 const STATI_IMMOBILE = ['NORMALE', 'OTTIMO', 'SCADENTE'];
@@ -112,7 +113,8 @@ function RigaKPI({ label, valore, highlight, colore }) {
 
 /**
  * InfoIcon - icona (i) cliccabile con popup spiegazione campo.
- * Chiude il popup cliccando fuori.
+ * Chiude con: click fuori, tasto ESC, click sull'overlay.
+ * Animazione fade-in/out via opacity + transform transition.
  */
 function InfoIcon({ titolo, testo }) {
   const [aperto, setAperto] = useState(false);
@@ -120,11 +122,18 @@ function InfoIcon({ titolo, testo }) {
 
   useEffect(() => {
     if (!aperto) return;
-    function handler(e) {
+    function onMouse(e) {
       if (ref.current && !ref.current.contains(e.target)) setAperto(false);
     }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    function onKey(e) {
+      if (e.key === 'Escape') setAperto(false);
+    }
+    document.addEventListener('mousedown', onMouse);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onMouse);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [aperto]);
 
   return (
@@ -139,18 +148,24 @@ function InfoIcon({ titolo, testo }) {
         i
       </button>
 
-      {aperto && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setAperto(false)} />
-          <div
-            className="absolute z-50 bottom-full mb-2 left-0 rounded-xl p-4 shadow-2xl w-72 text-left"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-          >
-            <p className="text-xs font-bold mb-1.5" style={{ color: 'var(--accent)' }}>{titolo}</p>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{testo}</p>
-          </div>
-        </>
-      )}
+      {/* Backdrop — chiude al click fuori */}
+      {aperto && <div className="fixed inset-0 z-40" onClick={() => setAperto(false)} />}
+
+      {/* Tooltip — sempre nel DOM, animato via opacity/transform */}
+      <div
+        className="absolute z-50 bottom-full mb-2 left-0 rounded-xl p-4 shadow-2xl w-72 text-left"
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          opacity: aperto ? 1 : 0,
+          transform: aperto ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.97)',
+          transition: 'opacity 0.15s ease, transform 0.15s ease',
+          pointerEvents: aperto ? 'auto' : 'none',
+        }}
+      >
+        <p className="text-xs font-bold mb-1.5" style={{ color: 'var(--accent)' }}>{titolo}</p>
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{testo}</p>
+      </div>
     </div>
   );
 }
@@ -174,10 +189,9 @@ export default function WizardValutazione() {
   // 'CAGLIARI' o 'HINTERLAND' — scelto nello step 0
   const [areaWizard, setAreaWizard] = useState('CAGLIARI');
 
-  const [zone, setZone]           = useState([]);
-  const [tipologie, setTipologie] = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [errore, setErrore]       = useState(null);
+  const [zone, setZone]       = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errore, setErrore]   = useState(null);
 
   // ── Stato globale valutazione ─────────────────────────────────────────
   const [val, setVal] = useState({
@@ -220,24 +234,60 @@ export default function WizardValutazione() {
     tasso_crescita_noi_pct: 2,
     cap_rate_exit_pct: 5,
     dcf: null,
+
+    // ── Caratteristiche avanzate VCM ──────────────────────────────────────
+    classe_energetica: 'D',
+    esposizione: 'media',
+    vista: 'strada',
+    qualita_costruzione: 'media',
+    stato_conservazione_dettaglio: 'normale',
+    box_dimensione: 'nessuno',
+    balcone_mq: 0,
+    terrazza_mq: 0,
+    giardino_mq: 0,
+    comparabili_manuali: [],
+    tipo_superficie: 'commerciale',
+
+    // ── Spese breakdown reddituale ────────────────────────────────────────
+    spese_imu: 0,
+    spese_condominio: 0,
+    spese_manutenzione: 0,
+    spese_assicurazione: 0,
+    spese_gestione: 0,
+    spese_altre: 0,
+    tipo_locazione: 'lunga_libero',
+
+    // ── DCF avanzato ──────────────────────────────────────────────────────
+    costi_vendita_pct: 3,
+    plusvalenza_regime: 'esente',
+    scenario_pess_crescita: 0,
+    scenario_ott_crescita: 3,
+    scenario_pess_vacancy: 10,
+    scenario_ott_vacancy: 3,
+    scenario_pess_capexit: 6,
+    scenario_ott_capexit: 4,
+
+    // ── Riconciliazione pesi ──────────────────────────────────────────────
+    peso_vcm: 60,
+    peso_red: 40,
+    peso_dcf: 0,
   });
 
   const upd = (campo, valore) => setVal(prev => ({ ...prev, [campo]: valore }));
 
   // ── Caricamento zone e tipologie ────────────────────────────────────
   useEffect(() => {
-    console.log('[WIZARD] Caricamento zone e tipologie');
-    Promise.all([getZone(), getHeatmap(null, 'HINTERLAND'), getTipologie()])
-      .then(([cagliariZone, hinterlandZone, t]) => {
+    console.log('[WIZARD] Caricamento zone');
+    Promise.all([getZone(), getHeatmap(null, 'HINTERLAND')])
+      .then(([cagliariZone, hinterlandZone]) => {
         const tutte = [
           ...cagliariZone.map(z => ({ ...z, area: z.area || 'CAGLIARI' })),
           ...hinterlandZone.map(z => ({ ...z, area: 'HINTERLAND' })),
         ];
         setZone(tutte);
-        setTipologie(t);
-        console.log(`[WIZARD] ${tutte.length} zone totali, ${t.length} tipologie`);
+        console.log(`[WIZARD] ${tutte.length} zone totali`);
       })
-      .catch(err => console.error('[WIZARD] Errore caricamento supporto:', err));
+      .catch(err => console.error('[WIZARD] Errore caricamento zone:', err));
   }, []);
 
   // ── Handler autocomplete strade (Cagliari) ──────────────────────────
@@ -264,16 +314,27 @@ export default function WizardValutazione() {
 
   // ── Helper: parametri VCM comuni ────────────────────────────────────
   const _vcmParams = () => ({
-    zona_codice:          val.zona_codice,
-    tipologia:            val.tipologia,
-    stato:                val.stato_immobile,
-    superficie_mq:        parseFloat(val.superficie_mq),
-    piano:                val.piano,
-    ascensore:            val.ascensore,
-    box_auto:             val.box_auto,
-    balcone_terrazza:     val.balcone_terrazza,
-    cantina:              val.cantina,
-    prezzo_base_override: val.prezzo_base_override ? parseFloat(val.prezzo_base_override) : null,
+    zona_codice:                    val.zona_codice,
+    tipologia:                      val.tipologia,
+    stato:                          val.stato_immobile,
+    superficie_mq:                  parseFloat(val.superficie_mq),
+    piano:                          val.piano,
+    ascensore:                      val.ascensore,
+    box_auto:                       val.box_auto,
+    balcone_terrazza:               val.balcone_terrazza,
+    cantina:                        val.cantina,
+    prezzo_base_override:           val.prezzo_base_override ? parseFloat(val.prezzo_base_override) : null,
+    // Nuovi parametri avanzati
+    stato_conservazione_dettaglio:  val.stato_conservazione_dettaglio,
+    classe_energetica:              val.classe_energetica,
+    esposizione:                    val.esposizione,
+    vista:                          val.vista,
+    qualita_costruzione:            val.qualita_costruzione,
+    balcone_mq:                     parseFloat(val.balcone_mq) || 0,
+    terrazza_mq:                    parseFloat(val.terrazza_mq) || 0,
+    giardino_mq:                    parseFloat(val.giardino_mq) || 0,
+    box_dimensione:                 val.box_dimensione,
+    comparabili_manuali:            val.comparabili_manuali.filter(c => c.superficie > 0 && c.prezzo > 0),
   });
 
   // ── Step 3: calcola tutti i metodi selezionati in parallelo ─────────
@@ -289,12 +350,20 @@ export default function WizardValutazione() {
       // VCM gira sempre — è la base
       const vcmPromise = calcolaVCM(_vcmParams());
 
+      // Spese totali: se breakdown compilato usa la somma, else il campo singolo legacy
+      const speseTotali = (() => {
+        const breakdown = parseFloat(val.spese_imu||0) + parseFloat(val.spese_condominio||0)
+          + parseFloat(val.spese_manutenzione||0) + parseFloat(val.spese_assicurazione||0)
+          + parseFloat(val.spese_gestione||0) + parseFloat(val.spese_altre||0);
+        return breakdown > 0 ? breakdown : parseFloat(val.spese_annue || 0);
+      })();
+
       // Reddituale: se RED o DCF sono selezionati (DCF ne ha bisogno)
       const redPromise = (haRED || haDCF)
         ? calcolaReddituale({
             canone_mensile:  parseFloat(val.canone_mensile),
             vacancy_pct:     parseFloat(val.vacancy_pct),
-            spese_annue:     parseFloat(val.spese_annue || 0),
+            spese_annue:     speseTotali,
             cap_rate_pct:    parseFloat(val.cap_rate_pct),
             superficie_mq:   parseFloat(val.superficie_mq),
             prezzo_acquisto: prezzoAcq,
@@ -312,11 +381,13 @@ export default function WizardValutazione() {
             durata_mutuo_anni:         parseInt(val.durata_mutuo_anni),
             canone_mensile:            parseFloat(val.canone_mensile),
             vacancy_pct:               parseFloat(val.vacancy_pct),
-            spese_operative_annue:     parseFloat(val.spese_annue || 0),
+            spese_operative_annue:     speseTotali,
             tasso_crescita_noi_pct:    parseFloat(val.tasso_crescita_noi_pct),
             orizzonte_anni:            parseInt(val.orizzonte_anni),
             tasso_attualizzazione_pct: parseFloat(val.tasso_attualizzazione_pct),
             cap_rate_exit_pct:         parseFloat(val.cap_rate_exit_pct),
+            costi_vendita_pct:         parseFloat(val.costi_vendita_pct || 3),
+            calcola_sensitivity:       true,
           })
         : Promise.resolve(null);
 
@@ -533,7 +604,7 @@ export default function WizardValutazione() {
             {/* Indirizzo + Zona */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <Label>Indirizzo Completo</Label>
+                <Label>Via / Indirizzo *</Label>
                 {areaWizard === 'CAGLIARI' ? (
                   /*
                    * CAGLIARI: autocomplete stradario → auto-fill zona_codice.
@@ -547,11 +618,12 @@ export default function WizardValutazione() {
                   />
                 ) : (
                   <input
+                    required
                     value={val.indirizzo}
                     onChange={e => upd('indirizzo', e.target.value)}
                     placeholder="Es. Via Roma, 12 – Quartu"
                     className="w-full px-3 py-2 rounded-lg text-sm"
-                    style={inputStyle}
+                    style={{ ...inputStyle, borderColor: !val.indirizzo ? 'rgba(245,158,11,0.6)' : 'var(--border)' }}
                   />
                 )}
               </div>
@@ -643,19 +715,33 @@ export default function WizardValutazione() {
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={inputStyle}
                 >
-                  <option value="">Seleziona...</option>
-                  {tipologie.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="">Seleziona tipologia...</option>
+                  {GRUPPI_TIPOLOGIE.map(gruppo => (
+                    <optgroup key={gruppo} label={gruppo}>
+                      {TIPOLOGIE_CATASTALI.filter(t => t.gruppo === gruppo).map(t => (
+                        <option key={t.catastale} value={t.nome}>
+                          {t.nome} ({t.catastale})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
               <div>
-                {/* RICHIESTO: "Superficie" → "Superficie commerciale (mq)" */}
                 <Label>Superficie commerciale (mq)*</Label>
                 <input
                   required
-                  type="number" step="0.5" min="1"
+                  type="number" step="0.5" min="1" max="1000"
                   value={val.superficie_mq}
-                  onChange={e => upd('superficie_mq', e.target.value)}
-                  placeholder="Es. 80"
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === '') { upd('superficie_mq', ''); return; }
+                    const n = parseFloat(v);
+                    if (!isNaN(n) && n < 0) return;
+                    if (!isNaN(n) && n > 1000) { upd('superficie_mq', '1000'); return; }
+                    upd('superficie_mq', v);
+                  }}
+                  placeholder="Es. 80 (max 1000 mq)"
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={inputStyle}
                 />
@@ -689,9 +775,15 @@ export default function WizardValutazione() {
               <div>
                 <Label>Anno di Costruzione</Label>
                 <input
-                  type="number" min="1900" max={new Date().getFullYear()}
+                  type="number" min="1899" max={new Date().getFullYear()}
                   value={val.anno_costruzione}
-                  onChange={e => upd('anno_costruzione', e.target.value)}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === '') { upd('anno_costruzione', ''); return; }
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n) && n > new Date().getFullYear()) return;
+                    upd('anno_costruzione', v);
+                  }}
                   placeholder="Es. 1980"
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={inputStyle}
@@ -730,6 +822,172 @@ export default function WizardValutazione() {
               </div>
             </div>
 
+            {/* Caratteristiche Avanzate (collassabile) */}
+            <details
+              style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}
+            >
+              <summary
+                style={{
+                  padding: '14px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  color: 'var(--text-secondary)', background: 'var(--bg-secondary)',
+                  userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 12, opacity: 0.6 }}>▶</span>
+                Caratteristiche Avanzate
+                <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>
+                  (classe energetica, vista, esposizione, superfici esterne)
+                </span>
+              </summary>
+              <div style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div>
+                    <Label info={{ titolo: 'Classe Energetica', testo: 'Da APE. A4/A3 +10-12%, F/G -5-10% rispetto a D (neutro).' }}>
+                      Classe Energetica
+                    </Label>
+                    <select value={val.classe_energetica} onChange={e => upd('classe_energetica', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      {['A4','A3','A2','A1','B','C','D','E','F','G'].map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Esposizione', testo: 'Sud/Sud-Est = ottima (+4%), Nord = scarsa (-3%). Impatto sulla luminosità.' }}>
+                      Esposizione
+                    </Label>
+                    <select value={val.esposizione} onChange={e => upd('esposizione', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      <option value="ottima">Ottima (Sud/SE/SO)</option>
+                      <option value="buona">Buona (Est/Ovest)</option>
+                      <option value="media">Media</option>
+                      <option value="scarsa">Scarsa (Nord)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Vista', testo: 'Mare +15%, panoramica +8%, parco +4%, interna -4%.' }}>
+                      Vista
+                    </Label>
+                    <select value={val.vista} onChange={e => upd('vista', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      <option value="mare">Mare</option>
+                      <option value="panoramica">Panoramica</option>
+                      <option value="parco">Parco/Verde</option>
+                      <option value="strada">Strada</option>
+                      <option value="interna">Interna/Cortile</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Stato Conservazione', testo: 'Granularità peritale: nuovo +15%, ottimo +8%, buono +3%, normale 0%, da rinfrescare -5%, da ristrutturare -18%.' }}>
+                      Stato Conservazione (dettagliato)
+                    </Label>
+                    <select value={val.stato_conservazione_dettaglio} onChange={e => upd('stato_conservazione_dettaglio', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      <option value="nuovo">Nuovo / Come nuovo</option>
+                      <option value="ottimo">Ottimo</option>
+                      <option value="buono">Buono</option>
+                      <option value="normale">Normale</option>
+                      <option value="da_rinfrescare">Da rinfrescare</option>
+                      <option value="da_ristrutturare">Da ristrutturare</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Qualità Costruzione', testo: 'Finiture e materiali. Signorile +8%, economica -8%.' }}>
+                      Qualità Costruzione
+                    </Label>
+                    <select value={val.qualita_costruzione} onChange={e => upd('qualita_costruzione', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      <option value="signorile">Signorile</option>
+                      <option value="buona">Buona</option>
+                      <option value="media">Media</option>
+                      <option value="economica">Economica</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Box / Posto Auto', testo: 'Valore aggiunto: posto auto +€5k, box singolo +€12k, box doppio +€20k.' }}>
+                      Box / Posto Auto
+                    </Label>
+                    <select value={val.box_dimensione} onChange={e => upd('box_dimensione', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      <option value="nessuno">Nessuno</option>
+                      <option value="posto_auto">Posto auto scoperto</option>
+                      <option value="singolo">Box singolo</option>
+                      <option value="doppio">Box doppio</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Balcone (mq)', testo: 'Superficie balcone. Vale il 30% del prezzo/mq dell\'immobile.' }}>Balcone (mq)</Label>
+                    <input type="number" min="0" step="1" value={val.balcone_mq}
+                      onChange={e => upd('balcone_mq', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Terrazza (mq)', testo: 'Superficie terrazza. Vale il 50% del prezzo/mq dell\'immobile.' }}>Terrazza (mq)</Label>
+                    <input type="number" min="0" step="1" value={val.terrazza_mq}
+                      onChange={e => upd('terrazza_mq', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                  </div>
+                  <div>
+                    <Label info={{ titolo: 'Giardino esclusivo (mq)', testo: 'Giardino privato. Vale il 20% del prezzo/mq dell\'immobile.' }}>Giardino (mq)</Label>
+                    <input type="number" min="0" step="1" value={val.giardino_mq}
+                      onChange={e => upd('giardino_mq', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                  </div>
+                </div>
+
+                {/* Comparabili manuali */}
+                <div>
+                  <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Comparabili Reali <span style={{ fontWeight: 400, textTransform: 'none' }}>(opzionale — fino a 3 vendite simili recenti)</span>
+                  </p>
+                  {val.comparabili_manuali.map((comp, idx) => (
+                    <div key={idx} className="grid grid-cols-3 gap-3 mb-2">
+                      <input
+                        type="number" placeholder="Superficie (mq)" value={comp.superficie || ''}
+                        onChange={e => {
+                          const arr = [...val.comparabili_manuali];
+                          arr[idx] = { ...arr[idx], superficie: parseFloat(e.target.value) || 0 };
+                          upd('comparabili_manuali', arr);
+                        }}
+                        className="px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                      <input
+                        type="number" placeholder="Prezzo totale (€)" value={comp.prezzo || ''}
+                        onChange={e => {
+                          const arr = [...val.comparabili_manuali];
+                          arr[idx] = { ...arr[idx], prezzo: parseFloat(e.target.value) || 0 };
+                          upd('comparabili_manuali', arr);
+                        }}
+                        className="px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                      <div className="flex gap-2 items-center">
+                        {comp.superficie > 0 && comp.prezzo > 0 && (
+                          <span style={{ fontSize: 12, color: 'var(--success)' }}>
+                            {formatEuro(Math.round(comp.prezzo / comp.superficie))}/mq
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => upd('comparabili_manuali', val.comparabili_manuali.filter((_, i) => i !== idx))}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--danger)', cursor: 'pointer', fontSize: 13 }}
+                        >×</button>
+                      </div>
+                    </div>
+                  ))}
+                  {val.comparabili_manuali.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => upd('comparabili_manuali', [...val.comparabili_manuali, { superficie: '', prezzo: '' }])}
+                      style={{ padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}
+                    >
+                      + Aggiungi comparabile
+                    </button>
+                  )}
+                  {val.comparabili_manuali.filter(c => c.superficie > 0 && c.prezzo > 0).length > 0 && (
+                    <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 6 }}>
+                      ✓ {val.comparabili_manuali.filter(c => c.superficie > 0 && c.prezzo > 0).length} comparabile/i inserit/i — peso 50% con stima OMI
+                    </p>
+                  )}
+                </div>
+              </div>
+            </details>
+
             {/* Bottoni separati dal form con bordo e margine — gerarchia visiva chiara */}
             <div className="flex justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
               <button onClick={() => setStepAttivo(0)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -737,7 +995,7 @@ export default function WizardValutazione() {
               </button>
               <button
                 onClick={() => setStepAttivo(2)}
-                disabled={!val.zona_codice || !val.tipologia || !val.superficie_mq || !val.stato_immobile}
+                disabled={!val.indirizzo || !val.zona_codice || !val.tipologia || !val.superficie_mq || !val.stato_immobile}
                 className="disabled:opacity-40"
                 style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
@@ -946,6 +1204,26 @@ export default function WizardValutazione() {
                       </div>
                     )}
                   </div>
+                  {/* Tipo locazione */}
+                  <div style={{ marginBottom: 8 }}>
+                    <Label info={{ titolo: 'Tipo Locazione', testo: '4+4 libero: tassazione ordinaria o cedolare 21%. 3+2 concordato: cedolare 10%. Breve turistico: occupazione tipica 40-70%, gestione 20-30%.' }}>
+                      Tipo di Locazione
+                    </Label>
+                    <select value={val.tipo_locazione} onChange={e => upd('tipo_locazione', e.target.value)}
+                      className="w-full max-w-xs px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                      <option value="lunga_libero">Lunga 4+4 – Libero</option>
+                      <option value="lunga_concordato">Lunga 3+2 – Concordato (cedolare 10%)</option>
+                      <option value="transitoria">Transitoria 1-18 mesi</option>
+                      <option value="studenti">Studenti universitari</option>
+                      <option value="breve_turistico">Breve/Turistico (Airbnb)</option>
+                    </select>
+                    {val.tipo_locazione === 'breve_turistico' && (
+                      <p style={{ fontSize: 11, color: 'var(--warning)', marginTop: 4 }}>
+                        ⚠ Locazione breve: occupazione tipica 40-70%, gestione 20-30% del fatturato
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
                     <div>
                       <Label info={{ titolo: 'Vacancy %', testo: '% di tempo sfitto annuo. Tipico 5-10%.' }}>Vacancy %</Label>
@@ -953,7 +1231,9 @@ export default function WizardValutazione() {
                         className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
                     </div>
                     <div>
-                      <Label info={{ titolo: 'Spese Annue (€)', testo: 'IMU, condominio, TARI, gestione, manutenzione ordinaria.' }}>Spese Annue (€)</Label>
+                      <Label info={{ titolo: 'Spese Annue (€)', testo: 'Se preferisci un importo unico invece del breakdown. Il breakdown qui sotto ha precedenza se compilato.' }}>
+                        Spese Annue totali (€) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(o usa breakdown)</span>
+                      </Label>
                       <input type="number" value={val.spese_annue} onChange={e => upd('spese_annue', e.target.value)}
                         className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
                     </div>
@@ -968,6 +1248,44 @@ export default function WizardValutazione() {
                       </div>
                     )}
                   </div>
+
+                  {/* Breakdown spese dettagliato */}
+                  <details style={{ borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginTop: 4 }}>
+                    <summary style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', userSelect: 'none', listStyle: 'none' }}>
+                      ▶ Breakdown spese dettagliato (opzionale — ha precedenza su "Spese Annue totali")
+                    </summary>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" style={{ padding: '14px 14px' }}>
+                      {[
+                        { key: 'spese_imu',           label: 'IMU annua (€)',        info: 'Rendita catastale × 1.05 × 160 × aliquota. Esente prima casa.' },
+                        { key: 'spese_condominio',    label: 'Condominio annuo (€)', info: 'Quota proprietario. Tipico €30-100/mese.' },
+                        { key: 'spese_manutenzione',  label: 'Manutenzione (€)',      info: 'Riserva manutenzione ordinaria. Tipico 1-2% del valore immobile/anno.' },
+                        { key: 'spese_assicurazione', label: 'Assicurazione (€)',     info: 'Polizza fabbricato. Tipico €150-400/anno.' },
+                        { key: 'spese_gestione',      label: 'Gestione/Agenzia (€)', info: 'Property management 8-12% del canone o agenzia.' },
+                        { key: 'spese_altre',         label: 'Altre spese (€)',       info: 'TARI, utenze a carico proprietario, ecc.' },
+                      ].map(({ key, label, info }) => (
+                        <div key={key}>
+                          <Label info={{ titolo: label, testo: info }}>{label}</Label>
+                          <input type="number" value={val[key]} onChange={e => upd(key, e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                        </div>
+                      ))}
+                    </div>
+                    {(() => {
+                      const tot = ['spese_imu','spese_condominio','spese_manutenzione','spese_assicurazione','spese_gestione','spese_altre']
+                        .reduce((s, k) => s + (parseFloat(val[k])||0), 0);
+                      const canoneAnnuo = parseFloat(val.canone_mensile||0) * 12;
+                      const pct = canoneAnnuo > 0 ? (tot / canoneAnnuo * 100) : 0;
+                      return tot > 0 ? (
+                        <div style={{ padding: '8px 14px 12px', fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
+                          Totale spese breakdown: <strong style={{ color: pct > 35 ? 'var(--warning)' : 'var(--text-primary)' }}>
+                            {formatEuro(tot)}
+                          </strong>
+                          {canoneAnnuo > 0 && ` · incidenza ${pct.toFixed(1)}% sul canone`}
+                          {pct > 35 && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>⚠ sopra la media (tipico 20-35%)</span>}
+                        </div>
+                      ) : null;
+                    })()}
+                  </details>
                 </div>
               )}
 
@@ -1058,6 +1376,14 @@ export default function WizardValutazione() {
                   {/* Parametri avanzati DCF */}
                   <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Parametri Avanzati</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                    <div>
+                      <Label info={{ titolo: 'Costi Vendita % all\'Exit', testo: 'Agenzia 2-4% + eventuali tasse. Tipico totale 3-5%. Ora parametrizzabile.' }}>
+                        Costi Vendita Exit %
+                      </Label>
+                      <input type="number" step="0.5" min="0" max="15" value={val.costi_vendita_pct}
+                        onChange={e => upd('costi_vendita_pct', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                    </div>
                     <div>
                       <Label info={{ titolo: 'Costi Ristrutturazione (€)', testo: 'Lavori iniziali da fare. Vengono aggiunti al capitale investito.' }}>Costi Ristrutturazione (€)</Label>
                       <input type="number" value={val.costi_ristrutturazione} onChange={e => upd('costi_ristrutturazione', e.target.value)}
@@ -1251,6 +1577,57 @@ export default function WizardValutazione() {
                     <RigaKPI label="Incasso netto exit"  valore={formatEuro(val.dcf.incasso_netto_finale)} highlight />
                   </div>
 
+                  {/* Sensitivity Analysis */}
+                  {val.dcf?.sensitivity && (() => {
+                    const { cap_values, crescita_values, matrice } = val.dcf.sensitivity;
+                    const soglia = parseFloat(val.tasso_attualizzazione_pct);
+                    return (
+                      <div style={{ padding: '0 24px 16px' }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                          Analisi Sensibilità — TIR (%) per Cap Rate Exit × Crescita NOI
+                        </p>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ padding: '6px 10px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 700, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+                                  Cap Exit \ Crescita NOI
+                                </th>
+                                {crescita_values.map(c => (
+                                  <th key={c} style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+                                    {c}%
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {cap_values.map((cap, ri) => (
+                                <tr key={cap}>
+                                  <td style={{ padding: '6px 10px', fontWeight: 700, color: 'var(--text-primary)', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+                                    {cap}%
+                                  </td>
+                                  {(matrice[ri] || []).map((tir, ci) => (
+                                    <td key={ci} style={{
+                                      padding: '6px 10px', textAlign: 'center', fontWeight: 600, fontSize: 12,
+                                      borderBottom: '1px solid var(--border)',
+                                      background: tir >= soglia ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)',
+                                      color: tir >= soglia ? 'var(--success)' : 'var(--danger)',
+                                    }}>
+                                      {typeof tir === 'number' ? tir.toFixed(1) : '–'}%
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+                          Verde: TIR ≥ tasso attualizzazione richiesto ({soglia}%). Rosso: sotto soglia.
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   {/* verdetto */}
                   <div style={{ padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 18 }}>
@@ -1265,6 +1642,100 @@ export default function WizardValutazione() {
                 </div>
               )}
             </div>
+
+            {/* ── Riconciliazione Multi-Metodo (IVS 105) ────────────────────── */}
+            {(() => {
+              const metodi = [];
+              if (val.vcm)        metodi.push({ id: 'VCM', label: 'VCM', v: val.vcm.valore_medio,         peso: 'peso_vcm', color: 'var(--accent)' });
+              if (val.reddituale) metodi.push({ id: 'RED', label: 'RED', v: val.reddituale.valore_mercato, peso: 'peso_red', color: '#3b82f6' });
+              if (val.dcf)        metodi.push({ id: 'DCF', label: 'DCF', v: val.dcf.van != null ? val.vcm?.valore_medio : null, peso: 'peso_dcf', color: 'var(--success)' });
+              if (metodi.length < 2) return null;
+
+              // Normalizza i pesi
+              const pesoTot = metodi.reduce((s, m) => s + (parseFloat(val[m.peso]) || 0), 0);
+              const valoreSintesi = pesoTot > 0
+                ? metodi.reduce((s, m) => s + (m.v || 0) * (parseFloat(val[m.peso]) || 0), 0) / pesoTot
+                : metodi.reduce((s, m) => s + (m.v || 0), 0) / metodi.length;
+
+              return (
+                <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--accent)', background: 'rgba(245,158,11,0.03)' }}>
+                  <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'rgba(245,158,11,0.06)' }}>
+                    <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      Valore di Sintesi — Riconciliazione IVS 105
+                    </h3>
+                  </div>
+                  <div style={{ padding: '20px 24px' }}>
+                    {/* Griglia metodi con pesi */}
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${metodi.length}, 1fr)`, gap: 12, marginBottom: 20 }}>
+                      {metodi.map(m => (
+                        <div key={m.id} style={{ padding: '14px 12px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: m.color, marginBottom: 6, letterSpacing: '0.06em' }}>{m.label}</p>
+                          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{formatEuro(m.v)}</p>
+                          <div>
+                            <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Peso %</label>
+                            <input type="number" min="0" max="100" step="5"
+                              value={val[m.peso]}
+                              onChange={e => upd(m.peso, e.target.value)}
+                              style={{ ...inputStyle, padding: '4px 8px', textAlign: 'center', width: '100%', marginTop: 4, borderRadius: 6, fontSize: 13, fontWeight: 700 }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Valore finale */}
+                    <div style={{ textAlign: 'center', padding: '18px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', marginBottom: 14 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
+                        Valore di Mercato Stimato
+                      </p>
+                      <p style={{ fontSize: 30, fontWeight: 700, color: 'var(--accent)', lineHeight: 1, marginBottom: 4 }}>{formatEuro(Math.round(valoreSintesi))}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        Range: {formatEuro(Math.round(valoreSintesi * 0.92))} — {formatEuro(Math.round(valoreSintesi * 1.08))}
+                        <span style={{ marginLeft: 8 }}>· Spread ±8% (UNI 11558)</span>
+                      </p>
+                    </div>
+
+                    {/* Assunzioni collassabile */}
+                    {val.vcm && (
+                      <details style={{ borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                        <summary style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', listStyle: 'none', userSelect: 'none' }}>
+                          📋 Vedi assunzioni e coefficienti applicati
+                        </summary>
+                        <div style={{ padding: '4px 0' }}>
+                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                            {[
+                              ['Prezzo base OMI €/mq', `${formatEuro(val.vcm.prezzo_base_mq)}/mq`],
+                              ['Coefficiente piano', `${val.vcm.coefficiente_piano} (piano ${val.piano}${val.ascensore ? ', ascensore sì' : ''})`],
+                              ['Coefficiente stato', `${val.vcm.coefficiente_stato} (${val.stato_conservazione_dettaglio})`],
+                              val.vcm.coefficiente_energetica != null && ['Coefficiente classe energetica', `${val.vcm.coefficiente_energetica} (${val.classe_energetica})`],
+                              val.vcm.coefficiente_esposizione != null && ['Coefficiente esposizione', `${val.vcm.coefficiente_esposizione} (${val.esposizione})`],
+                              val.vcm.coefficiente_vista != null && ['Coefficiente vista', `${val.vcm.coefficiente_vista} (${val.vista})`],
+                              val.vcm.coefficiente_qualita != null && ['Coefficiente qualità', `${val.vcm.coefficiente_qualita} (${val.qualita_costruzione})`],
+                              val.vcm.bonus_balcone > 0 && ['Bonus balcone', `+${formatEuro(val.vcm.bonus_balcone)} (${val.balcone_mq} mq × 30%)`],
+                              val.vcm.bonus_terrazza > 0 && ['Bonus terrazza', `+${formatEuro(val.vcm.bonus_terrazza)} (${val.terrazza_mq} mq × 50%)`],
+                              val.vcm.bonus_giardino > 0 && ['Bonus giardino', `+${formatEuro(val.vcm.bonus_giardino)} (${val.giardino_mq} mq × 20%)`],
+                              val.vcm.bonus_box > 0 && ['Bonus box/posto auto', `+${formatEuro(val.vcm.bonus_box)} (${val.box_dimensione})`],
+                              val.vcm.usa_comparabili_manuali && ['Comparabili manuali', `${val.comparabili_manuali.filter(c=>c.superficie>0&&c.prezzo>0).length} vendite · peso 50%`],
+                              ['Spread applicato', '±8% (UNI 11558)'],
+                              ['Anno riferimento OMI', val.vcm.anno_riferimento],
+                              ['N. comparabili OMI', val.vcm.numero_comparabili],
+                            ].filter(Boolean).map(([label, valore], i) => (
+                              <tr key={i} style={{ background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+                                <td style={{ padding: '8px 14px', color: 'var(--text-muted)' }}>{label}</td>
+                                <td style={{ padding: '8px 14px', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>{valore}</td>
+                              </tr>
+                            ))}
+                          </table>
+                          <p style={{ fontSize: 10, color: 'var(--text-muted)', padding: '8px 14px' }}>
+                            Metodologia conforme IVS 105 · Manuale OMI Agenzia delle Entrate · UNI 11558
+                          </p>
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Azioni */}
             <div className="flex flex-col sm:flex-row justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>

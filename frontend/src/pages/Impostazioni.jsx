@@ -13,33 +13,24 @@ import { getImportStats, inviaSegnalazione } from '../services/api';
 
 function ModalRichiestaInviata({ onChiudi }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/65" onClick={onChiudi} />
-      <div
-        className="relative z-10 w-full max-w-sm rounded-2xl overflow-hidden"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      >
-        <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-sm">
+        <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 22 }}>✅</span>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              Richiesta Inviata
-            </h2>
+            <h2 className="modal-title">Richiesta Inviata</h2>
           </div>
-          <button
-            onClick={onChiudi}
-            style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}
-          >
-            ×
-          </button>
+          <button className="modal-close" onClick={onChiudi}>×</button>
         </div>
-        <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="modal-body-col">
           <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)' }}>
             La tua segnalazione è stata inviata con successo. L'amministratore ti risponderà via email all'indirizzo registrato.
           </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={onChiudi}
+              className="btn-touch"
               style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}
             >
               OK

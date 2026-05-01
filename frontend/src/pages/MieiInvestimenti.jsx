@@ -22,6 +22,7 @@ import {
 import StatCard      from '../components/StatCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState    from '../components/EmptyState';
+import { formatAddress } from '../utils/addressNormalizer';
 
 // ── Formattatori ─────────────────────────────────────────────────────────────
 const formatEuro = (n) =>
@@ -35,6 +36,19 @@ const formatData = (iso) =>
 
 // Data odierna in formato YYYY-MM-DD per confronti
 const oggi = new Date().toISOString().split('T')[0];
+
+// Note: formato JSON [{testo, data}] — compatibile con legacy string
+function parseNote(raw) {
+  if (!raw) return [];
+  try {
+    const p = JSON.parse(raw);
+    if (Array.isArray(p)) return p;
+    return raw.trim() ? [{ testo: raw, data: null }] : [];
+  } catch {
+    return raw.trim() ? [{ testo: raw, data: null }] : [];
+  }
+}
+function stringifyNote(arr) { return JSON.stringify(arr); }
 
 /**
  * Normalizza un prezzo in formato italiano verso stringa numerica intera pulita.
@@ -89,17 +103,14 @@ function TabSelector({ attiva, onCambio }) {
 // ── MODAL GENERICO ────────────────────────────────────────────────────────────
 function Modal({ titolo, onChiudi, children }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onChiudi} />
-      <div
-        className="relative z-10 w-full max-w-xl rounded-2xl overflow-hidden flex flex-col overflow-y-auto max-h-[92vh]"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      >
-        <div style={{ padding: '20px 36px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{titolo}</h2>
-          <button onClick={onChiudi} style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18, background: 'var(--bg-hover)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}>×</button>
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-md">
+        <div className="modal-header">
+          <h2 className="modal-title">{titolo}</h2>
+          <button className="modal-close" onClick={onChiudi}>×</button>
         </div>
-        <div style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
+        <div className="modal-body-col">
           {children}
         </div>
       </div>
@@ -118,24 +129,23 @@ const labelStyle = { color: 'var(--text-muted)', letterSpacing: '0.01em' };
 // ── MODAL CONFERMA (elimina / cambia stato / chiudi locazione ecc.) ──────────
 function ModalConferma({ icona, titolo, messaggio, labelConferma, coloreConferma, onConferma, onAnnulla }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onAnnulla} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl p-8 flex flex-col gap-5 text-center"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <div>
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onAnnulla} />
+      <div className="modal-box modal-box-sm">
+        <div className="modal-confirm-body">
           <span style={{ fontSize: 36, display: 'block', marginBottom: 12 }}>{icona}</span>
           <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{titolo}</h3>
           <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{messaggio}</p>
-        </div>
-        <div className="flex gap-3 justify-center">
-          <button onClick={onAnnulla}
-            style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
-            Annulla
-          </button>
-          <button onClick={onConferma}
-            style={{ padding: '10px 20px', borderRadius: 10, background: coloreConferma || 'var(--accent)', color: coloreConferma && coloreConferma !== 'var(--accent)' ? '#fff' : '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-            {labelConferma}
-          </button>
+          <div className="flex gap-3 justify-center" style={{ marginTop: 8 }}>
+            <button onClick={onAnnulla} className="btn-touch"
+              style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+              Annulla
+            </button>
+            <button onClick={onConferma} className="btn-touch"
+              style={{ padding: '10px 20px', borderRadius: 10, background: coloreConferma || 'var(--accent)', color: coloreConferma && coloreConferma !== 'var(--accent)' ? '#fff' : '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+              {labelConferma}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -171,7 +181,7 @@ function SpostaPopup({ imm, onCambia }) {
       </button>
       {aperto && (
         <div
-          style={{ position: 'absolute', right: 0, top: 36, zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', minWidth: 220 }}
+          style={{ position: 'absolute', right: 0, bottom: '100%', marginBottom: 6, zIndex: 200, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 8, boxShadow: '0 -4px 24px rgba(0,0,0,0.35)', minWidth: 220 }}
           onClick={e => e.stopPropagation()}
         >
           <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sposta in</p>
@@ -192,12 +202,97 @@ function SpostaPopup({ imm, onCambia }) {
   );
 }
 
+// ── POPUP NOTE IMMOBILE ───────────────────────────────────────────────────────
+function PopupNote({ imm, onAggiornaNote, onChiudi }) {
+  const noteArr = parseNote(imm.note);
+  const [nuovaNota, setNuovaNota] = useState('');
+  const [salvando, setSalvando]   = useState(false);
+
+  async function salva() {
+    if (!nuovaNota.trim() || salvando) return;
+    setSalvando(true);
+    const entry = { testo: nuovaNota.trim(), data: new Date().toISOString() };
+    try {
+      await onAggiornaNote(imm.id, stringifyNote([entry, ...noteArr]));
+      setNuovaNota('');
+    } catch (err) {
+      console.error('[NOTE] Errore salvataggio:', err);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay modal-overlay-z60">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-sm" style={{ display: 'flex', flexDirection: 'column', maxHeight: '82vh' }}>
+
+        {/* Header */}
+        <div className="modal-header">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Informazioni</span>
+              {noteArr.length > 0 && (
+                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)', fontWeight: 700 }}>{noteArr.length}</span>
+              )}
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatAddress(imm.indirizzo)}</p>
+          </div>
+          <button className="modal-close" onClick={onChiudi}>×</button>
+        </div>
+
+        {/* Lista note scrollabile — newest first */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {noteArr.length === 0 ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center' }}>
+              <p style={{ fontSize: 28, marginBottom: 10 }}>📝</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>Nessuna nota ancora.<br />Scrivi la prima qui sotto.</p>
+            </div>
+          ) : noteArr.map((n, i) => (
+            <div key={i} style={{ padding: '14px 20px', borderBottom: i < noteArr.length - 1 ? '1px solid var(--border)' : 'none', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+              {n.data && (
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 500 }}>
+                  {new Date(n.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+              <p style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{n.testo}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer — aggiungi nota */}
+        <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
+          <textarea
+            value={nuovaNota}
+            onChange={e => setNuovaNota(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) salva(); }}
+            rows={3}
+            placeholder="Scrivi una nuova nota… (Ctrl+Invio per salvare)"
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none', resize: 'none', lineHeight: 1.6, boxSizing: 'border-box' }}
+          />
+          <button
+            onClick={salva}
+            disabled={!nuovaNota.trim() || salvando}
+            className="btn-touch"
+            style={{ alignSelf: 'flex-end', padding: '8px 20px', borderRadius: 8, background: 'var(--accent)', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', opacity: (!nuovaNota.trim() || salvando) ? 0.4 : 1 }}>
+            {salvando ? 'Salvo…' : 'Aggiungi Nota'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── MODAL DETTAGLIO IMMOBILE ─────────────────────────────────────────────────
-function DettaglioImmobile({ imm, onChiudi, onModifica }) {
+function DettaglioImmobile({ imm, onChiudi, onModifica, onAggiornaNote }) {
   const statoColore = { COMPRATO: '#34d399', INTERESSATO: '#fbbf24', VENDUTO_TERZI: '#f87171' };
   const col = statoColore[imm.stato_interesse] || 'var(--text-muted)';
+
+  const [noteAperte, setNoteAperte] = useState(false);
+  const noteArr = parseNote(imm.note);
+
   const righe = [
-    ['Indirizzo',    imm.indirizzo],
+    ['Indirizzo',    formatAddress(imm.indirizzo)],
     ['Quartiere',    imm.quartiere],
     ['Tipologia',    imm.tipologia],
     ['Superficie',   formatMq(imm.superficie_mq)],
@@ -207,7 +302,6 @@ function DettaglioImmobile({ imm, onChiudi, onModifica }) {
     ['Venditore',    imm.venditore],
     ['Data Asta',    imm.data_inizio_asta ? formatData(imm.data_inizio_asta) : null],
     ['Link',         imm.link_riferimento],
-    ['Note',         imm.note],
     ['Inserito il',  formatData(imm.data_inserimento)],
   ].filter(([, v]) => v);
 
@@ -220,6 +314,8 @@ function DettaglioImmobile({ imm, onChiudi, onModifica }) {
         </span>
         {imm.preferito === 1 && <span style={{ fontSize: 14 }}>❤️</span>}
       </div>
+
+      {/* Tabella dati principali */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
         {righe.map(([k, v], i) => (
           <div key={k} style={{ display: 'flex', gap: 16, padding: '10px 16px', background: i % 2 === 0 ? 'var(--bg-secondary)' : 'var(--bg-card)' }}>
@@ -232,6 +328,30 @@ function DettaglioImmobile({ imm, onChiudi, onModifica }) {
           </div>
         ))}
       </div>
+
+      {/* ── Note — badge cliccabile → apre PopupNote ────────────────────── */}
+      <button
+        onClick={() => setNoteAperte(true)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'}
+        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>📝</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Informazioni</span>
+          {noteArr.length > 0 && (
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)', fontWeight: 700 }}>{noteArr.length}</span>
+          )}
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          {noteArr.length === 0 ? 'Aggiungi la prima →' : noteArr.length === 1 ? '1 nota →' : `${noteArr.length} note →`}
+        </span>
+      </button>
+
+      {noteAperte && (
+        <PopupNote imm={imm} onAggiornaNote={onAggiornaNote} onChiudi={() => setNoteAperte(false)} />
+      )}
+
       <div style={{ height: 1, background: 'var(--border)' }} />
       <div className="flex justify-center gap-3">
         <button onClick={onChiudi} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -260,6 +380,8 @@ function CensimentiTab() {
   const [filtri, setFiltri]       = useState({ tipo_acquisizione: '', tipologia: '', prezzo_da: '', prezzo_a: '' });
   const [conferma, setConferma]   = useState(null);
   const [dettaglioItem, setDettaglioItem] = useState(null);
+  const [popupNoteId, setPopupNoteId]     = useState(null);
+  const popupNoteItem = popupNoteId ? immobili.find(i => i.id === popupNoteId) : null;
   const [form, setForm] = useState({
     indirizzo: '', quartiere: '', tipologia: '',
     superficie_mq: '', prezzo_richiesto: '', stato_interesse: 'INTERESSATO',
@@ -333,6 +455,13 @@ function CensimentiTab() {
     } catch (err) {
       console.error('[CENSIMENTI] Errore salvataggio:', err);
     }
+  }
+
+  async function aggiornaNote(id, noteJson) {
+    await aggiornaCensimento(id, { note: noteJson });
+    const upd = prev => prev.map(i => i.id === id ? { ...i, note: noteJson } : i);
+    setImmobili(upd);
+    setDettaglioItem(prev => prev?.id === id ? { ...prev, note: noteJson } : prev);
   }
 
   function chiediConferma(tipo, id, indirizzo, nuovoStato = null) {
@@ -549,7 +678,7 @@ function CensimentiTab() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: info.dot, flexShrink: 0, marginTop: 4 }} />
                     <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.35, wordBreak: 'break-word' }}>
-                      {imm.indirizzo || '–'}
+                      {formatAddress(imm.indirizzo) || '–'}
                     </p>
                   </div>
 
@@ -581,6 +710,15 @@ function CensimentiTab() {
                       </button>
                     )}
                     <SpostaPopup imm={imm} onCambia={(id, indirizzo, nuovoStato) => chiediConferma('stato', id, indirizzo, nuovoStato)} />
+                    {/* Badge note — visibile solo se ci sono note */}
+                    {parseNote(imm.note).length > 0 && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setPopupNoteId(imm.id); }}
+                        title="Vedi note"
+                        style={{ flexShrink: 0, height: 32, padding: '0 9px', borderRadius: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>
+                        📝 {parseNote(imm.note).length}
+                      </button>
+                    )}
                     <button
                       onClick={e => { e.stopPropagation(); apriModale(imm); }}
                       title="Modifica"
@@ -607,6 +745,16 @@ function CensimentiTab() {
           imm={dettaglioItem}
           onChiudi={() => setDettaglioItem(null)}
           onModifica={() => { setDettaglioItem(null); apriModale(dettaglioItem); }}
+          onAggiornaNote={aggiornaNote}
+        />
+      )}
+
+      {/* ── Popup note da card ──────────────────────────────────────────── */}
+      {popupNoteItem && (
+        <PopupNote
+          imm={popupNoteItem}
+          onAggiornaNote={aggiornaNote}
+          onChiudi={() => setPopupNoteId(null)}
         />
       )}
 
@@ -668,6 +816,9 @@ function CensimentiTab() {
                 placeholder="Es. 400.000" className={inputCls}
                 style={{ ...inputStyle, borderColor: !form.prezzo_richiesto ? 'rgba(245,158,11,0.7)' : 'var(--border)' }} />
               <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Puoi scrivere 400.000 oppure 400000</p>
+              {form.tipo_acquisizione === 'ASTA' && (
+                <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 3, fontWeight: 600 }}>ℹ Per il caso d'asta si intende prezzo base</p>
+              )}
             </div>
           </div>
 
@@ -717,7 +868,7 @@ function CensimentiTab() {
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Link & Note</span>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Link & Informazioni</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
           <div>
@@ -736,9 +887,9 @@ function CensimentiTab() {
                 placeholder="Nome agente o privato" className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={labelStyle}>Note</label>
+              <label className={labelCls} style={labelStyle}>Informazioni</label>
               <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-                rows={2} placeholder="Note sull'immobile..." className={inputCls}
+                rows={2} placeholder="Informazioni sull'immobile..." className={inputCls}
                 style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
           </div>
@@ -854,31 +1005,56 @@ function LocazioniTab() {
     }
   }
 
+  // Le colonne data_inizio/data_fine sono DATE in MySQL → richiede "YYYY-MM-DD".
+  // mysql2 le restituisce come Date objects serializzati in ISO ("…T00:00:00.000Z"):
+  // bisogna troncare al formato corretto prima di inviare il PUT.
+  function fmtDate(v) {
+    if (!v) return null;
+    const s = typeof v === 'string' ? v : v.toISOString();
+    return s.substring(0, 10);
+  }
+  function locPayload(loc, nuovoStato) {
+    return {
+      ...loc,
+      stato:       nuovoStato,
+      data_inizio: fmtDate(loc.data_inizio),
+      data_fine:   fmtDate(loc.data_fine),
+    };
+  }
+
   async function eseguiConferma() {
     if (!conferma) return;
     const loc = locazioni.find(l => l.id === conferma.id);
+    const { tipo, id } = conferma;
+
+    // Optimistic update — aggiorna lo stato locale immediatamente
+    if (tipo === 'elimina') {
+      setLocazioni(prev => prev.filter(l => l.id !== id));
+    } else if (tipo === 'chiudi') {
+      setLocazioni(prev => prev.map(l => l.id === id ? { ...l, stato: 'TERMINATA' } : l));
+      setSubTab('PASSATE');
+    } else if (tipo === 'vendita') {
+      setLocazioni(prev => prev.map(l => l.id === id ? { ...l, stato: 'VENDUTA' } : l));
+      setSubTab('PASSATE');
+    } else if (tipo === 'riattiva') {
+      setLocazioni(prev => prev.map(l => l.id === id ? { ...l, stato: 'ATTIVA' } : l));
+      setSubTab('ATTIVE');
+    }
+    setConferma(null);
+
     try {
-      if (conferma.tipo === 'elimina') {
-        await eliminaLocazione(conferma.id);
-        console.log(`[LOCAZIONI] Eliminata locazione ${conferma.id}`);
-      } else if (conferma.tipo === 'chiudi') {
-        // Chiude il contratto → TERMINATA (finisce in Locazioni Passate)
-        await aggiornaLocazione(conferma.id, { ...loc, stato: 'TERMINATA' });
-        console.log(`[LOCAZIONI] Locazione ${conferma.id} chiusa`);
-      } else if (conferma.tipo === 'vendita') {
-        await aggiornaLocazione(conferma.id, { ...loc, stato: 'VENDUTA' });
-        console.log(`[LOCAZIONI] Immobile ${conferma.id} segnato come VENDUTO`);
-        setSubTab('PASSATE');
-      } else if (conferma.tipo === 'riattiva') {
-        // Riporta in stato ATTIVA da Locazioni Passate
-        await aggiornaLocazione(conferma.id, { ...loc, stato: 'ATTIVA' });
-        console.log(`[LOCAZIONI] Locazione ${conferma.id} riattivata`);
+      if (tipo === 'elimina') {
+        await eliminaLocazione(id);
+      } else if (tipo === 'chiudi') {
+        await aggiornaLocazione(id, locPayload(loc, 'TERMINATA'));
+      } else if (tipo === 'vendita') {
+        await aggiornaLocazione(id, locPayload(loc, 'VENDUTA'));
+      } else if (tipo === 'riattiva') {
+        await aggiornaLocazione(id, locPayload(loc, 'ATTIVA'));
       }
-      setConferma(null);
-      carica();
     } catch (err) {
       console.error('[LOCAZIONI] Errore operazione:', err);
-      setConferma(null);
+      carica(); // rollback se il server fallisce
     }
   }
 
@@ -888,7 +1064,7 @@ function LocazioniTab() {
     if (nuovaDataFine <= oggi) { setErroreRinnova('La nuova data deve essere futura'); return; }
     const loc = locazioni.find(l => l.id === rinnovaItem.id);
     try {
-      await aggiornaLocazione(rinnovaItem.id, { ...loc, data_fine: nuovaDataFine, stato: 'ATTIVA' });
+      await aggiornaLocazione(rinnovaItem.id, { ...loc, stato: 'ATTIVA', data_inizio: fmtDate(loc.data_inizio), data_fine: nuovaDataFine });
       console.log(`[LOCAZIONI] Locazione ${rinnovaItem.id} rinnovata fino al ${nuovaDataFine}`);
       setRinnovaItem(null);
       carica();
@@ -907,7 +1083,7 @@ function LocazioniTab() {
   const configConferma = conferma ? {
     elimina:  { icona: '🗑', titolo: 'Elimina locazione?',       messaggio: `Elimina definitivamente "${conferma.indirizzo}"? I dati storici andranno persi.`, label: 'Elimina',  colore: 'rgba(239,68,68,0.9)' },
     chiudi:   { icona: '✕', titolo: 'Chiudi contratto?',         messaggio: `Chiudi la locazione di "${conferma.indirizzo}"? Verrà spostata nelle Locazioni Passate.`, label: 'Chiudi',   colore: 'rgba(100,116,139,0.9)' },
-    vendita:  { icona: '💰', titolo: 'Segna come venduto?',       messaggio: `L'immobile "${conferma.indirizzo}" verrà spostato nelle Locazioni Passate e segnato come venduto.`, label: 'Conferma Vendita', colore: 'rgba(59,130,246,0.9)' },
+    vendita:  { icona: '→', titolo: 'Sposta su Locazioni Passate?', messaggio: `La locazione "${conferma.indirizzo}" verrà spostata nelle Locazioni Passate.`, label: 'Sposta su Passate', colore: 'rgba(100,116,139,0.9)' },
     riattiva: { icona: '↻', titolo: 'Riattiva locazione?',       messaggio: `Riporta "${conferma.indirizzo}" tra le Locazioni Attive?`, label: 'Riattiva',  colore: 'var(--accent)' },
   }[conferma.tipo] : null;
 
@@ -934,7 +1110,7 @@ function LocazioniTab() {
       )}
 
       {/* ── Header: totale + pulsante nuova locazione ──────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-2">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {locazioniAttive.length} attive
           {totaleCanoni > 0 && ` · ${formatEuro(totaleCanoni)}/mese`}
@@ -1001,14 +1177,14 @@ function LocazioniTab() {
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: exp ? '#ef4444' : subTab === 'ATTIVE' ? '#10b981' : loc.stato === 'VENDUTA' ? '#3b82f6' : '#94a3b8', flexShrink: 0 }} />
                   {/* Indirizzo */}
                   <h3 style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', flex: 1 }}>
-                    {loc.indirizzo}
+                    {formatAddress(loc.indirizzo)}
                   </h3>
                   {/* Badge stato */}
                   <span style={{ padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700,
                     background: exp ? 'rgba(239,68,68,0.15)' : loc.stato === 'VENDUTA' ? 'rgba(59,130,246,0.15)' : loc.stato === 'ATTIVA' ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)',
                     color: exp ? 'var(--danger)' : loc.stato === 'VENDUTA' ? 'var(--info)' : loc.stato === 'ATTIVA' ? 'var(--success)' : 'var(--text-muted)',
                   }}>
-                    {exp ? '⚠ SCADUTA' : loc.stato === 'VENDUTA' ? '💰 VENDUTA' : loc.stato === 'TERMINATA' ? '✕ TERMINATA' : loc.stato}
+                    {exp ? '⚠ SCADUTA' : loc.stato === 'VENDUTA' ? '→ PASSATO' : loc.stato === 'TERMINATA' ? '✕ CHIUSO' : loc.stato === 'SCADUTA' ? 'SCADUTO' : loc.stato}
                   </span>
                   {/* Canone */}
                   {loc.canone_mensile && (
@@ -1100,11 +1276,11 @@ function LocazioniTab() {
                           style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                           ✕ Chiudi
                         </button>
-                        {/* VENDITA */}
+                        {/* SPOSTA SU LOCAZIONI PASSATE */}
                         <button
                           onClick={() => setConferma({ tipo: 'vendita', id: loc.id, indirizzo: loc.indirizzo })}
-                          style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(59,130,246,0.1)', color: 'var(--info)', border: '1px solid rgba(59,130,246,0.3)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                          💰 Vendita
+                          style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(100,116,139,0.1)', color: 'var(--text-secondary)', border: '1px solid rgba(100,116,139,0.3)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          → Venduta
                         </button>
                         {/* MODIFICA (destra) */}
                         <button
@@ -1139,15 +1315,17 @@ function LocazioniTab() {
 
       {/* ── Modal RINNOVA: inserisci nuova data fine ────────────────────── */}
       {rinnovaItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setRinnovaItem(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>↻ Rinnova Contratto</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{rinnovaItem.indirizzo}</p>
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setRinnovaItem(null)} />
+          <div className="modal-box modal-box-sm">
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">↻ Rinnova Contratto</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{rinnovaItem.indirizzo}</p>
+              </div>
+              <button className="modal-close" onClick={() => setRinnovaItem(null)}>×</button>
             </div>
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="modal-body-col">
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.01em' }}>
                   Nuova data di fine contratto
@@ -1164,11 +1342,11 @@ function LocazioniTab() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setRinnovaItem(null)}
+                <button onClick={() => setRinnovaItem(null)} className="btn-touch"
                   style={{ flex: 1, padding: '12px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                   Annulla
                 </button>
-                <button onClick={eseguiRinnova}
+                <button onClick={eseguiRinnova} className="btn-touch"
                   style={{ flex: 1, padding: '12px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
                   Conferma Rinnovo
                 </button>
@@ -1273,7 +1451,7 @@ function LocazioniTab() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className={labelCls} style={labelStyle}>Note</label>
+              <label className={labelCls} style={labelStyle}>Informazioni</label>
               <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={2} className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
           </div>
@@ -1302,12 +1480,13 @@ function ValutazioniTab() {
   const [immobili, setImmobili]       = useState([]);
   const [summary, setSummary]         = useState(null);
   const [loading, setLoading]         = useState(true);
-  const [rimuovendo, setRimuovendo]   = useState(null);
-  const [conferma, setConferma]       = useState(null); // { id, indirizzo }
-  const [duplicaItem, setDuplicaItem] = useState(null);
+  const [rimuovendo, setRimuovendo]     = useState(null);
+  const [conferma, setConferma]         = useState(null);
+  const [duplicaItem, setDuplicaItem]   = useState(null);
   const [duplicaStato, setDuplicaStato] = useState('INTERESSATO');
-  const [duplicando, setDuplicando]   = useState(false);
-  const [erroreOps, setErroreOps]     = useState(null);
+  const [duplicando, setDuplicando]     = useState(false);
+  const [erroreOps, setErroreOps]       = useState(null);
+  const [censicitoId, setCensicitoId]   = useState(null); // id appena censito → toast
 
   const carica = () => {
     setLoading(true);
@@ -1344,7 +1523,7 @@ function ValutazioniTab() {
     try {
       const prezzoRaw = duplicaItem.prezzo_acquisto || duplicaItem.vcm_valore_medio || '';
       await creaCensimento({
-        indirizzo:         duplicaItem.indirizzo || 'Indirizzo da definire',
+        indirizzo:         duplicaItem.indirizzo || '',
         quartiere:         '',
         tipologia:         duplicaItem.tipologia || '',
         superficie_mq:     duplicaItem.superficie_mq || '',
@@ -1352,16 +1531,20 @@ function ValutazioniTab() {
         stato_interesse:   duplicaStato,
         stato_immobile:    duplicaItem.stato_immobile || 'NORMALE',
         venditore:         '',
-        note:              'Importato da Valutazioni Eseguite',
+        note:              '',
         tipo_acquisizione: 'PRIVATO',
         link_riferimento:  '',
         data_inizio_asta:  '',
       });
-      console.log('[VALUTAZIONI] Duplica in Censimenti OK');
+      console.log('[VALUTAZIONI] Censimento creato OK');
+      const idCensito = duplicaItem.id;
       setDuplicaItem(null);
-      navigate('/portafoglio?tab=censimenti');
+      // Rimuove dalla lista senza navigare via
+      setImmobili(prev => prev.filter(i => i.id !== idCensito));
+      setCensicitoId(idCensito);
+      setTimeout(() => setCensicitoId(null), 3500);
     } catch (err) {
-      console.error('[VALUTAZIONI] Errore duplica:', err);
+      console.error('[VALUTAZIONI] Errore censisci:', err);
       setDuplicaItem(null);
       setErroreOps(err.response?.data?.error ?? 'Errore durante il salvataggio. Riprova.');
     } finally {
@@ -1397,6 +1580,16 @@ function ValutazioniTab() {
         </button>
       </div>
 
+      {/* Toast censimento avvenuto */}
+      {censicitoId && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)' }}>
+          <span style={{ fontSize: 16 }}>✓</span>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>
+            Immobile aggiunto a Censimenti — visibile in "Immobili Censiti".
+          </p>
+        </div>
+      )}
+
       {immobili.length === 0 ? (
         <EmptyState icon="📊" title="Nessuna valutazione eseguita" message="Usa il Wizard Valutazione per analizzare un immobile e aggiungilo al portafoglio."
           action={<button onClick={() => navigate('/valutazione')} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}>Valuta il primo immobile</button>}
@@ -1404,71 +1597,57 @@ function ValutazioniTab() {
       ) : (
         <div className="flex flex-col gap-3">
           {immobili.map(imm => (
-            <div key={imm.id} className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="flex items-start gap-2 flex-wrap">
-                    <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                      {imm.indirizzo || 'Indirizzo non specificato'}
-                    </h3>
-                    {imm.zona_codice && (
-                      <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
-                        {imm.zona_codice}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            <div key={imm.id} style={{ borderRadius: 14, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+
+              {/* Header card */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formatAddress(imm.indirizzo) || '–'}
+                  </h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
                     {[imm.tipologia, formatMq(imm.superficie_mq), imm.stato_immobile].filter(Boolean).join(' · ')}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Inserito il {formatData(imm.data_inserimento)}
-                  </p>
                 </div>
+                {imm.van != null && (
+                  <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, flexShrink: 0, background: imm.van > 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: imm.van > 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    VAN {formatEuro(imm.van)}
+                  </span>
+                )}
+              </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Acquisto</p>
-                    <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{formatEuro(imm.prezzo_acquisto)}</p>
+              {/* KPI grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '1px solid var(--border)' }}>
+                {[
+                  { label: 'Prezzo Acquisto',  val: formatEuro(imm.prezzo_acquisto),   color: 'var(--text-primary)' },
+                  { label: 'Valore Stimato',   val: formatEuro(imm.vcm_valore_medio),  color: 'var(--accent)' },
+                  { label: 'Canone / Mese',    val: formatEuro(imm.canone_mensile),    color: 'var(--text-primary)' },
+                  { label: 'TIR',              val: formatPct(imm.tir_pct),            color: imm.tir_pct > 6 ? 'var(--success)' : imm.tir_pct ? 'var(--warning)' : 'var(--text-muted)' },
+                ].map((kpi, i) => (
+                  <div key={kpi.label} style={{ padding: '14px 16px', textAlign: 'center', borderRight: i < 3 ? '1px solid var(--border)' : 'none' }}>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>{kpi.label}</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: kpi.color }}>{kpi.val}</p>
                   </div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Valore Stimato</p>
-                    <p className="font-semibold text-sm" style={{ color: 'var(--accent)' }}>{formatEuro(imm.vcm_valore_medio)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Canone/mese</p>
-                    <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{formatEuro(imm.canone_mensile)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>TIR</p>
-                    <p className="font-semibold text-sm" style={{ color: imm.tir_pct > 6 ? 'var(--success)' : imm.tir_pct ? 'var(--warning)' : 'var(--text-muted)' }}>
-                      {formatPct(imm.tir_pct)}
-                    </p>
-                  </div>
-                </div>
+                ))}
+              </div>
 
-                <div className="flex flex-col gap-2 items-end flex-shrink-0">
-                  {imm.van != null && (
-                    <span className="px-2 py-1 rounded text-xs font-semibold"
-                      style={{ background: imm.van > 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: imm.van > 0 ? 'var(--success)' : 'var(--danger)' }}>
-                      VAN {formatEuro(imm.van)}
-                    </span>
-                  )}
-                  <div className="flex flex-row gap-2">
-                    <button
-                      onClick={() => { setDuplicaItem(imm); setDuplicaStato('INTERESSATO'); }}
-                      title="Aggiungi a Immobili Censiti"
-                      className="rounded-lg font-semibold"
-                      style={{ padding: '10px 18px', fontSize: 13, background: 'rgba(245,158,11,0.12)', color: 'var(--accent)', border: '1px solid rgba(245,158,11,0.4)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 15 }}>＋</span> Censisci
-                    </button>
-                    <button
-                      onClick={() => setConferma({ id: imm.id, indirizzo: imm.indirizzo })}
-                      disabled={rimuovendo === imm.id}
-                      className="rounded-lg font-semibold"
-                      style={{ padding: '10px 18px', fontSize: 13, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 15 }}>🗑</span> {rimuovendo === imm.id ? '...' : 'Rimuovi'}
-                    </button>
-                  </div>
+              {/* Footer: data + azioni */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', flexWrap: 'wrap', gap: 8 }}>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Valutazione del {formatData(imm.data_inserimento)}
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => { setDuplicaItem(imm); setDuplicaStato('INTERESSATO'); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: 'var(--accent)', border: '1px solid rgba(245,158,11,0.4)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    ＋ Censisci
+                  </button>
+                  <button
+                    onClick={() => setConferma({ id: imm.id, indirizzo: imm.indirizzo })}
+                    disabled={rimuovendo === imm.id}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    🗑 {rimuovendo === imm.id ? '…' : 'Rimuovi'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1491,19 +1670,19 @@ function ValutazioniTab() {
 
       {/* ── Modal: aggiungi a Immobili Censiti ────────────────────────── */}
       {duplicaItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setDuplicaItem(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Aggiungi a Immobili Censiti
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                {duplicaItem.indirizzo || 'Immobile senza indirizzo'} · {duplicaItem.tipologia}
-              </p>
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDuplicaItem(null)} />
+          <div className="modal-box modal-box-sm">
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">Aggiungi a Immobili Censiti</h2>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+                  {duplicaItem.indirizzo || 'Immobile senza indirizzo'} · {duplicaItem.tipologia}
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setDuplicaItem(null)}>×</button>
             </div>
-            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div className="modal-body-col">
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
                   Scegli categoria di destinazione
@@ -1522,12 +1701,12 @@ function ValutazioniTab() {
                   ))}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 12, paddingTop: 4 }}>
-                <button onClick={() => setDuplicaItem(null)}
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button onClick={() => setDuplicaItem(null)} className="btn-touch"
                   style={{ flex: 1, padding: '12px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                   Annulla
                 </button>
-                <button onClick={eseguiDuplica} disabled={duplicando}
+                <button onClick={eseguiDuplica} disabled={duplicando} className="btn-touch"
                   style={{ flex: 1, padding: '12px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', opacity: duplicando ? 0.5 : 1 }}>
                   {duplicando ? 'Salvataggio…' : 'Aggiungi →'}
                 </button>
@@ -1539,20 +1718,19 @@ function ValutazioniTab() {
 
       {/* ── Modal errore generico ─────────────────────────────────────── */}
       {erroreOps && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setErroreOps(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.35)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-            <div style={{ padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
-              <span style={{ fontSize: 52, lineHeight: 1 }}>🚫</span>
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setErroreOps(null)} />
+          <div className="modal-box modal-box-sm" style={{ border: '1px solid rgba(239,68,68,0.35)' }}>
+            <div className="modal-confirm-body">
+              <span style={{ fontSize: 52, lineHeight: 1, display: 'block' }}>🚫</span>
               <div>
                 <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--danger)', marginBottom: 8, letterSpacing: '-0.02em' }}>
                   OPS! Qualcosa è andato storto
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>{erroreOps}</p>
               </div>
-              <button onClick={() => setErroreOps(null)}
-                style={{ padding: '11px 32px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, border: '1px solid var(--border)', cursor: 'pointer', marginTop: 4 }}>
+              <button onClick={() => setErroreOps(null)} className="btn-touch"
+                style={{ padding: '11px 32px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, border: '1px solid var(--border)', cursor: 'pointer' }}>
                 Chiudi
               </button>
             </div>

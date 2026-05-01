@@ -62,7 +62,8 @@
       "Bash(node *)",
       "Bash(xargs grep *)",
       "Bash(python -c ' *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }
