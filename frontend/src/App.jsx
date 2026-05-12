@@ -24,6 +24,7 @@ import StatisticheQuartiere    from './pages/StatisticheQuartiere';
 import ImportDati              from './pages/ImportDati';
 import WizardValutazione       from './pages/WizardValutazione';
 import MieiInvestimenti        from './pages/MieiInvestimenti';
+import ValutaTu                from './pages/ValutaTu';
 import Impostazioni            from './pages/Impostazioni';
 import DettaglioTipologia      from './pages/DettaglioTipologia';
 import Utenze                  from './pages/Utenze';
@@ -54,6 +55,7 @@ export default function App() {
             <Route index               element={<DashboardMappa />} />
             <Route path="statistiche"  element={<StatisticheQuartiere />} />
             <Route path="import"       element={<ImportDati />} />
+            <Route path="valuta-tu"    element={<ValutaTu />} />
             <Route path="valutazione"  element={<WizardValutazione />} />
             <Route path="portafoglio"  element={<MieiInvestimenti />} />
             <Route path="impostazioni" element={<Impostazioni />} />

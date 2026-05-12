@@ -406,8 +406,13 @@ export default function StatisticheQuartiere() {
   }, [zone, nomeEffettivo]);
 
   // ── Hook: statistiche + trend del quartiere ──────────────────────────────
-  // useStatistiche ri-carica automaticamente quando cambia nomeEffettivo
-  const { statistiche, trend, loading } = useStatistiche(nomeEffettivo, comuneZona);
+  // Aspetta che zone sia caricato (loadingZone=false) prima di passare nomeEffettivo
+  // a useStatistiche. Questo garantisce che comuneZona sia già corretto (es. Hinterland),
+  // evitando il doppio fetch: 1° con comune='Cagliari' (sbagliato), 2° con comune corretto.
+  const { statistiche, trend, loading } = useStatistiche(
+    !loadingZone ? nomeEffettivo : '',
+    comuneZona
+  );
 
   // ── KPI aggregati (solo stato NORMALE + tipologie residenziali standard) ──
   // Req 1: calcola prezzi medi solo su "abitazioni civili" e "abitazioni economiche"
@@ -523,7 +528,7 @@ export default function StatisticheQuartiere() {
           title="Seleziona un quartiere"
           message="Scegli un quartiere dal menu in alto per visualizzare statistiche e andamento storico."
         />
-      ) : loading ? (
+      ) : (loading || loadingZone) ? (
         <LoadingSpinner text={`Caricamento dati ${nomeEffettivo}…`} />
       ) : (
         <>

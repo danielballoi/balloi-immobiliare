@@ -344,6 +344,7 @@ export const aggiornaCensimento      = (id, d)      => api.put(`/censimenti/${id
 export const eliminaCensimento       = (id)         => api.delete(`/censimenti/${id}`).then(r => r.data);
 export const togglePreferitoImmobile = (id, val)   => api.patch(`/censimenti/${id}/preferito`, { preferito: val }).then(r => r.data);
 export const cambiaStatoImmobile     = (id, stato) => api.patch(`/censimenti/${id}/stato`, { stato_interesse: stato }).then(r => r.data);
+export const aggiornaNoteImmobile    = (id, note)  => api.patch(`/censimenti/${id}/note`, { note }).then(r => r.data);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOCAZIONI ATTIVE

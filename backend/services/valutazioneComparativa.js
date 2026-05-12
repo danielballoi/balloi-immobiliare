@@ -133,7 +133,7 @@ async function calcolaVCM({
   box_dimensione = 'nessuno',
   comparabili_manuali = [],
 }) {
-  console.log(`[VCM] zona: ${zona_codice}, tipo: ${tipologia}, mq: ${superficie_mq}`);
+  console.log(`[VCM] zona: "${zona_codice}", tipo: "${tipologia}", mq: ${superficie_mq}`);
 
   // ── Step 1: Fascia OMI ────────────────────────────────────────────────────
   const { fascia, puntiAlti } = calcolaFasciaOMI({
@@ -158,7 +158,15 @@ async function calcolaVCM({
     LIMIT 10
   `, [zona_codice, `%${tipologia}%`]);
 
-  console.log(`[VCM] ${righeOMI.length} record OMI trovati`);
+  console.log(`[VCM] ${righeOMI.length} record OMI trovati per zona="${zona_codice}" tipo="${tipologia}"`);
+
+  // ── Step 2b: Medie OMI compr_min / compr_max ─────────────────────────────
+  const avg_compr_min = righeOMI.length > 0
+    ? righeOMI.reduce((s, r) => s + parseFloat(r.compr_min), 0) / righeOMI.length
+    : null;
+  const avg_compr_max = righeOMI.length > 0
+    ? righeOMI.reduce((s, r) => s + parseFloat(r.compr_max), 0) / righeOMI.length
+    : null;
 
   // ── Step 3: Prezzo base al mq ─────────────────────────────────────────────
   let prezzo_base_mq;
@@ -261,6 +269,8 @@ async function calcolaVCM({
     numero_comparabili,
     anno_riferimento: righeOMI[0]?.anno ?? null,
     semestre_riferimento: righeOMI[0]?.semestre ?? null,
+    omi_compr_min: avg_compr_min != null ? Math.round(avg_compr_min) : null,
+    omi_compr_max: avg_compr_max != null ? Math.round(avg_compr_max) : null,
   };
 }
 

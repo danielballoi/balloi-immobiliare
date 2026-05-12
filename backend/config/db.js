@@ -222,7 +222,43 @@ async function initDB() {
     await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN preferito TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {});
     await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN link_riferimento TEXT DEFAULT NULL`).catch(() => {});
     await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN data_inizio_asta DATE DEFAULT NULL`).catch(() => {});
-    await conn.query(`ALTER TABLE censimenti_immobili MODIFY COLUMN stato_interesse ENUM('COMPRATO','INTERESSATO','VENDUTO_TERZI') DEFAULT 'INTERESSATO'`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili MODIFY COLUMN stato_interesse ENUM('COMPRATO','INTERESSATO','VENDUTO_TERZI','CEDUTO') DEFAULT 'INTERESSATO'`).catch(() => {});
+    // Migrazione: rinomina vecchi valori in CEDUTO
+    await conn.query(`UPDATE censimenti_immobili SET stato_interesse = 'CEDUTO' WHERE stato_interesse = 'VENDUTO_TERZI'`).catch(() => {});
+
+    // Caratteristiche immobile e fascia OMI (idempotenti)
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN classe_energetica  VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN esposizione         VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN vista               VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN qualita_costruzione VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN luminosita          VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN stato_conservazione VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN fascia_omi          VARCHAR(10) DEFAULT NULL`).catch(() => {});
+
+    // Specifiche fisiche e dati finanziari censimenti
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN piano                     VARCHAR(20)   DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN num_locali                INT           DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN num_bagni                 INT           DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN anno_costruzione           INT           DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN ascensore                 TINYINT(1)    DEFAULT 0`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN box_auto                  TINYINT(1)    DEFAULT 0`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN balcone_terrazza          TINYINT(1)    DEFAULT 0`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN prezzo_acquisto           DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN spese_condominiali_mensili DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN imu_annua                 DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN tari_annua                DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
+
+    // Nuovi campi: georeferenziazione, "Valuta Tu", giardino
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN citta VARCHAR(100) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN cap VARCHAR(10) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN rendita_catastale DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN giardino TINYINT(1) DEFAULT 0`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN prezzo_valutato_giusto DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN rendita_mensile_stimata DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN rendimento_annuo_stimato_pct DECIMAL(5,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN giudizio_personale VARCHAR(30) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN origine VARCHAR(50) DEFAULT 'MANUALE'`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD COLUMN url_annuncio VARCHAR(500) DEFAULT NULL`).catch(() => {});
 
     // Tabella locazioni_attive — contratti di affitto gestiti dall'utente
     await conn.query(`
@@ -249,6 +285,9 @@ async function initDB() {
 
     // Aggiunge 'VENDUTA' all'ENUM stato locazioni (per tracciare immobili venduti)
     await conn.query(`ALTER TABLE locazioni_attive MODIFY COLUMN stato ENUM('ATTIVA','SCADUTA','TERMINATA','VENDUTA') DEFAULT 'ATTIVA'`).catch(() => {});
+    // Nuovi campi locazioni: tipo contratto e deposito cauzionale
+    await conn.query(`ALTER TABLE locazioni_attive ADD COLUMN tipo_contratto VARCHAR(50) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE locazioni_attive ADD COLUMN deposito_cauzionale DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
 
     // Tabella segnalazioni — messaggi inviati dagli utenti all'admin
     await conn.query(`
@@ -266,6 +305,47 @@ async function initDB() {
     // Aggiunge user_id alle tabelle valutazioni e portafoglio (idempotente)
     await conn.query(`ALTER TABLE valutazioni ADD COLUMN user_id INT DEFAULT NULL`).catch(() => {});
     await conn.query(`ALTER TABLE portafoglio ADD COLUMN user_id INT DEFAULT NULL`).catch(() => {});
+
+    // Caratteristiche 3 livelli + fascia OMI + tipo valutazione (idempotenti)
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN classe_energetica  VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN esposizione         VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN vista               VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN qualita_costruzione VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN luminosita          VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN stato_conservazione VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN vcm_fascia_omi      VARCHAR(10)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN vcm_punti_alti      TINYINT      DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN tipo_valutazione    VARCHAR(50)  DEFAULT NULL`).catch(() => {});
+
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN classe_energetica  VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN esposizione         VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN vista               VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN qualita_costruzione VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN luminosita          VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN stato_conservazione VARCHAR(20)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN fascia_omi          VARCHAR(10)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN tipo_valutazione    VARCHAR(50)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN vcm_valore_min      DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN vcm_valore_max      DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN vcm_prezzo_base_mq  DECIMAL(10,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN vcm_punti_alti      TINYINT       DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN red_valore_mercato  DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN red_noi_annuo       DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN red_rendimento_lordo_pct DECIMAL(5,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN red_rendimento_netto_pct DECIMAL(5,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN dcf_van             DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN dcf_tir_pct         DECIMAL(5,2)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN dcf_roi_totale_pct  DECIMAL(5,2)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN dcf_cash_on_cash_pct DECIMAL(5,2) DEFAULT NULL`).catch(() => {});
+
+    // Prezzo reale dichiarato e fonte (wizard analisi investimento)
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN prezzo_dichiarato DECIMAL(12,2) DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN fonte_prezzo      VARCHAR(50)   DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN note_prezzo       TEXT          DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN num_locali        INT           DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN num_bagni         INT           DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD COLUMN url_annuncio      VARCHAR(500)  DEFAULT NULL`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD COLUMN fonte_prezzo      VARCHAR(50)   DEFAULT NULL`).catch(() => {});
 
     // Tabella refresh_tokens — sessioni con token di rinnovo httpOnly
     await conn.query(`
