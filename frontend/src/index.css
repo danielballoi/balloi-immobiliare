@@ -354,6 +354,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0; /* senza questo i flex child non shrinkano → overflow tagliato invece di scrollare */
   display: flex;
   flex-direction: column;
   gap: 20px;

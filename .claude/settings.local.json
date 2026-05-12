@@ -63,7 +63,13 @@
       "Bash(xargs grep *)",
       "Bash(python -c ' *)",
       "Bash(python *)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backend\" -Recurse -Force -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\" -Recurse -Depth 2)",
+      "Bash(ConvertTo-Json -Depth 10)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\" -Recurse -Depth 2 | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "Bash(npx kill-port *)"
     ]
   }
 }

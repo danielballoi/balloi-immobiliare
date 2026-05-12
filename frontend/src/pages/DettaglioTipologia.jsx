@@ -125,6 +125,140 @@ function ModalDatiMancanti({ onChiudi, prezzoCompravendita, locazione }) {
   );
 }
 
+// ── Card mobile anno ─────────────────────────────────────────────────────────
+function AnnoCard({ r, isUltimo, varAnno, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', textAlign: 'left', padding: '16px 20px',
+        borderRadius: 14, border: '1px solid var(--border)',
+        background: isUltimo ? 'rgba(245,158,11,0.05)' : 'var(--bg-card)',
+        cursor: 'pointer', transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = isUltimo ? 'rgba(245,158,11,0.25)' : 'var(--border)'}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--text-primary)' }}>{r.anno}</span>
+          {isUltimo && (
+            <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 20, fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
+              attuale
+            </span>
+          )}
+        </div>
+        {varAnno !== null && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
+            background: varAnno > 0 ? 'rgba(16,185,129,0.12)' : varAnno < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.12)',
+            color: varAnno > 0 ? 'var(--success)' : varAnno < 0 ? 'var(--danger)' : 'var(--text-muted)',
+          }}>
+            {varAnno > 0 ? '▲' : varAnno < 0 ? '▼' : '='}{' '}
+            {varAnno === 0 ? 'Stabile' : `${Math.abs(varAnno).toFixed(1)}%`}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
+            {r.prezzo_medio_mq > 0 ? `€ ${Number(r.prezzo_medio_mq).toLocaleString('it-IT')}` : '–'}
+            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>/mq</span>
+          </p>
+          {(r.prezzo_min > 0 || r.prezzo_max > 0) && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              {r.prezzo_min > 0 ? `€ ${Number(r.prezzo_min).toLocaleString('it-IT')}` : '?'} – {r.prezzo_max > 0 ? `€ ${Number(r.prezzo_max).toLocaleString('it-IT')}` : '?'}
+            </p>
+          )}
+          {parseFloat(r.locazione_media_mq) > 0 && (
+            <p style={{ fontSize: 12, color: 'var(--info)', marginTop: 6 }}>
+              Locazione: <strong>€ {r.locazione_media_mq}</strong>/mq/mese
+            </p>
+          )}
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>Dettagli →</span>
+      </div>
+    </button>
+  );
+}
+
+// ── Modal dettaglio anno (mobile) ─────────────────────────────────────────────
+function AnnoDetailModal({ r, varAnno, isUltimo, onChiudi }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onChiudi} />
+      <div className="modal-box modal-box-sm">
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--text-primary)' }}>{r.anno}</span>
+            {isUltimo && (
+              <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>attuale</span>
+            )}
+          </div>
+          <button className="modal-close" onClick={onChiudi}>×</button>
+        </div>
+        <div className="modal-body-col">
+
+          {/* Variazione */}
+          {varAnno !== null && (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 14, fontWeight: 700, padding: '6px 16px', borderRadius: 20,
+                background: varAnno > 0 ? 'rgba(16,185,129,0.12)' : varAnno < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.12)',
+                color: varAnno > 0 ? 'var(--success)' : varAnno < 0 ? 'var(--danger)' : 'var(--text-muted)',
+              }}>
+                {varAnno > 0 ? '▲' : varAnno < 0 ? '▼' : '='}{' '}
+                {varAnno === 0 ? 'Stabile rispetto all\'anno precedente' : `${Math.abs(varAnno).toFixed(1)}% vs anno precedente`}
+              </span>
+            </div>
+          )}
+
+          {/* Compravendita */}
+          <div style={{ padding: '16px', borderRadius: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 12 }}>Compravendita</p>
+            <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>
+              {r.prezzo_medio_mq > 0 ? `€ ${Number(r.prezzo_medio_mq).toLocaleString('it-IT')}` : '–'}
+              <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>/mq</span>
+            </p>
+            {(r.prezzo_min > 0 && r.prezzo_max > 0) && (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>
+                Range: €&nbsp;{Number(r.prezzo_min).toLocaleString('it-IT')} – €&nbsp;{Number(r.prezzo_max).toLocaleString('it-IT')}
+              </p>
+            )}
+          </div>
+
+          {/* Locazione */}
+          {parseFloat(r.locazione_media_mq) > 0 && (
+            <div style={{ padding: '16px', borderRadius: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 12 }}>Locazione</p>
+              <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--info)', lineHeight: 1 }}>
+                € {r.locazione_media_mq}
+                <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>/mq/mese</span>
+              </p>
+              {r.prezzo_medio_mq > 0 && (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>
+                  ROI lordo stimato:{' '}
+                  <strong style={{ color: 'var(--success)' }}>
+                    {((parseFloat(r.locazione_media_mq) * 12) / r.prezzo_medio_mq * 100).toFixed(1)}%
+                  </strong>
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="modal-footer" style={{ borderTop: 'none', padding: 0, justifyContent: 'center' }}>
+            <button onClick={onChiudi} style={{ padding: '10px 32px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, border: '1px solid var(--border)', cursor: 'pointer' }}>
+              Chiudi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DettaglioTipologia() {
   const navigate          = useNavigate();
   const [searchParams]    = useSearchParams();
@@ -140,6 +274,15 @@ export default function DettaglioTipologia() {
   const [loading, setLoading]                       = useState(true);
   const [errore, setErrore]                         = useState(null);
   const [showModalDatiMancanti, setShowModalDatiMancanti] = useState(false);
+  const [isMobile, setIsMobile]                     = useState(window.innerWidth < 768);
+  const [annoSelezionato, setAnnoSelezionato]       = useState(null);
+
+  // Aggiorna isMobile al resize finestra
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   // ── Caricamento dati storici per la tipologia ──────────────────────────
   useEffect(() => {
@@ -397,127 +540,138 @@ export default function DettaglioTipologia() {
               </div>
             )}
 
-            {/* ZONA 2 — tabella */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm table-responsive">
-                <thead>
-                  <tr style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
-                    {[
-                      { label: 'Anno',                       w: '120px' },
-                      { label: 'Prezzo Medio Compravendita', w: '' },
-                      { label: 'Locazione Media',            w: '' },
-                      { label: 'Var. anno prec.',            w: '160px' },
-                    ].map(({ label, w }) => (
-                      <th
-                        key={label}
-                        style={{
-                          padding: '14px 28px',
-                          textAlign: 'left',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.07em',
-                          color: 'var(--text-muted)',
-                          width: w || undefined,
-                        }}
-                      >
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* [FIX] datiTabella è l'array invertito (2025→2020) per mostrare il più recente in cima */}
-                  {datiTabella.map((r, i) => {
-                    // Recupera l'anno precedente dall'array ORIGINALE (cronologico) per la variazione corretta
-                    const idxOriginale = dati.findIndex(x => x.anno === r.anno);
-                    const prev    = dati[idxOriginale - 1];
-                    const varAnno = prev?.prezzo_medio_mq > 0
-                      ? ((r.prezzo_medio_mq - prev.prezzo_medio_mq) / prev.prezzo_medio_mq) * 100
-                      : null;
-                    // Badge "attuale" sull'anno più recente (ultimo nell'array originale = primo nella tabella invertita)
-                    const isUltimo = r.anno === dati.at(-1)?.anno;
-                    const ntnAnno  = ntn[r.anno];
+            {/* ZONA 2 — mobile: cards / desktop: tabella */}
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '16px' }}>
+                {datiTabella.map((r) => {
+                  const idxOriginale = dati.findIndex(x => x.anno === r.anno);
+                  const prev    = dati[idxOriginale - 1];
+                  const varAnno = prev?.prezzo_medio_mq > 0
+                    ? ((r.prezzo_medio_mq - prev.prezzo_medio_mq) / prev.prezzo_medio_mq) * 100
+                    : null;
+                  const isUltimo = r.anno === dati.at(-1)?.anno;
+                  return (
+                    <AnnoCard
+                      key={r.anno}
+                      r={r}
+                      isUltimo={isUltimo}
+                      varAnno={varAnno}
+                      onClick={() => setAnnoSelezionato({ r, varAnno, isUltimo })}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm table-responsive">
+                  <thead>
+                    <tr style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border)' }}>
+                      {[
+                        { label: 'Anno',                       w: '120px' },
+                        { label: 'Prezzo Medio Compravendita', w: '' },
+                        { label: 'Locazione Media',            w: '' },
+                        { label: 'Var. anno prec.',            w: '160px' },
+                      ].map(({ label, w }) => (
+                        <th
+                          key={label}
+                          style={{
+                            padding: '14px 28px',
+                            textAlign: 'left',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.07em',
+                            color: 'var(--text-muted)',
+                            width: w || undefined,
+                          }}
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datiTabella.map((r, i) => {
+                      const idxOriginale = dati.findIndex(x => x.anno === r.anno);
+                      const prev    = dati[idxOriginale - 1];
+                      const varAnno = prev?.prezzo_medio_mq > 0
+                        ? ((r.prezzo_medio_mq - prev.prezzo_medio_mq) / prev.prezzo_medio_mq) * 100
+                        : null;
+                      const isUltimo = r.anno === dati.at(-1)?.anno;
 
-                    return (
-                      <tr
-                        key={r.anno}
-                        style={{
-                          background: isUltimo
-                            ? 'rgba(245,158,11,0.05)'
-                            : i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
-                          borderTop: '1px solid var(--border)',
-                        }}
-                      >
-                        {/* Anno + badge attuale */}
-                        <td style={{ padding: '18px 28px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontWeight: 700, fontSize: 17, lineHeight: 1, color: 'var(--text-primary)' }}>
-                              {r.anno}
-                            </span>
-                            {isUltimo && (
-                              <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 600, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
-                                attuale
+                      return (
+                        <tr
+                          key={r.anno}
+                          style={{
+                            background: isUltimo
+                              ? 'rgba(245,158,11,0.05)'
+                              : i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                            borderTop: '1px solid var(--border)',
+                          }}
+                        >
+                          <td style={{ padding: '18px 28px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 700, fontSize: 17, lineHeight: 1, color: 'var(--text-primary)' }}>
+                                {r.anno}
                               </span>
+                              {isUltimo && (
+                                <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 600, background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
+                                  attuale
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '18px 28px' }}>
+                            <div>
+                              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {formatEuro(r.prezzo_medio_mq)}
+                              </span>
+                              <span style={{ fontSize: 12, marginLeft: 4, color: 'var(--text-muted)' }}>/mq</span>
+                            </div>
+                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                              {formatEuro(r.prezzo_min)} – {formatEuro(r.prezzo_max)}
+                            </p>
+                          </td>
+                          <td style={{ padding: '18px 28px' }}>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--info)' }}>
+                              {r.locazione_media_mq > 0 ? `€ ${r.locazione_media_mq}` : '–'}
+                            </span>
+                            {r.locazione_media_mq > 0 && (
+                              <span style={{ fontSize: 12, marginLeft: 4, color: 'var(--text-muted)' }}>/mq/mese</span>
                             )}
-                          </div>
-                        </td>
+                          </td>
+                          <td style={{ padding: '18px 28px' }}>
+                            {varAnno !== null ? (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center',
+                                fontSize: 13, fontWeight: 700, padding: '5px 12px', borderRadius: 20,
+                                background: varAnno > 0 ? 'rgba(16,185,129,0.12)' : varAnno < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.12)',
+                                color: varAnno > 0 ? 'var(--success)' : varAnno < 0 ? 'var(--danger)' : 'var(--text-muted)',
+                              }}>
+                                {varAnno > 0 ? '▲' : varAnno < 0 ? '▼' : '='}{' '}
+                                {varAnno === 0 ? 'Stabile' : `${Math.abs(varAnno).toFixed(1)}%`}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>–</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-                        {/* Prezzo medio compravendita — metrica principale */}
-                        <td style={{ padding: '18px 28px' }}>
-                          <div>
-                            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {formatEuro(r.prezzo_medio_mq)}
-                            </span>
-                            <span style={{ fontSize: 12, marginLeft: 4, color: 'var(--text-muted)' }}>/mq</span>
-                          </div>
-                          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                            {formatEuro(r.prezzo_min)} – {formatEuro(r.prezzo_max)}
-                          </p>
-                        </td>
-
-                        {/* Locazione media */}
-                        <td style={{ padding: '18px 28px' }}>
-                          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--info)' }}>
-                            {r.locazione_media_mq > 0 ? `€ ${r.locazione_media_mq}` : '–'}
-                          </span>
-                          {r.locazione_media_mq > 0 && (
-                            <span style={{ fontSize: 12, marginLeft: 4, color: 'var(--text-muted)' }}>/mq/mese</span>
-                          )}
-                        </td>
-
-                        {/* Variazione percentuale vs anno precedente */}
-                        <td style={{ padding: '18px 28px' }}>
-                          {varAnno !== null ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                fontSize: 13,
-                                fontWeight: 700,
-                                padding: '5px 12px',
-                                borderRadius: 20,
-                                background: varAnno > 0 ? 'rgba(16,185,129,0.12)'
-                                  : varAnno < 0 ? 'rgba(239,68,68,0.12)'
-                                  : 'rgba(100,116,139,0.12)',
-                                color: varAnno > 0 ? 'var(--success)'
-                                  : varAnno < 0 ? 'var(--danger)'
-                                  : 'var(--text-muted)',
-                              }}
-                            >
-                              {varAnno > 0 ? '▲' : varAnno < 0 ? '▼' : '='}{' '}
-                              {varAnno === 0 ? 'Stabile' : `${Math.abs(varAnno).toFixed(1)}%`}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>–</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {/* Modal dettaglio anno — appare su mobile al click della card */}
+            {annoSelezionato && (
+              <AnnoDetailModal
+                r={annoSelezionato.r}
+                varAnno={annoSelezionato.varAnno}
+                isUltimo={annoSelezionato.isUltimo}
+                onChiudi={() => setAnnoSelezionato(null)}
+              />
+            )}
           </div>
         </>
       )}

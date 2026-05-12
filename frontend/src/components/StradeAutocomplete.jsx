@@ -197,11 +197,10 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
               style={{
                 width: '100%',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '11px 20px',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                padding: '10px 20px',
                 textAlign: 'left',
-                fontSize: 14,
                 cursor: 'pointer',
                 border: 'none',
                 borderBottom: idx < risultati.length - 1 ? '1px solid var(--border)' : 'none',
@@ -211,27 +210,17 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
               }}
               onMouseEnter={() => setIndiceFocus(idx)}
             >
-              {/* Via */}
-              <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+              {/* Via — riga principale, nome completo */}
+              <span style={{ fontWeight: 500, fontSize: 14, whiteSpace: 'nowrap' }}>
                 <HighlightMatch testo={formatVia(item.via)} query={query} />
               </span>
 
-              {/* Zona / quartiere */}
-              <span
-                style={{
-                  marginLeft: 12,
-                  marginRight: 4,
-                  padding: '2px 8px',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  flexShrink: 0,
-                  background: 'rgba(99,179,237,0.15)',
-                  color: '#63b3ed',
-                }}
-              >
-                {item.zona_nome || item.quartiere}
-              </span>
+              {/* Quartiere — riga secondaria in piccolo */}
+              {(item.zona_nome || item.quartiere) && (
+                <span style={{ fontSize: 11, color: '#63b3ed', marginTop: 2 }}>
+                  {item.zona_nome || item.quartiere}
+                </span>
+              )}
             </button>
           ))}
         </div>

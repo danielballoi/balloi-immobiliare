@@ -12,6 +12,7 @@ import api from '../services/api';
 const IconMap      = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l7-7 7 7"/><path d="M5 8.5V17h4v-4h2v4h4V8.5"/></svg>;
 const IconWizard   = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><path d="M14 14h.01M11 14h3m0 0v-3"/></svg>;
 const IconPortfolio = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17V8l7-5 7 5v9"/><path d="M8 17v-5h4v5"/></svg>;
+const IconValutaTu = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 7v3l2 2"/><path d="M7 3.5l1.5 1.5M13 3.5l-1.5 1.5"/></svg>;
 const IconSettings = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v1.5M10 16.5V18M2 10h1.5M16.5 10H18M4.22 4.22l1.06 1.06M14.72 14.72l1.06 1.06M4.22 15.78l1.06-1.06M14.72 5.28l1.06-1.06"/></svg>;
 const IconImport   = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M10 3v10m0 0l-3-3m3 3l3-3"/><path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2"/></svg>;
 const IconUsers    = () => <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="7.5" cy="6.5" r="2.5"/><path d="M1 17c0-3.3 2.9-6 6.5-6S14 13.7 14 17"/><circle cx="14.5" cy="6.5" r="2.5"/><path d="M16 11.2c1.9.7 3.2 2.5 3.2 4.6"/></svg>;
@@ -32,7 +33,8 @@ const SEZIONI_BASE = [
     id: 'portafoglio',
     label: 'Portafoglio',
     items: [
-      { to: '/valutazione', label: 'Wizard Valutazione', Icon: IconWizard },
+      { to: '/valuta-tu',   label: 'Valuta Tu',           Icon: IconValutaTu },
+      { to: '/valutazione', label: 'Wizard Investimenti', Icon: IconWizard },
       { to: '/portafoglio', label: 'I Miei Investimenti', Icon: IconPortfolio },
     ],
   },

@@ -29,6 +29,17 @@ async function calcolaVCMHandler(req, res, next) {
       piano = 1, ascensore = false, box_auto = false,
       balcone_terrazza = false, cantina = false,
       giardino = false, prezzo_base_override = null,
+      // Caratteristiche 3 livelli
+      classe_energetica = 'MEDIA',
+      esposizione = 'BUONA',
+      vista = 'STANDARD',
+      qualita_costruzione = 'STANDARD',
+      luminosita = 'BUONA',
+      stato_conservazione = 'NORMALE',
+      // Superfici esterne
+      balcone_mq = 0, terrazza_mq = 0, giardino_mq = 0,
+      box_dimensione = 'nessuno',
+      comparabili_manuali = [],
     } = req.body;
 
     if (!zona_codice || !tipologia || !stato || !superficie_mq) {
@@ -38,18 +49,31 @@ async function calcolaVCMHandler(req, res, next) {
     console.log(`[CTRL-VALUTAZIONI] calcolaVCM: ${tipologia} in ${zona_codice}`);
     const result = await calcolaVCM({
       zona_codice, tipologia, stato,
-      superficie_mq:          parseFloat(superficie_mq),
-      piano:                  parseInt(piano),
-      ascensore:              Boolean(ascensore),
-      box_auto:               Boolean(box_auto),
-      balcone_terrazza:       Boolean(balcone_terrazza),
-      cantina:                Boolean(cantina),
-      giardino:               Boolean(giardino),
-      prezzo_base_override:   prezzo_base_override ? parseFloat(prezzo_base_override) : null,
+      superficie_mq:        parseFloat(superficie_mq),
+      piano:                parseInt(piano),
+      ascensore:            Boolean(ascensore),
+      box_auto:             Boolean(box_auto),
+      balcone_terrazza:     Boolean(balcone_terrazza),
+      cantina:              Boolean(cantina),
+      giardino:             Boolean(giardino),
+      prezzo_base_override: prezzo_base_override ? parseFloat(prezzo_base_override) : null,
+      // Caratteristiche 3 livelli
+      classe_energetica, esposizione, vista,
+      qualita_costruzione, luminosita, stato_conservazione,
+      // Superfici e comparabili
+      balcone_mq:           parseFloat(balcone_mq) || 0,
+      terrazza_mq:          parseFloat(terrazza_mq) || 0,
+      giardino_mq:          parseFloat(giardino_mq) || 0,
+      box_dimensione,
+      comparabili_manuali:  Array.isArray(comparabili_manuali) ? comparabili_manuali : [],
     });
 
     res.json(result);
   } catch (err) {
+    // Propaga il codice DATI_OMI_ASSENTI al frontend
+    if (err.code === 'DATI_OMI_ASSENTI') {
+      return res.status(422).json({ error: err.message, code: 'DATI_OMI_ASSENTI' });
+    }
     next(err);
   }
 }

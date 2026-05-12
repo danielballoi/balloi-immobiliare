@@ -23,7 +23,10 @@ async function salvaValutazione(data) {
   const [result] = await pool.query(`
     INSERT INTO valutazioni (
       indirizzo, zona_codice, tipologia, stato_immobile, superficie_mq,
-      piano, anno_costruzione, ascensore, box_auto, balcone_terrazza, cantina,
+      piano, anno_costruzione, num_locali, num_bagni, url_annuncio, ascensore, box_auto, balcone_terrazza, cantina,
+      classe_energetica, esposizione, vista, qualita_costruzione, luminosita, stato_conservazione,
+      prezzo_dichiarato, fonte_prezzo, note_prezzo,
+      vcm_fascia_omi, vcm_punti_alti, tipo_valutazione,
       vcm_prezzo_base_mq, vcm_valore_min, vcm_valore_medio, vcm_valore_max, vcm_numero_comparabili,
       red_canone_mensile_lordo, red_noi_annuo, red_spese_annue, red_vacancy_pct,
       red_cap_rate_pct, red_valore_mercato, red_rendimento_lordo_pct, red_rendimento_netto_pct,
@@ -34,7 +37,10 @@ async function salvaValutazione(data) {
       metodologia_principale, note, salvato_portafoglio
     ) VALUES (
       ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?,
       ?, ?, ?, ?,
@@ -46,8 +52,14 @@ async function salvaValutazione(data) {
     )
   `, [
     data.indirizzo, data.zona_codice, data.tipologia, data.stato_immobile, data.superficie_mq,
-    data.piano, data.anno_costruzione, data.ascensore ? 1 : 0, data.box_auto ? 1 : 0,
+    data.piano, data.anno_costruzione,
+    data.num_locali ?? null, data.num_bagni ?? null, data.url_annuncio ?? null,
+    data.ascensore ? 1 : 0, data.box_auto ? 1 : 0,
     data.balcone_terrazza ? 1 : 0, data.cantina ? 1 : 0,
+    data.classe_energetica ?? null, data.esposizione ?? null, data.vista ?? null,
+    data.qualita_costruzione ?? null, data.luminosita ?? null, data.stato_conservazione ?? null,
+    data.prezzo_dichiarato ?? null, data.fonte_prezzo ?? null, data.note_prezzo ?? null,
+    data.vcm_fascia_omi ?? null, data.vcm_punti_alti ?? null, data.tipo_valutazione ?? null,
     data.vcm_prezzo_base_mq, data.vcm_valore_min, data.vcm_valore_medio, data.vcm_valore_max, data.vcm_numero_comparabili,
     data.red_canone_mensile_lordo, data.red_noi_annuo, data.red_spese_annue, data.red_vacancy_pct,
     data.red_cap_rate_pct, data.red_valore_mercato, data.red_rendimento_lordo_pct, data.red_rendimento_netto_pct,

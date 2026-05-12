@@ -11,10 +11,10 @@
  * Al completamento, la valutazione viene salvata in "Valutazioni Eseguite" (portafoglio).
  */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  getZone, calcolaVCM, calcolaReddituale,
+  getZone, calcolaReddituale,
   calcolaDCF, salvaValutazione, aggiungiAPortafoglio,
   getHeatmap,
 } from '../services/api';
@@ -25,12 +25,54 @@ import { TIPOLOGIE_CATASTALI, GRUPPI_TIPOLOGIE } from '../data/tipologieData';
 // ── Costanti ───────────────────────────────────────────────────────────────
 const STATI_IMMOBILE = ['NORMALE', 'OTTIMO', 'SCADENTE'];
 const PIANI = ['Piano terra', '1° piano', '2° piano', '3° piano', '4° piano', '5° piano o oltre'];
-const STEPS = ['Tipo Area', 'Dati Immobile', 'Metodi Analisi', 'Parametri', 'Risultati'];
+const STEPS = ['Tipo Area', 'Dati Immobile', 'Prezzo Reale', 'Parametri', 'Risultati'];
 
 const formatEuro = (n) =>
   n != null && !isNaN(n) ? `€ ${Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })}` : '–';
 const formatPct = (n) =>
   n != null && !isNaN(n) ? `${Number(n).toFixed(1)}%` : '–';
+
+/**
+ * Calcola un punteggio di qualità 0-100 dalle caratteristiche dell'immobile.
+ * Usato per interpolare il prezzo/mq nell'intervallo OMI compr_min ÷ compr_max.
+ *
+ * Base 50. Ogni caratteristica sposta il punteggio; il risultato viene
+ * bloccato a [0, 100] prima della restituzione.
+ */
+function calcolaPunteggioQualita({ stato_conservazione, classe_energetica, esposizione, vista, qualita_costruzione, luminosita, ascensore, num_balconi, cantina, box_auto, piano }) {
+  let score = 50;
+
+  if (stato_conservazione === 'OTTIMO')    score += 20;
+  if (stato_conservazione === 'SCADENTE')  score -= 20;
+
+  if (classe_energetica === 'ALTA')  score += 10;
+  if (classe_energetica === 'BASSA') score -= 10;
+
+  if (esposizione === 'OTTIMA')  score += 8;
+  if (esposizione === 'SCARSA')  score -= 8;
+
+  if (vista === 'PREGIATA') score += 10;
+  if (vista === 'COMUNE')   score -= 5;
+
+  if (qualita_costruzione === 'PREGIATA')  score += 8;
+  if (qualita_costruzione === 'ECONOMICA') score -= 8;
+
+  if (luminosita === 'OTTIMA') score += 6;
+  if (luminosita === 'SCARSA') score -= 6;
+
+  if (ascensore) score += 3;
+  if (box_auto)  score += 3;
+  if (cantina)   score += 1;
+  score += Math.min(parseInt(num_balconi) || 0, 2) * 2;
+
+  // Piano: con ascensore favorisce intermedi, senza ascensore penalizza alti
+  const pianoBonusConAsc    = [-5, -2, 0, 2, 3, 2];
+  const pianoBonusSenzaAsc  = [-3, -1, 0, -1, -4, -7];
+  const pianoIdx = Math.min(parseInt(piano) || 0, 5);
+  score += (ascensore ? pianoBonusConAsc : pianoBonusSenzaAsc)[pianoIdx];
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
 
 /**
  * Interpreta un prezzo scritto dall'utente in formato italiano e restituisce il numero.
@@ -111,61 +153,96 @@ function RigaKPI({ label, valore, highlight, colore }) {
   );
 }
 
-/**
- * InfoIcon - icona (i) cliccabile con popup spiegazione campo.
- * Chiude con: click fuori, tasto ESC, click sull'overlay.
- * Animazione fade-in/out via opacity + transform transition.
- */
 function InfoIcon({ titolo, testo }) {
   const [aperto, setAperto] = useState(false);
-  const ref = useRef(null);
 
   useEffect(() => {
     if (!aperto) return;
-    function onMouse(e) {
-      if (ref.current && !ref.current.contains(e.target)) setAperto(false);
-    }
-    function onKey(e) {
-      if (e.key === 'Escape') setAperto(false);
-    }
-    document.addEventListener('mousedown', onMouse);
+    const onKey = (e) => { if (e.key === 'Escape') setAperto(false); };
     document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      document.removeEventListener('keydown', onKey);
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, [aperto]);
 
   return (
-    <div className="relative inline-flex items-center" ref={ref}>
+    <div className="relative inline-flex items-center">
+      {aperto && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9998,
+            background: 'transparent',
+            cursor: 'default',
+          }}
+          onMouseDown={() => setAperto(false)}
+          onTouchStart={() => setAperto(false)}
+        />
+      )}
+
       <button
         type="button"
-        onClick={() => setAperto(v => !v)}
-        className="ml-1.5 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold leading-none hover:opacity-80 transition-opacity"
-        style={{ background: 'rgba(100,116,139,0.3)', color: 'var(--text-muted)' }}
-        title="Informazioni sul campo"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          setAperto(v => !v);
+        }}
+        style={{
+          marginLeft: 6,
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          fontWeight: 700,
+          border: 'none',
+          cursor: 'pointer',
+          background: aperto ? 'var(--accent)' : 'rgba(100,116,139,0.35)',
+          color: aperto ? '#000' : 'var(--text-muted)',
+          position: 'relative',
+          zIndex: 9999,
+          flexShrink: 0,
+        }}
       >
         i
       </button>
 
-      {/* Backdrop — chiude al click fuori */}
-      {aperto && <div className="fixed inset-0 z-40" onClick={() => setAperto(false)} />}
-
-      {/* Tooltip — sempre nel DOM, animato via opacity/transform */}
-      <div
-        className="absolute z-50 bottom-full mb-2 left-0 rounded-xl p-4 shadow-2xl w-72 text-left"
-        style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          opacity: aperto ? 1 : 0,
-          transform: aperto ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.97)',
-          transition: 'opacity 0.15s ease, transform 0.15s ease',
-          pointerEvents: aperto ? 'auto' : 'none',
-        }}
-      >
-        <p className="text-xs font-bold mb-1.5" style={{ color: 'var(--accent)' }}>{titolo}</p>
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{testo}</p>
-      </div>
+      {aperto && (
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: 0,
+            marginBottom: 8,
+            width: 280,
+            zIndex: 9999,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: '14px 16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+              {titolo}
+            </span>
+            <button
+              onMouseDown={(e) => { e.stopPropagation(); setAperto(false); }}
+              style={{
+                background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', cursor: 'pointer',
+                fontSize: 18, lineHeight: 1, padding: '0 0 0 8px',
+              }}
+            >×</button>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+            {testo}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -189,9 +266,9 @@ export default function WizardValutazione() {
   // 'CAGLIARI' o 'HINTERLAND' — scelto nello step 0
   const [areaWizard, setAreaWizard] = useState('CAGLIARI');
 
-  const [zone, setZone]       = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [errore, setErrore]   = useState(null);
+  const [zone, setZone]               = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [errore, setErrore]           = useState(null);
 
   // ── Stato globale valutazione ─────────────────────────────────────────
   const [val, setVal] = useState({
@@ -203,15 +280,23 @@ export default function WizardValutazione() {
     superficie_mq: '',
     piano: 1,
     anno_costruzione: '',
+    num_locali: '',
+    num_bagni: '',
+    url_annuncio: '',
     ascensore: false,
     box_auto: false,
     balcone_terrazza: false,
     cantina: false,
 
-    // Step 2 - Metodi selezionati (array: 'VCM' | 'REDDITUALE' | 'DCF')
-    metodiSelezionati: ['VCM'],
+    // Step 2 - Prezzo reale
+    prezzo_dichiarato: '',
+    fonte_prezzo: '',
+    note_prezzo: '',
 
-    // Step 3 - Parametri VCM
+    // Step 2 - Metodi selezionati (array: 'REDDITUALE' | 'DCF')
+    metodiSelezionati: ['REDDITUALE'],
+
+    // Parametri VCM (mantenuto per compatibilità legacy)
     prezzo_base_override: '',
     vcm: null,
 
@@ -235,14 +320,23 @@ export default function WizardValutazione() {
     cap_rate_exit_pct: 5,
     dcf: null,
 
-    // ── Caratteristiche avanzate VCM ──────────────────────────────────────
-    classe_energetica: 'D',
-    esposizione: 'media',
-    vista: 'strada',
-    qualita_costruzione: 'media',
-    stato_conservazione_dettaglio: 'normale',
+    // ── Caratteristiche immobile (sistema 3 livelli → fascia OMI) ───────────
+    classe_energetica: 'MEDIA',
+    esposizione: 'BUONA',
+    vista: 'STANDARD',
+    qualita_costruzione: 'STANDARD',
+    luminosita: 'BUONA',
+    stato_conservazione: 'NORMALE',
+
+    // ── Tipo valutazione selezionata (radio step 3) ──────────────────────
+    tipoValutazione: 'REDDITUALE',
+
+    // ── Fallback manuale se dati OMI assenti ─────────────────────────────
+    prezzo_medio_manuale: '',
+
+    // ── Caratteristiche avanzate superfici/box ────────────────────────────
     box_dimensione: 'nessuno',
-    balcone_mq: 0,
+    num_balconi: 0,
     terrazza_mq: 0,
     giardino_mq: 0,
     comparabili_manuali: [],
@@ -312,31 +406,6 @@ export default function WizardValutazione() {
     }
   }
 
-  // ── Helper: parametri VCM comuni ────────────────────────────────────
-  const _vcmParams = () => ({
-    zona_codice:                    val.zona_codice,
-    tipologia:                      val.tipologia,
-    stato:                          val.stato_immobile,
-    superficie_mq:                  parseFloat(val.superficie_mq),
-    piano:                          val.piano,
-    ascensore:                      val.ascensore,
-    box_auto:                       val.box_auto,
-    balcone_terrazza:               val.balcone_terrazza,
-    cantina:                        val.cantina,
-    prezzo_base_override:           val.prezzo_base_override ? parseFloat(val.prezzo_base_override) : null,
-    // Nuovi parametri avanzati
-    stato_conservazione_dettaglio:  val.stato_conservazione_dettaglio,
-    classe_energetica:              val.classe_energetica,
-    esposizione:                    val.esposizione,
-    vista:                          val.vista,
-    qualita_costruzione:            val.qualita_costruzione,
-    balcone_mq:                     parseFloat(val.balcone_mq) || 0,
-    terrazza_mq:                    parseFloat(val.terrazza_mq) || 0,
-    giardino_mq:                    parseFloat(val.giardino_mq) || 0,
-    box_dimensione:                 val.box_dimensione,
-    comparabili_manuali:            val.comparabili_manuali.filter(c => c.superficie > 0 && c.prezzo > 0),
-  });
-
   // ── Step 3: calcola tutti i metodi selezionati in parallelo ─────────
   const eseguiAnalisi = async () => {
     setLoading(true);
@@ -344,11 +413,9 @@ export default function WizardValutazione() {
     try {
       const haRED = val.metodiSelezionati.includes('REDDITUALE');
       const haDCF = val.metodiSelezionati.includes('DCF');
-      const prezzoAcq = parsePrezzoNumerico(val.prezzo_acquisto)
+      const prezzoAcq = parsePrezzoNumerico(val.prezzo_dichiarato)
+        ?? parsePrezzoNumerico(val.prezzo_acquisto)
         ?? (val.prezzo_acquisto ? parseFloat(val.prezzo_acquisto) : null);
-
-      // VCM gira sempre — è la base
-      const vcmPromise = calcolaVCM(_vcmParams());
 
       // Spese totali: se breakdown compilato usa la somma, else il campo singolo legacy
       const speseTotali = (() => {
@@ -391,9 +458,9 @@ export default function WizardValutazione() {
           })
         : Promise.resolve(null);
 
-      const [vcmRis, redRis, dcfRis] = await Promise.all([vcmPromise, redPromise, dcfPromise]);
-      console.log('[WIZARD] VCM:', vcmRis, '| RED:', redRis, '| DCF:', dcfRis);
-      setVal(prev => ({ ...prev, vcm: vcmRis, reddituale: redRis, dcf: dcfRis }));
+      const [redRis, dcfRis] = await Promise.all([redPromise, dcfPromise]);
+      console.log('[WIZARD] RED:', redRis, '| DCF:', dcfRis);
+      setVal(prev => ({ ...prev, reddituale: redRis, dcf: dcfRis }));
       setStepAttivo(4);
     } catch (err) {
       console.error('[WIZARD] Errore analisi:', err);
@@ -418,17 +485,28 @@ export default function WizardValutazione() {
         superficie_mq:    n(val.superficie_mq),
         piano:            n(val.piano),
         anno_costruzione: n(val.anno_costruzione),
+        num_locali:       n(val.num_locali),
+        num_bagni:        n(val.num_bagni),
+        url_annuncio:     val.url_annuncio || null,
         ascensore:        val.ascensore ? 1 : 0,
         box_auto:         val.box_auto ? 1 : 0,
         balcone_terrazza: val.balcone_terrazza ? 1 : 0,
         cantina:          val.cantina ? 1 : 0,
-        ...(val.vcm && {
-          vcm_prezzo_base_mq:     n(val.vcm.prezzo_base_mq),
-          vcm_valore_min:         n(val.vcm.valore_min),
-          vcm_valore_medio:       n(val.vcm.valore_medio),
-          vcm_valore_max:         n(val.vcm.valore_max),
-          vcm_numero_comparabili: n(val.vcm.numero_comparabili),
-        }),
+
+        // Caratteristiche a 3 livelli
+        classe_energetica:    val.classe_energetica,
+        esposizione:          val.esposizione,
+        vista:                val.vista,
+        qualita_costruzione:  val.qualita_costruzione,
+        luminosita:           val.luminosita,
+        stato_conservazione:  val.stato_conservazione,
+        tipo_valutazione:     val.tipoValutazione,
+
+        // Prezzo reale dichiarato
+        prezzo_dichiarato: parsePrezzoNumerico(val.prezzo_dichiarato),
+        fonte_prezzo:      val.fonte_prezzo || null,
+        note_prezzo:       val.note_prezzo || null,
+
         ...(val.reddituale && {
           red_canone_mensile_lordo: n(val.canone_mensile),
           red_noi_annuo:            n(val.reddituale.noi_annuo),
@@ -440,7 +518,7 @@ export default function WizardValutazione() {
           red_rendimento_netto_pct: n(val.reddituale.rendimento_netto_pct),
         }),
         ...(val.dcf && {
-          dcf_prezzo_acquisto:            parsePrezzoNumerico(val.prezzo_acquisto) ?? n(val.prezzo_acquisto),
+          dcf_prezzo_acquisto:            parsePrezzoNumerico(val.prezzo_dichiarato) ?? parsePrezzoNumerico(val.prezzo_acquisto) ?? null,
           dcf_costi_acquisto_pct:         n(val.costi_acquisto_pct),
           dcf_costi_ristrutturazione:     n(val.costi_ristrutturazione),
           dcf_capitale_investito:         n(val.dcf.equity),
@@ -457,7 +535,7 @@ export default function WizardValutazione() {
           dcf_roi_totale_pct:             n(val.dcf.roi_totale_pct),
           dcf_cash_on_cash_pct:           n(val.dcf.cash_on_cash_pct),
         }),
-        metodologia_principale: val.metodiSelezionati.length > 0 ? val.metodiSelezionati.join('+') : 'VCM',
+        metodologia_principale: 'REDDITUALE',
         salvato_portafoglio: 1,
       };
 
@@ -466,17 +544,28 @@ export default function WizardValutazione() {
 
       await aggiungiAPortafoglio({
         valutazione_id,
-        indirizzo:        val.indirizzo || null,
-        zona_codice:      val.zona_codice || null,
-        tipologia:        val.tipologia || null,
-        stato_immobile:   val.stato_immobile || null,
-        superficie_mq:    n(val.superficie_mq),
-        prezzo_acquisto:  parsePrezzoNumerico(val.prezzo_acquisto) ?? n(val.prezzo_acquisto),
-        canone_mensile:   n(val.canone_mensile),
-        vcm_valore_medio: n(val.vcm?.valore_medio),
-        tir_pct:          n(val.dcf?.tir_pct),
-        roi_totale_pct:   n(val.dcf?.roi_totale_pct),
-        van:              n(val.dcf?.van),
+        indirizzo:           val.indirizzo || null,
+        zona_codice:         val.zona_codice || null,
+        tipologia:           val.tipologia || null,
+        stato_immobile:      val.stato_immobile || null,
+        superficie_mq:       n(val.superficie_mq),
+        num_locali:          n(val.num_locali),
+        num_bagni:           n(val.num_bagni),
+        url_annuncio:        val.url_annuncio || null,
+        prezzo_acquisto:     parsePrezzoNumerico(val.prezzo_dichiarato) ?? parsePrezzoNumerico(val.prezzo_acquisto) ?? null,
+        fonte_prezzo:        val.fonte_prezzo || null,
+        canone_mensile:      n(val.canone_mensile),
+        tir_pct:             n(val.dcf?.tir_pct),
+        roi_totale_pct:      n(val.dcf?.roi_totale_pct),
+        van:                 n(val.dcf?.van),
+        // Caratteristiche e fascia
+        classe_energetica:   val.classe_energetica,
+        esposizione:         val.esposizione,
+        vista:               val.vista,
+        qualita_costruzione: val.qualita_costruzione,
+        luminosita:          val.luminosita,
+        stato_conservazione: val.stato_conservazione,
+        tipo_valutazione:    val.tipoValutazione,
       });
 
       navigate('/portafoglio?tab=valutazioni');
@@ -504,8 +593,8 @@ export default function WizardValutazione() {
     /* gap: 32px tra titolo e card — rispetta la regola: nulla deve toccarsi */
     <div style={{ maxWidth: 768, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32 }}>
       <div>
-        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Nuova Valutazione</h1>
-        <p className="text-sm" style={{ marginTop: 6, color: 'var(--text-muted)' }}>Wizard guidato · {STEPS.length} passaggi</p>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Analisi Investimento</h1>
+        <p className="text-sm" style={{ marginTop: 6, color: 'var(--text-muted)' }}>Analisi finanziaria guidata · inserisci i dati reali</p>
       </div>
 
       {/* ── Card wizard: due zone visive distinte ─────────────────────────── */}
@@ -791,6 +880,45 @@ export default function WizardValutazione() {
               </div>
             </div>
 
+            {/* N° Locali + N° Bagni */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <Label>N° Locali</Label>
+                <input
+                  type="number" min="1" max="10"
+                  value={val.num_locali}
+                  onChange={e => upd('num_locali', e.target.value)}
+                  placeholder="Es. 3"
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <Label>N° Bagni</Label>
+                <input
+                  type="number" min="1" max="5"
+                  value={val.num_bagni}
+                  onChange={e => upd('num_bagni', e.target.value)}
+                  placeholder="Es. 1"
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            {/* URL Annuncio */}
+            <div>
+              <Label>URL Annuncio</Label>
+              <input
+                type="url"
+                value={val.url_annuncio}
+                onChange={e => upd('url_annuncio', e.target.value)}
+                placeholder="https://www.immobiliare.it/..."
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+              />
+            </div>
+
             {/* Dotazioni aggiuntive */}
             <div>
               <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Caratteristiche Aggiuntive (Opzionale)</label>
@@ -822,85 +950,101 @@ export default function WizardValutazione() {
               </div>
             </div>
 
-            {/* Caratteristiche Avanzate (collassabile) */}
-            <details
-              style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}
-            >
-              <summary
-                style={{
-                  padding: '14px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                  color: 'var(--text-secondary)', background: 'var(--bg-secondary)',
-                  userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8,
-                }}
-              >
+            {/* ── CARATTERISTICHE IMMOBILE (3 livelli → fascia OMI) ── */}
+            <div style={{ marginTop: 8, paddingTop: 28, borderTop: '1px solid var(--border)' }}>
+              <div style={{ marginBottom: 18 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  Caratteristiche Immobile
+                </h3>
+                <p className="text-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  Determinano la fascia OMI (BASSA / MEDIA / ALTA) e quindi il prezzo base della valutazione.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div>
+                  <Label info={{ titolo: 'Classe Energetica', testo: 'ALTA (A-B) → fascia MAX OMI. BASSA (F-G) → fascia MIN OMI. Dati da APE.' }}>
+                    Classe Energetica *
+                  </Label>
+                  <select value={val.classe_energetica} onChange={e => upd('classe_energetica', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="BASSA">BASSA (F-G)</option>
+                    <option value="MEDIA">MEDIA (C-D-E)</option>
+                    <option value="ALTA">ALTA (A-B)</option>
+                  </select>
+                </div>
+                <div>
+                  <Label info={{ titolo: 'Esposizione', testo: 'OTTIMA (Sud) contribuisce alla fascia alta. SCARSA (Nord) alla fascia bassa.' }}>
+                    Esposizione *
+                  </Label>
+                  <select value={val.esposizione} onChange={e => upd('esposizione', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="SCARSA">SCARSA (Nord)</option>
+                    <option value="BUONA">BUONA (Est/Ovest)</option>
+                    <option value="OTTIMA">OTTIMA (Sud)</option>
+                  </select>
+                </div>
+                <div>
+                  <Label info={{ titolo: 'Vista / Affaccio', testo: 'PREGIATA (mare/panorama) porta alla fascia alta. COMUNE (cortile) alla bassa.' }}>
+                    Vista *
+                  </Label>
+                  <select value={val.vista} onChange={e => upd('vista', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="COMUNE">COMUNE (Cortile/Interno)</option>
+                    <option value="STANDARD">STANDARD (Strada)</option>
+                    <option value="PREGIATA">PREGIATA (Mare/Panorama)</option>
+                  </select>
+                </div>
+                <div>
+                  <Label info={{ titolo: 'Qualità Costruzione', testo: 'PREGIATA = finiture di pregio. ECONOMICA = materiali base.' }}>
+                    Qualità Costruzione *
+                  </Label>
+                  <select value={val.qualita_costruzione} onChange={e => upd('qualita_costruzione', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="ECONOMICA">ECONOMICA</option>
+                    <option value="STANDARD">STANDARD</option>
+                    <option value="PREGIATA">PREGIATA</option>
+                  </select>
+                </div>
+                <div>
+                  <Label info={{ titolo: 'Luminosità', testo: 'OTTIMA = luce naturale abbondante. SCARSA = poco luminoso.' }}>
+                    Luminosità *
+                  </Label>
+                  <select value={val.luminosita} onChange={e => upd('luminosita', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="SCARSA">SCARSA</option>
+                    <option value="BUONA">BUONA</option>
+                    <option value="OTTIMA">OTTIMA</option>
+                  </select>
+                </div>
+                <div>
+                  <Label info={{ titolo: 'Stato Conservazione', testo: 'OTTIMO = nuovo/ristrutturato. SCADENTE = da ristrutturare.' }}>
+                    Stato Conservazione *
+                  </Label>
+                  <select value={val.stato_conservazione} onChange={e => upd('stato_conservazione', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="SCADENTE">SCADENTE (Da ristrutturare)</option>
+                    <option value="NORMALE">NORMALE (Abitabile)</option>
+                    <option value="OTTIMO">OTTIMO (Nuovo/Ristrutturato)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SUPERFICI ESTERNE E BOX (collassabile) ── */}
+            <details style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <summary style={{
+                padding: '14px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                color: 'var(--text-secondary)', background: 'var(--bg-secondary)',
+                userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8,
+              }}>
                 <span style={{ fontSize: 12, opacity: 0.6 }}>▶</span>
-                Caratteristiche Avanzate
+                Superfici Esterne e Comparabili
                 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>
-                  (classe energetica, vista, esposizione, superfici esterne)
+                  (balcone, terrazza, giardino, box, comparabili manuali)
                 </span>
               </summary>
               <div style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div>
-                    <Label info={{ titolo: 'Classe Energetica', testo: 'Da APE. A4/A3 +10-12%, F/G -5-10% rispetto a D (neutro).' }}>
-                      Classe Energetica
-                    </Label>
-                    <select value={val.classe_energetica} onChange={e => upd('classe_energetica', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-                      {['A4','A3','A2','A1','B','C','D','E','F','G'].map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label info={{ titolo: 'Esposizione', testo: 'Sud/Sud-Est = ottima (+4%), Nord = scarsa (-3%). Impatto sulla luminosità.' }}>
-                      Esposizione
-                    </Label>
-                    <select value={val.esposizione} onChange={e => upd('esposizione', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-                      <option value="ottima">Ottima (Sud/SE/SO)</option>
-                      <option value="buona">Buona (Est/Ovest)</option>
-                      <option value="media">Media</option>
-                      <option value="scarsa">Scarsa (Nord)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label info={{ titolo: 'Vista', testo: 'Mare +15%, panoramica +8%, parco +4%, interna -4%.' }}>
-                      Vista
-                    </Label>
-                    <select value={val.vista} onChange={e => upd('vista', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-                      <option value="mare">Mare</option>
-                      <option value="panoramica">Panoramica</option>
-                      <option value="parco">Parco/Verde</option>
-                      <option value="strada">Strada</option>
-                      <option value="interna">Interna/Cortile</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label info={{ titolo: 'Stato Conservazione', testo: 'Granularità peritale: nuovo +15%, ottimo +8%, buono +3%, normale 0%, da rinfrescare -5%, da ristrutturare -18%.' }}>
-                      Stato Conservazione (dettagliato)
-                    </Label>
-                    <select value={val.stato_conservazione_dettaglio} onChange={e => upd('stato_conservazione_dettaglio', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-                      <option value="nuovo">Nuovo / Come nuovo</option>
-                      <option value="ottimo">Ottimo</option>
-                      <option value="buono">Buono</option>
-                      <option value="normale">Normale</option>
-                      <option value="da_rinfrescare">Da rinfrescare</option>
-                      <option value="da_ristrutturare">Da ristrutturare</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label info={{ titolo: 'Qualità Costruzione', testo: 'Finiture e materiali. Signorile +8%, economica -8%.' }}>
-                      Qualità Costruzione
-                    </Label>
-                    <select value={val.qualita_costruzione} onChange={e => upd('qualita_costruzione', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-                      <option value="signorile">Signorile</option>
-                      <option value="buona">Buona</option>
-                      <option value="media">Media</option>
-                      <option value="economica">Economica</option>
-                    </select>
-                  </div>
                   <div>
                     <Label info={{ titolo: 'Box / Posto Auto', testo: 'Valore aggiunto: posto auto +€5k, box singolo +€12k, box doppio +€20k.' }}>
                       Box / Posto Auto
@@ -914,19 +1058,19 @@ export default function WizardValutazione() {
                     </select>
                   </div>
                   <div>
-                    <Label info={{ titolo: 'Balcone (mq)', testo: 'Superficie balcone. Vale il 30% del prezzo/mq dell\'immobile.' }}>Balcone (mq)</Label>
-                    <input type="number" min="0" step="1" value={val.balcone_mq}
-                      onChange={e => upd('balcone_mq', e.target.value)}
+                    <Label info={{ titolo: 'Numero di Balconi', testo: 'Ogni balcone vale circa 7 mq × 30% del prezzo/mq dell\'immobile.' }}>Numero di Balconi</Label>
+                    <input type="number" min="0" max="10" step="1" placeholder="Es: 2" value={val.num_balconi}
+                      onChange={e => upd('num_balconi', Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
                   </div>
                   <div>
-                    <Label info={{ titolo: 'Terrazza (mq)', testo: 'Superficie terrazza. Vale il 50% del prezzo/mq dell\'immobile.' }}>Terrazza (mq)</Label>
+                    <Label info={{ titolo: 'Terrazza (mq)', testo: 'Vale il 50% del prezzo/mq dell\'immobile.' }}>Terrazza (mq)</Label>
                     <input type="number" min="0" step="1" value={val.terrazza_mq}
                       onChange={e => upd('terrazza_mq', e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
                   </div>
                   <div>
-                    <Label info={{ titolo: 'Giardino esclusivo (mq)', testo: 'Giardino privato. Vale il 20% del prezzo/mq dell\'immobile.' }}>Giardino (mq)</Label>
+                    <Label info={{ titolo: 'Giardino esclusivo (mq)', testo: 'Vale il 20% del prezzo/mq dell\'immobile.' }}>Giardino (mq)</Label>
                     <input type="number" min="0" step="1" value={val.giardino_mq}
                       onChange={e => upd('giardino_mq', e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
@@ -940,16 +1084,14 @@ export default function WizardValutazione() {
                   </p>
                   {val.comparabili_manuali.map((comp, idx) => (
                     <div key={idx} className="grid grid-cols-3 gap-3 mb-2">
-                      <input
-                        type="number" placeholder="Superficie (mq)" value={comp.superficie || ''}
+                      <input type="number" placeholder="Superficie (mq)" value={comp.superficie || ''}
                         onChange={e => {
                           const arr = [...val.comparabili_manuali];
                           arr[idx] = { ...arr[idx], superficie: parseFloat(e.target.value) || 0 };
                           upd('comparabili_manuali', arr);
                         }}
                         className="px-3 py-2 rounded-lg text-sm" style={inputStyle} />
-                      <input
-                        type="number" placeholder="Prezzo totale (€)" value={comp.prezzo || ''}
+                      <input type="number" placeholder="Prezzo totale (€)" value={comp.prezzo || ''}
                         onChange={e => {
                           const arr = [...val.comparabili_manuali];
                           arr[idx] = { ...arr[idx], prezzo: parseFloat(e.target.value) || 0 };
@@ -962,20 +1104,18 @@ export default function WizardValutazione() {
                             {formatEuro(Math.round(comp.prezzo / comp.superficie))}/mq
                           </span>
                         )}
-                        <button
-                          type="button"
+                        <button type="button"
                           onClick={() => upd('comparabili_manuali', val.comparabili_manuali.filter((_, i) => i !== idx))}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--danger)', cursor: 'pointer', fontSize: 13 }}
-                        >×</button>
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--danger)', cursor: 'pointer', fontSize: 13 }}>
+                          ×
+                        </button>
                       </div>
                     </div>
                   ))}
                   {val.comparabili_manuali.length < 3 && (
-                    <button
-                      type="button"
+                    <button type="button"
                       onClick={() => upd('comparabili_manuali', [...val.comparabili_manuali, { superficie: '', prezzo: '' }])}
-                      style={{ padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}
-                    >
+                      style={{ padding: '8px 16px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>
                       + Aggiungi comparabile
                     </button>
                   )}
@@ -1006,124 +1146,178 @@ export default function WizardValutazione() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* STEP 2 - METODI ANALISI (multi-select)                      */}
+        {/* STEP 2 - PREZZO REALE                                       */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        {stepAttivo === 2 && (
-          <div className="flex flex-col gap-8">
-            <div style={{ paddingBottom: 4 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>Che analisi vuoi eseguire?</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                Seleziona uno o più metodi. Per ogni metodo scelto compilerai i parametri nel passo successivo.
-              </p>
-            </div>
+        {stepAttivo === 2 && (() => {
+          const zonaSelezionata = zone.find(z => z.link_zona === val.zona_codice);
+          const prezzoNum = parsePrezzoNumerico(val.prezzo_dichiarato);
+          const mqNum = parseFloat(val.superficie_mq) || 0;
+          const prezzoMq = prezzoNum && mqNum > 0 ? Math.round(prezzoNum / mqNum) : null;
+          const omiMin = zonaSelezionata?.compr_min ?? null;
+          const omiMax = zonaSelezionata?.compr_max ?? null;
+          const omiLocMin = zonaSelezionata?.loc_min ?? null;
+          const omiLocMax = zonaSelezionata?.loc_max ?? null;
 
-            <div className="flex flex-col gap-3">
-              {[
-                {
-                  id: 'VCM',
-                  titolo: 'Valutazione Comparativa di Mercato',
-                  badge: 'VCM',
-                  badgeColor: 'var(--accent)',
-                  desc: 'Stima il valore dell\'immobile dai prezzi OMI della zona, corretti per piano, stato e dotazioni.',
-                  campi: 'Zona · Tipologia · Superficie · Piano · Dotazioni',
-                },
-                {
-                  id: 'REDDITUALE',
-                  titolo: 'Analisi Reddituale',
-                  badge: 'RED',
-                  badgeColor: '#3b82f6',
-                  desc: 'Calcola il valore da capitalizzazione del canone (NOI / Cap Rate) e il rendimento lordo/netto.',
-                  campi: 'Canone mensile · Cap Rate · Vacancy · Spese annue',
-                },
-                {
-                  id: 'DCF',
-                  titolo: 'Analisi Finanziaria Completa (DCF)',
-                  badge: 'DCF',
-                  badgeColor: 'var(--success)',
-                  desc: 'Proiezione pluriennale con mutuo, VAN, TIR e ROI sull\'orizzonte di investimento. La più completa.',
-                  campi: 'Prezzo acquisto · LTV/Mutuo · Orizzonte · Exit Cap Rate',
-                },
-              ].map(opt => {
-                const sel = val.metodiSelezionati.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      const next = sel
-                        ? val.metodiSelezionati.filter(m => m !== opt.id)
-                        : [...val.metodiSelezionati, opt.id];
-                      upd('metodiSelezionati', next);
-                    }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '18px 20px',
-                      borderRadius: 12,
-                      border: `2px solid ${sel ? opt.badgeColor : 'var(--border)'}`,
-                      background: sel
-                        ? opt.id === 'VCM'     ? 'rgba(245,158,11,0.05)'
-                        : opt.id === 'REDDITUALE' ? 'rgba(59,130,246,0.05)'
-                        : 'rgba(16,185,129,0.05)'
-                        : 'var(--bg-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      {/* Checkbox visivo */}
-                      <div style={{
-                        width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                        border: `2px solid ${sel ? opt.badgeColor : 'var(--border)'}`,
-                        background: sel ? opt.badgeColor : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.15s',
-                      }}>
-                        {sel && <span style={{ fontSize: 12, color: opt.id === 'VCM' ? '#000' : '#fff', fontWeight: 900, lineHeight: 1 }}>✓</span>}
-                      </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-                        padding: '3px 8px', borderRadius: 6,
-                        background: sel ? opt.badgeColor : 'var(--bg-hover)',
-                        color: sel ? (opt.id === 'VCM' ? '#000' : '#fff') : 'var(--text-muted)',
-                      }}>
-                        {opt.badge}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: sel ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                        {opt.titolo}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 5, paddingLeft: 30 }}>{opt.desc}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', opacity: 0.65, paddingLeft: 30 }}>Parametri: {opt.campi}</p>
-                  </button>
-                );
-              })}
-            </div>
+          let omiBadge = null;
+          if (prezzoMq && omiMin && omiMax) {
+            if (prezzoMq < omiMin) {
+              omiBadge = { icon: '💡', color: '#3b82f6', testo: 'Sotto media OMI zona' };
+            } else if (prezzoMq > omiMax) {
+              omiBadge = { icon: '⚠', color: 'var(--warning)', testo: 'Sopra media OMI zona' };
+            } else {
+              omiBadge = { icon: '✓', color: 'var(--success)', testo: 'In linea con il range OMI' };
+            }
+          }
 
-            {val.metodiSelezionati.length > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
-                <span style={{ fontSize: 14 }}>📋</span>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-                  Hai selezionato <strong style={{ color: 'var(--text-primary)' }}>{val.metodiSelezionati.length} metodi</strong>.
-                  Nel passo successivo troverai una sezione parametri per ciascuno.
+          return (
+            <div className="flex flex-col gap-7">
+              <div style={{ paddingBottom: 8 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.02em' }}>
+                  Prezzo Reale dell'Immobile
+                </h2>
+                <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  Inserisci il prezzo reale che conosci — da perizia, agenzia o annuncio.
+                  Il software non stima il valore: lo usi tu per l'analisi finanziaria.
                 </p>
               </div>
-            )}
 
-            <div className="flex justify-between gap-3" style={{ paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-              <button onClick={() => setStepAttivo(1)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
-                ← Indietro
-              </button>
-              <button
-                onClick={() => setStepAttivo(3)}
-                disabled={val.metodiSelezionati.length === 0}
-                className="disabled:opacity-40"
-                style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
-              >
-                Avanti →
-              </button>
+              {/* Campo prezzo principale */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <Label>Prezzo immobile (€) *</Label>
+                  <input
+                    type="text" inputMode="decimal"
+                    value={val.prezzo_dichiarato ?? ''}
+                    onChange={e => upd('prezzo_dichiarato', e.target.value)}
+                    placeholder="Es. 170.000"
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={{
+                      ...inputStyle,
+                      fontSize: 16, fontWeight: 600,
+                      borderColor: !val.prezzo_dichiarato ? 'rgba(245,158,11,0.6)' : 'var(--border)',
+                    }}
+                  />
+                  {prezzoMq && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      = <strong style={{ color: 'var(--text-primary)' }}>{formatEuro(prezzoMq)}/mq</strong>
+                      {omiBadge && (
+                        <span style={{ marginLeft: 8, color: omiBadge.color, fontWeight: 600 }}>
+                          {omiBadge.icon} {omiBadge.testo}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>Fonte del prezzo *</Label>
+                  <select
+                    value={val.fonte_prezzo ?? ''}
+                    onChange={e => upd('fonte_prezzo', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={inputStyle}
+                  >
+                    <option value="">Seleziona fonte...</option>
+                    <option value="perizia">Perizia professionale</option>
+                    <option value="agenzia">Proposta agenzia immobiliare</option>
+                    <option value="annuncio">Annuncio immobiliare</option>
+                    <option value="stima">Stima personale</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Note sul prezzo */}
+              <div>
+                <Label>Note sul prezzo <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>(opzionale)</span></Label>
+                <input
+                  type="text"
+                  value={val.note_prezzo ?? ''}
+                  onChange={e => upd('note_prezzo', e.target.value)}
+                  placeholder="Es: perizia del 15/03/2025, notaio Rossi..."
+                  maxLength={200}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Pannello riferimenti OMI */}
+              {zonaSelezionata && (
+                <div style={{
+                  borderRadius: 12,
+                  border: '1px dashed rgba(100,116,139,0.4)',
+                  background: 'rgba(100,116,139,0.04)',
+                  padding: '16px 20px',
+                }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                    📊 Prezzi di riferimento OMI — {zonaNome}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4" style={{ marginBottom: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Compravendita</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {omiMin && omiMax ? `${formatEuro(omiMin)}/mq — ${formatEuro(omiMax)}/mq` : 'Non disponibile'}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Locazione</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {omiLocMin && omiLocMax ? `${formatEuro(omiLocMin)}/mq — ${formatEuro(omiLocMax)}/mq` : 'Non disponibile'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Confronto visivo se prezzo inserito */}
+                  {prezzoMq && omiMin && omiMax && (
+                    <div style={{ marginBottom: 12 }}>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                        Il tuo prezzo ({formatEuro(prezzoMq)}/mq) rispetto al range OMI:
+                      </p>
+                      <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-hover)', position: 'relative', overflow: 'visible', marginBottom: 4 }}>
+                        <div style={{ position: 'absolute', left: '10%', right: '10%', height: '100%', background: 'rgba(100,116,139,0.3)', borderRadius: 4 }} />
+                        {(() => {
+                          const rangeVis = omiMax * 1.3;
+                          const pct = Math.min(95, Math.max(5, (prezzoMq / rangeVis) * 100));
+                          return (
+                            <div style={{
+                              position: 'absolute', left: `${pct}%`, top: -3,
+                              width: 14, height: 14, borderRadius: '50%',
+                              background: omiBadge?.color ?? 'var(--accent)',
+                              border: '2px solid var(--bg-card)', transform: 'translateX(-50%)',
+                            }} />
+                          );
+                        })()}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)' }}>
+                        <span>{formatEuro(omiMin)}/mq</span>
+                        <span style={{ color: omiBadge?.color, fontWeight: 700 }}>{omiBadge?.icon} {omiBadge?.testo}</span>
+                        <span>{formatEuro(omiMax)}/mq</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px dashed rgba(100,116,139,0.3)', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    ⚠ I dati OMI sono fasce statistiche ufficiali dell'Agenzia delle Entrate e rappresentano una media di zona.
+                    Il valore reale può differire significativamente. Forniti a titolo puramente indicativo.
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between gap-3" style={{ paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+                <button onClick={() => setStepAttivo(1)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
+                  ← Indietro
+                </button>
+                <button
+                  onClick={() => setStepAttivo(3)}
+                  disabled={!val.prezzo_dichiarato || !val.fonte_prezzo}
+                  className="disabled:opacity-40"
+                  style={{ padding: '12px 28px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                >
+                  Avanti →
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ═══════════════════════════════════════════════════════════ */}
         {/* STEP 3 - PARAMETRI (sezioni dinamiche per ogni metodo)     */}
@@ -1149,32 +1343,76 @@ export default function WizardValutazione() {
                   Inserisci i Parametri
                 </h2>
                 <p className="text-sm" style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                  {val.metodiSelezionati.length > 1
-                    ? `Metodi selezionati: ${val.metodiSelezionati.join(' + ')}. Ogni sezione corrisponde a un'analisi.`
-                    : 'Compila i campi per eseguire l\'analisi selezionata.'}
+                  Scegli il tipo di analisi da eseguire sul prezzo che hai inserito.
                 </p>
               </div>
 
-              {/* ── SEZIONE VCM (sempre presente) ── */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <span style={{ width: 3, height: 16, borderRadius: 2, background: 'var(--accent)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
-                    VCM — Valutazione Comparativa
-                  </span>
-                </div>
-                <Label>
-                  Prezzo base personalizzato €/mq{' '}
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opzionale — lascia vuoto per usare i dati OMI)</span>
-                </Label>
-                <input
-                  type="number" step="10"
-                  value={val.prezzo_base_override}
-                  onChange={e => upd('prezzo_base_override', e.target.value)}
-                  placeholder="Es. 1800"
-                  className="w-full max-w-xs px-3 py-2 rounded-lg text-sm"
-                  style={inputStyle}
-                />
+              {/* ── Selezione tipo analisi ── */}
+              <div className="flex flex-col gap-3">
+                {[
+                  {
+                    id: 'REDDITUALE',
+                    titolo: 'Solo Analisi Reddituale',
+                    badge: 'RED',
+                    badgeColor: '#3b82f6',
+                    badgeText: '#fff',
+                    desc: 'Calcola rendimento lordo e netto sul prezzo reale che hai inserito. Ideale per valutare la convenienza di un affitto.',
+                    metodi: ['REDDITUALE'],
+                  },
+                  {
+                    id: 'FINANZIARIA_COMPLETA',
+                    titolo: 'Analisi Reddituale + Finanziaria Completa',
+                    badge: 'RED + DCF',
+                    badgeColor: 'var(--success)',
+                    badgeText: '#fff',
+                    desc: 'Rendimento + proiezione pluriennale con VAN, TIR, ROI, mutuo e sensitivity analysis sull\'orizzonte di investimento.',
+                    metodi: ['REDDITUALE', 'DCF'],
+                  },
+                ].map(opt => {
+                  const sel = val.tipoValutazione === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        upd('tipoValutazione', opt.id);
+                        upd('metodiSelezionati', opt.metodi);
+                      }}
+                      style={{
+                        textAlign: 'left', padding: '18px 20px', borderRadius: 12,
+                        border: `2px solid ${sel ? opt.badgeColor : 'var(--border)'}`,
+                        background: sel
+                          ? opt.id === 'REDDITUALE' ? 'rgba(59,130,246,0.05)' : 'rgba(16,185,129,0.05)'
+                          : 'var(--bg-secondary)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                        <div style={{
+                          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                          border: `2px solid ${sel ? opt.badgeColor : 'var(--border)'}`,
+                          background: sel ? opt.badgeColor : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 0.15s',
+                        }}>
+                          {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+                        </div>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                          padding: '3px 8px', borderRadius: 6,
+                          background: sel ? opt.badgeColor : 'var(--bg-hover)',
+                          color: sel ? opt.badgeText : 'var(--text-muted)',
+                        }}>
+                          {opt.badge}
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: sel ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {opt.titolo}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, paddingLeft: 30 }}>{opt.desc}</p>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* ── SEZIONE REDDITUALE (se RED o DCF selezionati) ── */}
@@ -1305,7 +1543,7 @@ export default function WizardValutazione() {
                       <Label info={{ titolo: 'Prezzo di Acquisto', testo: 'Prezzo pagato per l\'immobile in €. Formato italiano: 200.000 (punto = migliaia).' }}>
                         Prezzo Acquisto (€) *
                       </Label>
-                      <input type="text" inputMode="decimal" value={val.prezzo_acquisto}
+                      <input type="text" inputMode="decimal" value={val.prezzo_acquisto || val.prezzo_dichiarato || ''}
                         onChange={e => upd('prezzo_acquisto', e.target.value)}
                         placeholder="Es. 200.000" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
                     </div>
@@ -1403,6 +1641,7 @@ export default function WizardValutazione() {
                 </div>
               )}
 
+
               <div className="flex justify-between gap-3" style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
                 <button onClick={() => setStepAttivo(2)} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', cursor: 'pointer' }}>
                   ← Indietro
@@ -1437,14 +1676,76 @@ export default function WizardValutazione() {
               </p>
             </div>
 
+            {/* ── Riepilogo Immobile Analizzato ─────────────────────────── */}
+            {(() => {
+              const zonaSelRiepilogo = zone.find(z => z.link_zona === val.zona_codice);
+              const prezzoNumRiep = parsePrezzoNumerico(val.prezzo_dichiarato);
+              const mqNumRiep = parseFloat(val.superficie_mq) || 0;
+              const prezzoMqRiep = prezzoNumRiep && mqNumRiep > 0 ? Math.round(prezzoNumRiep / mqNumRiep) : null;
+              const omiMinRiep = zonaSelRiepilogo?.compr_min ?? null;
+              const omiMaxRiep = zonaSelRiepilogo?.compr_max ?? null;
+              let omiBadgeRiep = null;
+              if (prezzoMqRiep && omiMinRiep && omiMaxRiep) {
+                if (prezzoMqRiep < omiMinRiep)       omiBadgeRiep = { icon: '💡', color: '#3b82f6', testo: 'Sotto media OMI' };
+                else if (prezzoMqRiep > omiMaxRiep)  omiBadgeRiep = { icon: '⚠', color: 'var(--warning)', testo: 'Sopra media OMI' };
+                else                                  omiBadgeRiep = { icon: '✓', color: 'var(--success)', testo: 'In linea OMI' };
+              }
+              const fonteLabel = { perizia: 'Perizia professionale', agenzia: 'Proposta agenzia', annuncio: 'Annuncio immobiliare', stima: 'Stima personale' }[val.fonte_prezzo] ?? val.fonte_prezzo;
+              return (
+                <div style={{ borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.06)' }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                      Immobile Analizzato
+                    </p>
+                  </div>
+                  <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px 20px' }}>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Indirizzo</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{val.indirizzo || '—'}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Zona</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{zonaNome || '—'}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Superficie</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{mqNumRiep > 0 ? `${mqNumRiep} mq` : '—'}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Prezzo dichiarato</p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{prezzoNumRiep ? formatEuro(prezzoNumRiep) : '—'}</p>
+                    </div>
+                    {prezzoMqRiep && (
+                      <div>
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Prezzo/mq</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {formatEuro(prezzoMqRiep)}/mq
+                          {omiBadgeRiep && <span style={{ marginLeft: 6, fontSize: 11, color: omiBadgeRiep.color }}>{omiBadgeRiep.icon} {omiBadgeRiep.testo}</span>}
+                        </p>
+                      </div>
+                    )}
+                    {fonteLabel && (
+                      <div>
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Fonte prezzo</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{fonteLabel}</p>
+                      </div>
+                    )}
+                    {omiMinRiep && omiMaxRiep && (
+                      <div>
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Range OMI zona</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>{formatEuro(omiMinRiep)} — {formatEuro(omiMaxRiep)}/mq</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Pannello: come leggere i risultati ─────────────────────── */}
             <div style={{ borderRadius: 12, padding: '16px 20px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)' }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: '#3b82f6', marginBottom: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Come leggere i risultati</p>
               <ul style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.9, margin: 0, paddingLeft: 16 }}>
-                {val.vcm && <>
-                  <li><strong style={{ color: 'var(--accent)' }}>VCM — Valore Medio</strong> — stima centrale OMI, corretta per piano, stato e dotazioni. Spread ±8%.</li>
-                </>}
-                {val.reddituale && <>
+                  {val.reddituale && <>
                   <li><strong style={{ color: '#3b82f6' }}>Reddituale — Valore di Mercato</strong> — NOI annuo / Cap Rate. Es.: NOI €9.600 con Cap Rate 5% → €192.000.</li>
                   <li><strong style={{ color: '#3b82f6' }}>Rendimento Lordo/Netto</strong> — calcolati sul prezzo di acquisto (se inserito).</li>
                 </>}
@@ -1458,58 +1759,6 @@ export default function WizardValutazione() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* ── VCM ─────────────────────────────────────────────────── */}
-              {val.vcm && (
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                  {/* header */}
-                  <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 3, height: 18, borderRadius: 2, background: 'var(--accent)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
-                      Valutazione Comparativa di Mercato
-                    </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
-                      {val.vcm.numero_comparabili} comparabili · Anno {val.vcm.anno_riferimento}
-                    </span>
-                  </div>
-                  {/* range min/medio/max */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid var(--border)' }}>
-                    {[
-                      { label: 'Minimo', v: val.vcm.valore_min, accent: false },
-                      { label: 'Medio',  v: val.vcm.valore_medio, accent: true  },
-                      { label: 'Massimo',v: val.vcm.valore_max, accent: false },
-                    ].map((cell, i) => (
-                      <div
-                        key={cell.label}
-                        style={{
-                          padding: '20px 0', textAlign: 'center',
-                          borderRight: i < 2 ? '1px solid var(--border)' : 'none',
-                          background: cell.accent ? 'rgba(245,158,11,0.05)' : 'transparent',
-                        }}
-                      >
-                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>{cell.label}</p>
-                        <p style={{ fontSize: cell.accent ? 22 : 17, fontWeight: 700, color: cell.accent ? 'var(--accent)' : 'var(--text-primary)' }}>
-                          {formatEuro(cell.v)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  {/* metadata */}
-                  <div style={{ padding: '14px 24px', display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Prezzo base <strong style={{ color: 'var(--text-primary)' }}>{formatEuro(val.vcm.prezzo_base_mq)}/mq</strong>
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Coeff. piano <strong style={{ color: 'var(--text-primary)' }}>{val.vcm.coefficiente_piano}</strong>
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Coeff. stato <strong style={{ color: 'var(--text-primary)' }}>{val.vcm.coefficiente_stato}</strong>
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Spread <strong style={{ color: 'var(--text-primary)' }}>±8%</strong>
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {/* ── Reddituale ───────────────────────────────────────────── */}
               {val.reddituale && (
@@ -1643,95 +1892,70 @@ export default function WizardValutazione() {
               )}
             </div>
 
-            {/* ── Riconciliazione Multi-Metodo (IVS 105) ────────────────────── */}
-            {(() => {
-              const metodi = [];
-              if (val.vcm)        metodi.push({ id: 'VCM', label: 'VCM', v: val.vcm.valore_medio,         peso: 'peso_vcm', color: 'var(--accent)' });
-              if (val.reddituale) metodi.push({ id: 'RED', label: 'RED', v: val.reddituale.valore_mercato, peso: 'peso_red', color: '#3b82f6' });
-              if (val.dcf)        metodi.push({ id: 'DCF', label: 'DCF', v: val.dcf.van != null ? val.vcm?.valore_medio : null, peso: 'peso_dcf', color: 'var(--success)' });
-              if (metodi.length < 2) return null;
 
-              // Normalizza i pesi
-              const pesoTot = metodi.reduce((s, m) => s + (parseFloat(val[m.peso]) || 0), 0);
-              const valoreSintesi = pesoTot > 0
-                ? metodi.reduce((s, m) => s + (m.v || 0) * (parseFloat(val[m.peso]) || 0), 0) / pesoTot
-                : metodi.reduce((s, m) => s + (m.v || 0), 0) / metodi.length;
+            {/* ── Confronto investimenti alternativi ──────────────────────── */}
+            {(val.reddituale || val.dcf) && (() => {
+              const anni = 10;
+              const equity = val.dcf?.equity ?? parsePrezzoNumerico(val.prezzo_dichiarato) ?? 0;
+              if (!equity) return null;
+
+              // Rendimento netto immobile: preferisce DCF cash-on-cash, fallback reddituale netto
+              const rendNettoImmobile = val.dcf?.cash_on_cash_pct
+                ?? val.reddituale?.rendimento_netto_pct
+                ?? 0;
+
+              // Crescita composta: capitale × (1 + r)^anni
+              const componi = (capitale, tassoPct) => capitale * Math.pow(1 + tassoPct / 100, anni);
+
+              const ALTERNATIVE = [
+                { label: 'Immobile',      tasso: rendNettoImmobile, colore: 'var(--accent)',   bold: true },
+                { label: 'BTP 10 anni',   tasso: 3.6,               colore: '#3b82f6',          bold: false },
+                { label: 'ETF Globale',   tasso: 7.0,               colore: 'var(--success)',   bold: false },
+                { label: 'Conto Deposito',tasso: 4.0,               colore: 'var(--text-muted)',bold: false },
+              ];
+
+              const massimo = Math.max(...ALTERNATIVE.map(a => componi(equity, a.tasso)));
 
               return (
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--accent)', background: 'rgba(245,158,11,0.03)' }}>
-                  <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'rgba(245,158,11,0.06)' }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                      Valore di Sintesi — Riconciliazione IVS 105
-                    </h3>
+                <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                  <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 3, height: 18, borderRadius: 2, background: 'var(--accent)', flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+                      Confronto Investimenti Alternativi — {anni} anni
+                    </span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
+                      Capitale iniziale: {formatEuro(equity)}
+                    </span>
                   </div>
-                  <div style={{ padding: '20px 24px' }}>
-                    {/* Griglia metodi con pesi */}
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${metodi.length}, 1fr)`, gap: 12, marginBottom: 20 }}>
-                      {metodi.map(m => (
-                        <div key={m.id} style={{ padding: '14px 12px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border)', textAlign: 'center' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: m.color, marginBottom: 6, letterSpacing: '0.06em' }}>{m.label}</p>
-                          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>{formatEuro(m.v)}</p>
-                          <div>
-                            <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Peso %</label>
-                            <input type="number" min="0" max="100" step="5"
-                              value={val[m.peso]}
-                              onChange={e => upd(m.peso, e.target.value)}
-                              style={{ ...inputStyle, padding: '4px 8px', textAlign: 'center', width: '100%', marginTop: 4, borderRadius: 6, fontSize: 13, fontWeight: 700 }}
-                            />
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {ALTERNATIVE.map(alt => {
+                      const finale = componi(equity, alt.tasso);
+                      const guadagno = finale - equity;
+                      const barPct = massimo > 0 ? (finale / massimo) * 100 : 0;
+                      return (
+                        <div key={alt.label}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+                            <span style={{ fontSize: 13, fontWeight: alt.bold ? 700 : 500, color: alt.bold ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                              {alt.label}
+                            </span>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: alt.colore }}>{formatEuro(Math.round(finale))}</span>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+                                +{formatEuro(Math.round(guadagno))} · {alt.tasso.toFixed(1)}%/anno
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-hover)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${barPct}%`, background: alt.colore, borderRadius: 3, transition: 'width 0.3s ease' }} />
                           </div>
                         </div>
-                      ))}
-                    </div>
-
-                    {/* Valore finale */}
-                    <div style={{ textAlign: 'center', padding: '18px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', marginBottom: 14 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
-                        Valore di Mercato Stimato
-                      </p>
-                      <p style={{ fontSize: 30, fontWeight: 700, color: 'var(--accent)', lineHeight: 1, marginBottom: 4 }}>{formatEuro(Math.round(valoreSintesi))}</p>
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        Range: {formatEuro(Math.round(valoreSintesi * 0.92))} — {formatEuro(Math.round(valoreSintesi * 1.08))}
-                        <span style={{ marginLeft: 8 }}>· Spread ±8% (UNI 11558)</span>
-                      </p>
-                    </div>
-
-                    {/* Assunzioni collassabile */}
-                    {val.vcm && (
-                      <details style={{ borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden' }}>
-                        <summary style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', listStyle: 'none', userSelect: 'none' }}>
-                          📋 Vedi assunzioni e coefficienti applicati
-                        </summary>
-                        <div style={{ padding: '4px 0' }}>
-                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                            {[
-                              ['Prezzo base OMI €/mq', `${formatEuro(val.vcm.prezzo_base_mq)}/mq`],
-                              ['Coefficiente piano', `${val.vcm.coefficiente_piano} (piano ${val.piano}${val.ascensore ? ', ascensore sì' : ''})`],
-                              ['Coefficiente stato', `${val.vcm.coefficiente_stato} (${val.stato_conservazione_dettaglio})`],
-                              val.vcm.coefficiente_energetica != null && ['Coefficiente classe energetica', `${val.vcm.coefficiente_energetica} (${val.classe_energetica})`],
-                              val.vcm.coefficiente_esposizione != null && ['Coefficiente esposizione', `${val.vcm.coefficiente_esposizione} (${val.esposizione})`],
-                              val.vcm.coefficiente_vista != null && ['Coefficiente vista', `${val.vcm.coefficiente_vista} (${val.vista})`],
-                              val.vcm.coefficiente_qualita != null && ['Coefficiente qualità', `${val.vcm.coefficiente_qualita} (${val.qualita_costruzione})`],
-                              val.vcm.bonus_balcone > 0 && ['Bonus balcone', `+${formatEuro(val.vcm.bonus_balcone)} (${val.balcone_mq} mq × 30%)`],
-                              val.vcm.bonus_terrazza > 0 && ['Bonus terrazza', `+${formatEuro(val.vcm.bonus_terrazza)} (${val.terrazza_mq} mq × 50%)`],
-                              val.vcm.bonus_giardino > 0 && ['Bonus giardino', `+${formatEuro(val.vcm.bonus_giardino)} (${val.giardino_mq} mq × 20%)`],
-                              val.vcm.bonus_box > 0 && ['Bonus box/posto auto', `+${formatEuro(val.vcm.bonus_box)} (${val.box_dimensione})`],
-                              val.vcm.usa_comparabili_manuali && ['Comparabili manuali', `${val.comparabili_manuali.filter(c=>c.superficie>0&&c.prezzo>0).length} vendite · peso 50%`],
-                              ['Spread applicato', '±8% (UNI 11558)'],
-                              ['Anno riferimento OMI', val.vcm.anno_riferimento],
-                              ['N. comparabili OMI', val.vcm.numero_comparabili],
-                            ].filter(Boolean).map(([label, valore], i) => (
-                              <tr key={i} style={{ background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
-                                <td style={{ padding: '8px 14px', color: 'var(--text-muted)' }}>{label}</td>
-                                <td style={{ padding: '8px 14px', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>{valore}</td>
-                              </tr>
-                            ))}
-                          </table>
-                          <p style={{ fontSize: 10, color: 'var(--text-muted)', padding: '8px 14px' }}>
-                            Metodologia conforme IVS 105 · Manuale OMI Agenzia delle Entrate · UNI 11558
-                          </p>
-                        </div>
-                      </details>
-                    )}
+                      );
+                    })}
+                    <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.6 }}>
+                      Simulazione indicativa con crescita composta. BTP e Conto Deposito: rendimento lordo di mercato attuale.
+                      ETF Globale: media storica MSCI World netta ~7%. Immobile: rendimento netto inserito (cash-on-cash se DCF, altrimenti reddituale netto).
+                      Non considera fiscalità, inflazione, costi di gestione reali.
+                    </p>
                   </div>
                 </div>
               );

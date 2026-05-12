@@ -36,6 +36,7 @@ router.post('/', async (req, res) => {
     indirizzo, quartiere, tipologia, superficie_mq, canone_mensile,
     nome_inquilino, cognome_inquilino, email_inquilino, telefono_inquilino,
     data_inizio, data_fine, stato, note,
+    tipo_contratto, deposito_cauzionale,
   } = req.body;
 
   if (!indirizzo) return res.status(400).json({ error: 'Indirizzo obbligatorio' });
@@ -45,8 +46,9 @@ router.post('/', async (req, res) => {
       `INSERT INTO locazioni_attive
         (user_id, indirizzo, quartiere, tipologia, superficie_mq, canone_mensile,
          nome_inquilino, cognome_inquilino, email_inquilino, telefono_inquilino,
-         data_inizio, data_fine, stato, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         data_inizio, data_fine, stato, note,
+         tipo_contratto, deposito_cauzionale)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.user.id,
         indirizzo,
@@ -62,6 +64,8 @@ router.post('/', async (req, res) => {
         data_fine || null,
         stato || 'ATTIVA',
         note || null,
+        tipo_contratto || null,
+        deposito_cauzionale || null,
       ]
     );
     console.log(`[LOCAZIONI] Nuova locazione ID ${result.insertId} per utente ${req.user.id}`);
@@ -88,13 +92,15 @@ router.put('/:id', async (req, res) => {
       indirizzo, quartiere, tipologia, superficie_mq, canone_mensile,
       nome_inquilino, cognome_inquilino, email_inquilino, telefono_inquilino,
       data_inizio, data_fine, stato, note,
+      tipo_contratto, deposito_cauzionale,
     } = req.body;
 
     await pool.query(
       `UPDATE locazioni_attive
        SET indirizzo=?, quartiere=?, tipologia=?, superficie_mq=?, canone_mensile=?,
            nome_inquilino=?, cognome_inquilino=?, email_inquilino=?, telefono_inquilino=?,
-           data_inizio=?, data_fine=?, stato=?, note=?
+           data_inizio=?, data_fine=?, stato=?, note=?,
+           tipo_contratto=?, deposito_cauzionale=?
        WHERE id = ? AND user_id = ?`,
       [
         indirizzo, quartiere || null, tipologia || null,
@@ -103,6 +109,7 @@ router.put('/:id', async (req, res) => {
         email_inquilino || null, telefono_inquilino || null,
         data_inizio || null, data_fine || null,
         stato || 'ATTIVA', note || null,
+        tipo_contratto || null, deposito_cauzionale || null,
         id, req.user.id,
       ]
     );
