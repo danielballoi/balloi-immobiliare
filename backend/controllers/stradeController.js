@@ -17,7 +17,6 @@ const StradeModel = require('../models/Strade');
 async function search(req, res, next) {
   try {
     const { q = '' } = req.query;
-    console.log(`[CTRL-STRADE] search: q="${q}"`);
 
     // Evita ricerche troppo corte che restituirebbero tutto il DB
     if (q.trim().length < 2) {
@@ -38,7 +37,6 @@ async function search(req, res, next) {
 async function vieByQuartiere(req, res, next) {
   try {
     const { nome } = req.params;
-    console.log(`[CTRL-STRADE] vieByQuartiere: nome="${nome}"`);
 
     const vie = await StradeModel.getVieByQuartiere(nome);
     res.json(vie);
@@ -54,7 +52,6 @@ async function vieByQuartiere(req, res, next) {
  */
 async function quartieri(req, res, next) {
   try {
-    console.log('[CTRL-STRADE] quartieri');
     const lista = await StradeModel.getQuartieriConVie();
     res.json(lista);
   } catch (err) {

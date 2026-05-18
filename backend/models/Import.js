@@ -32,7 +32,6 @@ function parseNumeroCSV(val) {
  * @returns {Promise<Object>} { log_id, righe_totali, righe_importate, righe_errore, stato, errori_campione }
  */
 async function importaCSVValori(filename, righe) {
-  console.log(`[MODEL-IMPORT] importaCSVValori: ${filename}, ${righe.length} righe`);
 
   // Crea record nel log di import (stato: processing)
   const [logResult] = await pool.query(`
@@ -48,7 +47,6 @@ async function importaCSVValori(filename, righe) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    console.log(`[MODEL-IMPORT] Transazione avviata - log ID: ${logId}`);
 
     for (let i = 0; i < righe.length; i++) {
       const riga = righe[i];
@@ -90,13 +88,12 @@ async function importaCSVValori(filename, righe) {
         errori.push(errRiga.message);
         // Logga solo i primi 20 errori per non riempire la console
         if (errori.length <= 20) {
-          console.warn(`[MODEL-IMPORT] Errore riga ${i + 2}: ${errRiga.message}`);
+          console.error(`[MODEL-IMPORT] Errore riga ${i + 2}: ${errRiga.message}`);
         }
       }
     }
 
     await conn.commit();
-    console.log(`[MODEL-IMPORT] CSV completato: ${righe_importate} OK, ${righe_errore} errori`);
   } catch (errTx) {
     await conn.rollback();
     console.error('[MODEL-IMPORT] Rollback transazione:', errTx.message);
@@ -132,7 +129,6 @@ async function importaCSVValori(filename, righe) {
  * @returns {Promise<Object>} Stesso formato di importaCSVValori
  */
 async function importaCSVNTN(filename, righe) {
-  console.log(`[MODEL-IMPORT] importaCSVNTN: ${filename}, ${righe.length} righe`);
 
   const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
@@ -177,12 +173,11 @@ async function importaCSVNTN(filename, righe) {
       } catch (errRiga) {
         righe_errore++;
         errori.push(errRiga.message);
-        if (errori.length <= 20) console.warn(`[MODEL-IMPORT] Errore NTN riga ${i + 2}: ${errRiga.message}`);
+        if (errori.length <= 20) console.error(`[MODEL-IMPORT] Errore NTN riga ${i + 2}: ${errRiga.message}`);
       }
     }
 
     await conn.commit();
-    console.log(`[MODEL-IMPORT] NTN completato: ${righe_importate} OK, ${righe_errore} errori`);
   } catch (errTx) {
     await conn.rollback();
     await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
@@ -217,7 +212,6 @@ async function importaCSVNTN(filename, righe) {
  * @returns {Promise<Object>} Risultato import con statistiche
  */
 async function importaCSVZone(filename, righe) {
-  console.log(`[MODEL-IMPORT] importaCSVZone: ${filename}, ${righe.length} righe`);
 
   const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
@@ -265,12 +259,11 @@ async function importaCSVZone(filename, righe) {
       } catch (errRiga) {
         righe_errore++;
         errori.push(errRiga.message);
-        if (errori.length <= 20) console.warn(`[MODEL-IMPORT] Errore Zone riga ${i + 2}: ${errRiga.message}`);
+        if (errori.length <= 20) console.error(`[MODEL-IMPORT] Errore Zone riga ${i + 2}: ${errRiga.message}`);
       }
     }
 
     await conn.commit();
-    console.log(`[MODEL-IMPORT] Zone completato: ${righe_importate} OK, ${righe_errore} errori`);
   } catch (errTx) {
     await conn.rollback();
     await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
@@ -307,7 +300,6 @@ async function insertManuale(dati) {
     locazione_min, locazione_max,
   } = dati;
 
-  console.log(`[MODEL-IMPORT] insertManuale: zona ${zona_codice}, ${anno}S${semestre}`);
 
   const [result] = await pool.query(`
     INSERT INTO omi_valori
@@ -486,7 +478,6 @@ async function _inserisciValoriOMI(righe, anno, semestre, conn) {
  */
 async function importaCartellaOMI(cartellaBase) {
   const cartellaHinterland = path.join(cartellaBase, 'DATI_HINTERLAND');
-  console.log(`[MODEL-IMPORT] importaCartellaOMI: ${cartellaHinterland}`);
 
   if (!fs.existsSync(cartellaHinterland)) {
     throw new Error(`Cartella non trovata: ${cartellaHinterland}`);
@@ -534,10 +525,9 @@ async function importaCartellaOMI(cartellaBase) {
           const stats = await _inserisciZoneOMI(righe, conn);
           totZoneImportate += stats.importate;
           totZoneSaltate   += stats.saltate;
-          console.log(`[MODEL-IMPORT] ${cartella}/${zoneFile} ZONE: ${stats.importate} nuove, ${stats.saltate} saltate`);
         } catch (e) {
           errori.push(`${cartella}/${zoneFile}: ${e.message}`);
-          console.warn(`[MODEL-IMPORT] Errore ZONE ${cartella}/${zoneFile}: ${e.message}`);
+          console.error(`[MODEL-IMPORT] Errore ZONE ${cartella}/${zoneFile}: ${e.message}`);
         }
       }
 
@@ -549,16 +539,14 @@ async function importaCartellaOMI(cartellaBase) {
           const stats = await _inserisciValoriOMI(righe, anno, semestre, conn);
           totValImportati += stats.importate;
           totValSaltati   += stats.saltate;
-          console.log(`[MODEL-IMPORT] ${cartella}/${valFile} VALORI: ${stats.importate} nuovi, ${stats.saltate} saltati`);
         } catch (e) {
           errori.push(`${cartella}/${valFile}: ${e.message}`);
-          console.warn(`[MODEL-IMPORT] Errore VALORI ${cartella}/${valFile}: ${e.message}`);
+          console.error(`[MODEL-IMPORT] Errore VALORI ${cartella}/${valFile}: ${e.message}`);
         }
       }
     }
 
     await conn.commit();
-    console.log(`[MODEL-IMPORT] Hinterland completato: zone +${totZoneImportate} (${totZoneSaltate} skip), valori +${totValImportati} (${totValSaltati} skip)`);
   } catch (errTx) {
     await conn.rollback();
     await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
@@ -629,7 +617,6 @@ function _parseOMIBuffer(buffer) {
  */
 async function importaOMISemestraleZone(filename, buffer) {
   const { annoRilevato, semestreRilevato, righe } = _parseOMIBuffer(buffer);
-  console.log(`[MODEL-IMPORT] importaOMISemestraleZone: ${filename}, ${righe.length} righe, ${annoRilevato}S${semestreRilevato}`);
 
   const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
@@ -689,12 +676,11 @@ async function importaOMISemestraleZone(filename, buffer) {
         else aggiornate++;
       } catch (errRiga) {
         errori.push(`Riga ${i + 3}: ${errRiga.message}`);
-        if (errori.length <= 20) console.warn(`[MODEL-IMPORT] Zona riga ${i + 3}: ${errRiga.message}`);
+        if (errori.length <= 20) console.error(`[MODEL-IMPORT] Zona riga ${i + 3}: ${errRiga.message}`);
       }
     }
 
     await conn.commit();
-    console.log(`[MODEL-IMPORT] OMI Zone: +${importate} nuove, ~${aggiornate} aggiornate, ${saltate_provincia} prov-errata`);
   } catch (errTx) {
     await conn.rollback();
     await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
@@ -735,7 +721,6 @@ async function importaOMISemestraleZone(filename, buffer) {
  */
 async function importaOMISemestraleValori(filename, buffer) {
   const { annoRilevato, semestreRilevato, righe } = _parseOMIBuffer(buffer);
-  console.log(`[MODEL-IMPORT] importaOMISemestraleValori: ${filename}, ${righe.length} righe, ${annoRilevato}S${semestreRilevato}`);
 
   if (!annoRilevato || !semestreRilevato) {
     throw new Error(
@@ -802,12 +787,11 @@ async function importaOMISemestraleValori(filename, buffer) {
         else aggiornate++;
       } catch (errRiga) {
         errori.push(`Riga ${i + 3}: ${errRiga.message}`);
-        if (errori.length <= 20) console.warn(`[MODEL-IMPORT] Valori riga ${i + 3}: ${errRiga.message}`);
+        if (errori.length <= 20) console.error(`[MODEL-IMPORT] Valori riga ${i + 3}: ${errRiga.message}`);
       }
     }
 
     await conn.commit();
-    console.log(`[MODEL-IMPORT] OMI Valori: +${importate} nuovi, ~${aggiornate} aggiornati, ${saltate_provincia} prov-errata`);
   } catch (errTx) {
     await conn.rollback();
     await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);

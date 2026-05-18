@@ -14,7 +14,6 @@ module.exports = function requireAuth(req, res, next) {
   const token = req.cookies?.balloi_token ?? null;
 
   if (!token) {
-    console.log('[AUTH] Richiesta senza token su:', req.path);
     return res.status(401).json({ error: 'Autenticazione richiesta' });
   }
 
@@ -23,7 +22,6 @@ module.exports = function requireAuth(req, res, next) {
     req.user = payload; // { id, email, username, ruolo, iat, exp }
     next();
   } catch (err) {
-    console.log('[AUTH] Token non valido:', err.message);
     return res.status(401).json({ error: 'Token non valido o scaduto' });
   }
 };

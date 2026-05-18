@@ -20,7 +20,6 @@ async function listaZone(req, res, next) {
   try {
     // comune senza default: se non passato + area assente → mostra tutto
     const { comune, area } = req.query;
-    console.log(`[CTRL-ZONE] listaZone: comune=${comune}, area=${area}`);
 
     const zone = await ZoneModel.getZoneConPrezzi(comune || null, area || null);
     res.json(zone);
@@ -37,7 +36,6 @@ async function heatmap(req, res, next) {
   try {
     // comune senza default: se non passato + area assente → mostra tutte le zone
     const { comune, stato = 'NORMALE', area } = req.query;
-    console.log(`[CTRL-ZONE] heatmap: comune=${comune}, stato=${stato}, area=${area}`);
 
     const zone = await ZoneModel.getZoneHeatmap(comune || null, stato, area || null);
     res.json(zone);
@@ -67,7 +65,6 @@ async function search(req, res, next) {
  */
 async function comuni(req, res, next) {
   try {
-    console.log('[CTRL-ZONE] comuni disponibili');
     const lista = await ZoneModel.getComuniDisponibili();
     res.json(lista);
   } catch (err) {

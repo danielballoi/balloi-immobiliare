@@ -20,7 +20,6 @@ const { pool } = require('../config/db');
  * @returns {Promise<Array>} Un record per anno: { anno, ntn_compravendita, ntn_locazione }
  */
 async function getNTNZona(nome, tipo, comune = 'Cagliari') {
-  console.log(`[MODEL-NTN] getNTNZona: ${tipo} in ${nome}`);
 
   const [rows] = await pool.query(`
     SELECT
@@ -37,7 +36,6 @@ async function getNTNZona(nome, tipo, comune = 'Cagliari') {
     ORDER BY anno ASC
   `, [nome, comune, tipo]);
 
-  console.log(`[MODEL-NTN] ${rows.length} anni trovati`);
   return rows;
 }
 

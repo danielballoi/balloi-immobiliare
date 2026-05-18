@@ -28,7 +28,6 @@ router.post('/', requireAuth, async (req, res) => {
       'INSERT INTO segnalazioni (user_id, oggetto, messaggio) VALUES (?, ?, ?)',
       [req.user.id, oggetto || 'Segnalazione', messaggio.trim()]
     );
-    console.log(`[SEGNALAZIONI] Nuova segnalazione ID ${result.insertId} da utente ${req.user.id}`);
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('[SEGNALAZIONI] Errore invio:', err.message);
@@ -58,7 +57,6 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
       LEFT JOIN users u ON s.user_id = u.id
       ORDER BY s.data_invio DESC
     `);
-    console.log(`[SEGNALAZIONI] Lista richiesta da admin: ${rows.length} segnalazioni`);
     res.json(rows);
   } catch (err) {
     console.error('[SEGNALAZIONI] Errore lista:', err.message);

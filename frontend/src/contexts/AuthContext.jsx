@@ -25,7 +25,6 @@ export function AuthProvider({ children }) {
     api.get('/auth/me')
       .then(({ data }) => {
         setUser(data.user);
-        console.log('[AUTH] Sessione ripristinata:', data.user.email);
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
@@ -37,7 +36,6 @@ export function AuthProvider({ children }) {
    */
   const login = useCallback((userData) => {
     setUser(userData);
-    console.log('[AUTH] Login completato:', userData.email);
   }, []);
 
   /**
@@ -51,7 +49,6 @@ export function AuthProvider({ children }) {
       // Se la chiamata fallisce puliamo comunque lo stato locale
     }
     setUser(null);
-    console.log('[AUTH] Logout eseguito');
     window.location.href = '/login';
   }, []);
 

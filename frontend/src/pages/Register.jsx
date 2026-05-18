@@ -132,7 +132,6 @@ export default function Register() {
 
       // Registrazione OK → mostra popup pending (nessun token, nessun redirect dashboard)
       setRegistrato(true);
-      console.log('[REGISTER] Richiesta inviata in pending:', form.email);
     } catch (err) {
       const msg = err.response?.data?.error ?? 'Errore durante la registrazione';
       setErrore(msg);

@@ -52,7 +52,6 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
         setRisultati(data);
         setAperto(data.length > 0);
         setIndiceFocus(-1);
-        console.log(`[StradeAutocomplete] ${data.length} risultati per "${query}"`);
       } catch (err) {
         console.error('[StradeAutocomplete] Errore ricerca:', err.message);
         setRisultati([]);
@@ -82,7 +81,6 @@ export default function StradeAutocomplete({ onSeleziona, onSvuota, placeholder 
 
   // ── Selezione di un risultato ───────────────────────────────────────────────
   const seleziona = useCallback((item) => {
-    console.log(`[StradeAutocomplete] Selezionato: ${item.via} → ${item.quartiere}`);
     setQuery(item.via);   // popola l'input con la via scelta
     setAperto(false);
     setRisultati([]);

@@ -7,8 +7,11 @@
  *   DELETE /:id      Rimuove immobile dal portafoglio
  */
 
-const router = require('express').Router();
-const ctrl   = require('../controllers/portafoglioController');
+const router      = require('express').Router();
+const ctrl        = require('../controllers/portafoglioController');
+const requireAuth = require('../middleware/auth');
+
+router.use(requireAuth);
 
 router.get('/summary', ctrl.summary);
 router.get('/',        ctrl.lista);

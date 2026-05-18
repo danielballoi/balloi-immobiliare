@@ -25,7 +25,6 @@ export default function PrivateRoute({ children }) {
 
   // Non autenticato → manda alla login
   if (!user) {
-    console.log('[PRIVATE_ROUTE] Utente non autenticato, redirect a /login');
     return <Navigate to="/login" replace />;
   }
 

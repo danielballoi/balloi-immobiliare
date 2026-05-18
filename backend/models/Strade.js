@@ -96,7 +96,6 @@ function normalizzaQuery(q) {
  */
 async function searchStrade(q, limit = 15) {
   const qNorm = normalizzaQuery(q);
-  console.log(`[MODEL-STRADE] searchStrade: q="${q}" → normalizzato="${qNorm}"`);
 
   if (!qNorm || qNorm.length < 2) return [];
 
@@ -157,7 +156,6 @@ async function searchStrade(q, limit = 15) {
  * @returns {Promise<Array>}
  */
 async function getVieByQuartiere(quartiere) {
-  console.log(`[MODEL-STRADE] getVieByQuartiere: quartiere="${quartiere}"`);
 
   const [rows] = await pool.query(
     `SELECT via, quartiere, link_zona
@@ -176,7 +174,6 @@ async function getVieByQuartiere(quartiere) {
  * @returns {Promise<Array<{quartiere, n_vie, link_zona, zona_nome}>>}
  */
 async function getQuartieriConVie() {
-  console.log('[MODEL-STRADE] getQuartieriConVie');
 
   const [rows] = await pool.query(
     `SELECT

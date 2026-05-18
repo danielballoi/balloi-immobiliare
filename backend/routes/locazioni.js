@@ -22,7 +22,6 @@ router.get('/', async (req, res) => {
       'SELECT * FROM locazioni_attive WHERE user_id = ? ORDER BY data_inserimento DESC',
       [req.user.id]
     );
-    console.log(`[LOCAZIONI] ${rows.length} locazioni per utente ${req.user.id}`);
     res.json(rows);
   } catch (err) {
     console.error('[LOCAZIONI] Errore lista:', err.message);
@@ -68,7 +67,6 @@ router.post('/', async (req, res) => {
         deposito_cauzionale || null,
       ]
     );
-    console.log(`[LOCAZIONI] Nuova locazione ID ${result.insertId} per utente ${req.user.id}`);
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('[LOCAZIONI] Errore inserimento:', err.message);
@@ -131,7 +129,6 @@ router.delete('/:id', async (req, res) => {
       [id, req.user.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Locazione non trovata' });
-    console.log(`[LOCAZIONI] Eliminata locazione ID ${id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[LOCAZIONI] Errore eliminazione:', err.message);

@@ -287,7 +287,6 @@ export default function DettaglioTipologia() {
   // ── Caricamento dati storici per la tipologia ──────────────────────────
   useEffect(() => {
     if (!nome || !tipo) return;
-    console.log(`[DETTAGLIO-TIP] ${tipo} in ${nome} (${stato})`);
     setLoading(true);
     setShowModalDatiMancanti(false); // reset ad ogni nuova richiesta
 
@@ -297,10 +296,8 @@ export default function DettaglioTipologia() {
       getNTNZona(nome, tipo),
     ])
       .then(([rows, ntnRows]) => {
-        console.log(`[DETTAGLIO-TIP] Prezzi: ${rows.length} anni, NTN: ${ntnRows.length} anni`);
         if (rows.length === 0) {
           // Nessun dato storico: mostra modal informativo invece di schermata vuota
-          console.log('[DETTAGLIO-TIP] Nessun dato disponibile, mostro modal dati mancanti');
           setShowModalDatiMancanti(true);
         }
         setDati(rows.map(r => ({

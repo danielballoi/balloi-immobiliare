@@ -35,13 +35,11 @@ function useHeatmap(comune = 'Cagliari', area = null) {
 
   // Funzione di caricamento — separata così possiamo esporla per "ricarica"
   const carica = () => {
-    console.log(`[HOOK-HEATMAP] Caricamento: comune=${comune}, area=${area}`);
     setLoading(true);
     setErrore(null);
 
     getHeatmap(comune, area)
       .then(data => {
-        console.log(`[HOOK-HEATMAP] Ricevuti ${data.length} zone`);
         setZone(data);
       })
       .catch(err => {

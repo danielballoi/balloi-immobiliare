@@ -32,7 +32,6 @@ function calcolaReddituale({
   superficie_mq = 0,
   prezzo_acquisto = null,
 }) {
-  console.log(`[REDDITUALE] Inizio calcolo - canone: €${canone_mensile}/mese, cap_rate: ${cap_rate_pct}%, vacancy: ${vacancy_pct}%`);
 
   // ── Step 1: Reddito lordo annuo (Gross Operating Income) ─────────────────
   // Canone mensile × 12 mesi
@@ -64,9 +63,7 @@ function calcolaReddituale({
   // ── Step 6: Rendimento per mq (opzionale) ────────────────────────────────
   const canone_annuo_mq = superficie_mq > 0 ? (reddito_lordo_annuo / superficie_mq) : null;
 
-  console.log(`[REDDITUALE] NOI annuo: €${noi_annuo.toFixed(2)}, Valore mercato: €${valore_mercato.toFixed(0)}`);
   if (rendimento_lordo_pct !== null)
-    console.log(`[REDDITUALE] Rendimento lordo: ${rendimento_lordo_pct}%, netto: ${rendimento_netto_pct}% (su prezzo acquisto)`);
 
   return {
     // Input

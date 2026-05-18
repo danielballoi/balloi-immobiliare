@@ -67,7 +67,6 @@ export default function ComuniSearch({ zone = [], onSeleziona, placeholder = 'Ce
   }
 
   function seleziona(comune) {
-    console.log(`[ComuniSearch] Selezionato: ${comune}`);
     setQuery(comune);
     setAperto(false);
     onSeleziona({ comune });

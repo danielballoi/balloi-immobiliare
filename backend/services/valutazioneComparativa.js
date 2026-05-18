@@ -133,13 +133,11 @@ async function calcolaVCM({
   box_dimensione = 'nessuno',
   comparabili_manuali = [],
 }) {
-  console.log(`[VCM] zona: "${zona_codice}", tipo: "${tipologia}", mq: ${superficie_mq}`);
 
   // ── Step 1: Fascia OMI ────────────────────────────────────────────────────
   const { fascia, puntiAlti } = calcolaFasciaOMI({
     classe_energetica, esposizione, vista, qualita_costruzione, luminosita, stato_conservazione,
   });
-  console.log(`[VCM] Fascia OMI: ${fascia} (${puntiAlti}/6 punti)`);
 
   // ── Step 2: Dati OMI dal database ────────────────────────────────────────
   const [righeOMI] = await pool.query(`
@@ -158,7 +156,6 @@ async function calcolaVCM({
     LIMIT 10
   `, [zona_codice, `%${tipologia}%`]);
 
-  console.log(`[VCM] ${righeOMI.length} record OMI trovati per zona="${zona_codice}" tipo="${tipologia}"`);
 
   // ── Step 2b: Medie OMI compr_min / compr_max ─────────────────────────────
   const avg_compr_min = righeOMI.length > 0
@@ -174,7 +171,6 @@ async function calcolaVCM({
 
   if (prezzo_base_override) {
     prezzo_base_mq = prezzo_base_override;
-    console.log(`[VCM] Prezzo override: €${prezzo_base_mq}/mq`);
   } else if (righeOMI.length > 0) {
     const prezziBase = righeOMI.map(r => {
       const min = parseFloat(r.compr_min);
@@ -184,9 +180,7 @@ async function calcolaVCM({
       return min; // BASSA
     });
     prezzo_base_mq = prezziBase.reduce((s, p) => s + p, 0) / righeOMI.length;
-    console.log(`[VCM] Prezzo base (fascia ${fascia}): €${prezzo_base_mq.toFixed(2)}/mq`);
   } else {
-    console.warn(`[VCM] Nessun dato OMI per zona ${zona_codice}, tipo ${tipologia}`);
     const err = new Error(`Nessun dato OMI per zona ${zona_codice}, tipologia "${tipologia}"`);
     err.code = 'DATI_OMI_ASSENTI';
     throw err;
@@ -199,7 +193,6 @@ async function calcolaVCM({
 
   // ── Step 5: Coefficiente stato conservativo ───────────────────────────────
   const coeffStato = COEFF_STATO[stato_conservazione] ?? COEFF_STATO[stato] ?? 1.00;
-  console.log(`[VCM] Stato ${stato_conservazione}: coeff ${coeffStato}`);
 
   // ── Step 6: Dotazioni aggiuntive ─────────────────────────────────────────
   let totaleDotazioni = 0;
@@ -212,7 +205,6 @@ async function calcolaVCM({
   // ── Step 7: Prezzo corretto finale ───────────────────────────────────────
   const coefficienteFinale = coeffPiano * coeffStato * (1 + totaleDotazioni);
   const prezzo_corretto_mq = prezzo_base_mq * coefficienteFinale;
-  console.log(`[VCM] Coeff. finale: ${coefficienteFinale.toFixed(4)} → €${prezzo_corretto_mq.toFixed(2)}/mq`);
 
   // ── Step 8: Bonus superfici esterne e box ────────────────────────────────
   const bonusBalcone  = Math.round((parseFloat(balcone_mq)  || 0) * prezzo_corretto_mq * 0.30);
@@ -243,7 +235,6 @@ async function calcolaVCM({
   const valore_min = Math.round(valore_medio * 0.92);
   const valore_max = Math.round(valore_medio * 1.08);
 
-  console.log(`[VCM] Risultato: min €${valore_min} | medio €${valore_medio} | max €${valore_max}`);
 
   return {
     zona_codice, tipologia, stato, superficie_mq, piano,

@@ -10,16 +10,7 @@
 
 const { pool } = require('../config/db');
 
-/**
- * Recupera tutti gli immobili in portafoglio con dati della valutazione collegata.
- *
- * @param {number} limit  - Numero massimo di record (default 100)
- * @param {number} offset - Offset per paginazione (default 0)
- * @returns {Promise<Array>} Lista immobili in portafoglio
- */
-async function getPortafoglio(limit = 100, offset = 0) {
-  console.log('[MODEL-PORTAFOGLIO] getPortafoglio');
-
+async function getPortafoglio(userId, limit = 100, offset = 0) {
   const [rows] = await pool.query(`
     SELECT
       p.*,
@@ -39,23 +30,15 @@ async function getPortafoglio(limit = 100, offset = 0) {
       v.data_valutazione
     FROM portafoglio p
     LEFT JOIN valutazioni v ON p.valutazione_id = v.id
+    WHERE p.user_id = ?
     ORDER BY p.data_inserimento DESC
     LIMIT ? OFFSET ?
-  `, [parseInt(limit), parseInt(offset)]);
+  `, [userId, parseInt(limit), parseInt(offset)]);
 
-  console.log(`[MODEL-PORTAFOGLIO] Trovati ${rows.length} immobili`);
   return rows;
 }
 
-/**
- * Calcola i KPI aggregati dell'intero portafoglio.
- * Include valore totale, canone mensile, TIR medio, VAN totale e plusvalenza potenziale.
- *
- * @returns {Promise<Object>} Summary con tutte le metriche aggregate
- */
-async function getSummary() {
-  console.log('[MODEL-PORTAFOGLIO] getSummary');
-
+async function getSummary(userId) {
   const [rows] = await pool.query(`
     SELECT
       COUNT(*)                        AS num_immobili,
@@ -67,40 +50,36 @@ async function getSummary() {
       SUM(van)                        AS van_totale,
       AVG(roi_totale_pct)             AS roi_medio
     FROM portafoglio
-  `);
+    WHERE user_id = ?
+  `, [userId]);
 
   const summary = rows[0];
-
-  // Calcolo plusvalenza: differenza tra valore stimato e prezzo pagato
   summary.plusvalenza_potenziale = summary.valore_stimato_totale - summary.investimento_totale;
   summary.plusvalenza_pct = summary.investimento_totale > 0
     ? ((summary.plusvalenza_potenziale / summary.investimento_totale) * 100).toFixed(2)
     : 0;
 
-  console.log(`[MODEL-PORTAFOGLIO] Summary: ${summary.num_immobili} immobili`);
   return summary;
 }
 
-/**
- * Aggiunge un immobile al portafoglio.
- * Se viene fornito un valutazione_id, segna quella valutazione come "salvata in portafoglio".
- *
- * @param {Object} dati - Dati dell'immobile da aggiungere
- * @returns {Promise<number>} ID del record inserito
- */
-async function aggiungiImmobile(dati) {
-  console.log(`[MODEL-PORTAFOGLIO] aggiungiImmobile: ${dati.indirizzo || 'N/A'}`);
-
-  // Se c'è un collegamento a una valutazione, aggiorna il flag
+async function aggiungiImmobile(userId, dati) {
+  // Verifica che la valutazione appartenga all'utente
   if (dati.valutazione_id) {
+    const [v] = await pool.query(
+      'SELECT id FROM valutazioni WHERE id = ? AND user_id = ?',
+      [dati.valutazione_id, userId]
+    );
+    if (!v.length) throw Object.assign(new Error('Valutazione non trovata'), { status: 404 });
+
     await pool.query(
-      'UPDATE valutazioni SET salvato_portafoglio = 1 WHERE id = ?',
-      [dati.valutazione_id]
+      'UPDATE valutazioni SET salvato_portafoglio = 1 WHERE id = ? AND user_id = ?',
+      [dati.valutazione_id, userId]
     );
   }
 
   const [result] = await pool.query(`
     INSERT INTO portafoglio (
+      user_id,
       valutazione_id, indirizzo, zona_codice, tipologia, stato_immobile,
       superficie_mq, prezzo_acquisto, fonte_prezzo, canone_mensile, vcm_valore_medio,
       tir_pct, roi_totale_pct, van, note,
@@ -109,13 +88,14 @@ async function aggiungiImmobile(dati) {
       vcm_valore_min, vcm_valore_max, vcm_prezzo_base_mq, vcm_punti_alti,
       red_valore_mercato, red_noi_annuo, red_rendimento_lordo_pct, red_rendimento_netto_pct,
       dcf_van, dcf_tir_pct, dcf_roi_totale_pct, dcf_cash_on_cash_pct
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
               ?, ?, ?, ?, ?, ?,
               ?, ?,
               ?, ?, ?, ?,
               ?, ?, ?, ?,
               ?, ?, ?, ?)
   `, [
+    userId,
     dati.valutazione_id || null,
     dati.indirizzo, dati.zona_codice, dati.tipologia, dati.stato_immobile,
     dati.superficie_mq, dati.prezzo_acquisto, dati.fonte_prezzo ?? null, dati.canone_mensile, dati.vcm_valore_medio,
@@ -128,22 +108,11 @@ async function aggiungiImmobile(dati) {
     dati.dcf_van ?? null, dati.dcf_tir_pct ?? null, dati.dcf_roi_totale_pct ?? null, dati.dcf_cash_on_cash_pct ?? null,
   ]);
 
-  console.log(`[MODEL-PORTAFOGLIO] Immobile inserito con ID: ${result.insertId}`);
   return result.insertId;
 }
 
-/**
- * Aggiorna i dati di un immobile in portafoglio.
- * Usa COALESCE: aggiorna solo i campi forniti, mantiene i vecchi per i null.
- *
- * @param {number} id   - ID dell'immobile in portafoglio
- * @param {Object} dati - Campi da aggiornare
- * @returns {Promise<void>}
- */
-async function aggiornaImmobile(id, dati) {
-  console.log(`[MODEL-PORTAFOGLIO] aggiornaImmobile ID: ${id}`);
-
-  await pool.query(`
+async function aggiornaImmobile(userId, id, dati) {
+  const [result] = await pool.query(`
     UPDATE portafoglio SET
       canone_mensile   = COALESCE(?, canone_mensile),
       vcm_valore_medio = COALESCE(?, vcm_valore_medio),
@@ -151,32 +120,29 @@ async function aggiornaImmobile(id, dati) {
       roi_totale_pct   = COALESCE(?, roi_totale_pct),
       van              = COALESCE(?, van),
       note             = COALESCE(?, note)
-    WHERE id = ?
-  `, [dati.canone_mensile, dati.vcm_valore_medio, dati.tir_pct, dati.roi_totale_pct, dati.van, dati.note, id]);
+    WHERE id = ? AND user_id = ?
+  `, [dati.canone_mensile, dati.vcm_valore_medio, dati.tir_pct, dati.roi_totale_pct, dati.van, dati.note, id, userId]);
+
+  return result.affectedRows;
 }
 
-/**
- * Rimuove un immobile dal portafoglio.
- * Aggiorna anche il flag salvato_portafoglio nella tabella valutazioni.
- *
- * @param {number} id - ID dell'immobile da rimuovere
- * @returns {Promise<void>}
- */
-async function rimuoviImmobile(id) {
-  console.log(`[MODEL-PORTAFOGLIO] rimuoviImmobile ID: ${id}`);
+async function rimuoviImmobile(userId, id) {
+  const [rows] = await pool.query(
+    'SELECT valutazione_id FROM portafoglio WHERE id = ? AND user_id = ?',
+    [id, userId]
+  );
 
-  // Prima recupera il valutazione_id per aggiornare il flag
-  const [rows] = await pool.query('SELECT valutazione_id FROM portafoglio WHERE id = ?', [id]);
+  if (!rows.length) return 0;
 
-  if (rows.length && rows[0].valutazione_id) {
+  if (rows[0].valutazione_id) {
     await pool.query(
-      'UPDATE valutazioni SET salvato_portafoglio = 0 WHERE id = ?',
-      [rows[0].valutazione_id]
+      'UPDATE valutazioni SET salvato_portafoglio = 0 WHERE id = ? AND user_id = ?',
+      [rows[0].valutazione_id, userId]
     );
   }
 
-  await pool.query('DELETE FROM portafoglio WHERE id = ?', [id]);
-  console.log(`[MODEL-PORTAFOGLIO] Immobile ${id} rimosso`);
+  const [result] = await pool.query('DELETE FROM portafoglio WHERE id = ? AND user_id = ?', [id, userId]);
+  return result.affectedRows;
 }
 
 module.exports = {

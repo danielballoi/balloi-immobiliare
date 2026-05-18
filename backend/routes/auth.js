@@ -131,7 +131,6 @@ router.post('/register', authLimiter, async (req, res) => {
     const password_hash = await bcrypt.hash(password, 12);
     await User.create({ username, email, password_hash, nome, cognome, ruolo: 'user', stato: 'pending' });
 
-    console.log(`[AUTH] Nuova richiesta registrazione (pending): ${email}`);
 
     res.status(202).json({
       pending: true,
@@ -161,16 +160,13 @@ router.post('/login', authLimiter, async (req, res) => {
     const passwordCorretta = await bcrypt.compare(password, hashDaConfrontare);
 
     if (!utente || !passwordCorretta) {
-      console.log(`[AUTH] Login fallito (credenziali errate): ${email}`);
       return res.status(401).json({ error: 'Credenziali non valide' });
     }
 
     if (utente.stato === 'pending') {
-      console.log(`[AUTH] Login bloccato (pending): ${email}`);
       return res.status(403).json({ error: 'Account in attesa di approvazione', stato: 'pending' });
     }
     if (utente.stato === 'bloccato') {
-      console.log(`[AUTH] Login bloccato (bloccato): ${email}`);
       return res.status(403).json({ error: "Account bloccato. Contatta l'amministratore.", stato: 'bloccato' });
     }
 
@@ -180,7 +176,6 @@ router.post('/login', authLimiter, async (req, res) => {
     const refreshToken = await generaRefreshToken(utente.id);
     impostaCookies(res, accessToken, refreshToken);
 
-    console.log(`[AUTH] Login riuscito: ${email} (ruolo: ${utente.ruolo})`);
 
     res.json({
       user: {
@@ -236,7 +231,6 @@ router.post('/refresh', async (req, res) => {
     const nuovoRefresh = await generaRefreshToken(utente.id);
     impostaCookies(res, nuovoAccess, nuovoRefresh);
 
-    console.log(`[AUTH] Token rinnovato per: ${utente.email}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('[AUTH] Errore refresh:', err.message);
@@ -255,7 +249,6 @@ router.post('/logout', async (req, res) => {
     await pool.query('DELETE FROM refresh_tokens WHERE token_hash = ?', [hash]).catch(() => {});
   }
   cancellaCookies(res);
-  console.log('[AUTH] Logout eseguito');
   res.json({ ok: true });
 });
 
