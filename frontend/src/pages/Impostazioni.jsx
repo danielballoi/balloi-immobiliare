@@ -54,7 +54,6 @@ export default function Impostazioni() {
   const [segnEsito, setSegnEsito]       = useState(null);  // 'ok' | 'errore'
 
   useEffect(() => {
-    console.log('[IMPOSTAZIONI] Verifica connessione backend');
     Promise.all([
       axios.get('/api/health').then(r => r.data).catch(() => null),
       getImportStats().catch(() => null),
@@ -71,7 +70,6 @@ export default function Impostazioni() {
     setSegnEsito(null);
     try {
       await inviaSegnalazione({ oggetto: segnOggetto || 'Segnalazione', messaggio: segnMessaggio });
-      console.log('[IMPOSTAZIONI] Segnalazione inviata');
       setSegnEsito('ok');
       setSegnOggetto('');
       setSegnMessaggio('');

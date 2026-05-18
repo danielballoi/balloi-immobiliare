@@ -40,7 +40,6 @@ router.get('/', async (req, res) => {
     );
     conteggi.messaggi_nuovi = rowSeg.nuove;
 
-    console.log(`[UTENZE] Lista richiesta da admin ${req.user.email}: ${utenti.length} utenti, ${rowSeg.nuove} messaggi nuovi`);
     res.json({ utenti, conteggi });
   } catch (err) {
     console.error('[UTENZE] Errore lista:', err.message);
@@ -62,7 +61,6 @@ router.put('/:id/approva', async (req, res) => {
     if (utente.stato === 'attivo') return res.status(400).json({ error: 'Utente già attivo' });
 
     await User.aggiornaStato(id, 'attivo');
-    console.log(`[UTENZE] Utente ${utente.email} approvato da ${req.user.email}`);
     res.json({ message: `Account di ${utente.email} attivato con successo` });
   } catch (err) {
     console.error('[UTENZE] Errore approva:', err.message);
@@ -85,7 +83,6 @@ router.put('/:id/blocca', async (req, res) => {
     if (utente.stato === 'bloccato') return res.status(400).json({ error: 'Utente già bloccato' });
 
     await User.aggiornaStato(id, 'bloccato');
-    console.log(`[UTENZE] Utente ${utente.email} bloccato da ${req.user.email}`);
     res.json({ message: `Account di ${utente.email} bloccato` });
   } catch (err) {
     console.error('[UTENZE] Errore blocca:', err.message);
@@ -106,7 +103,6 @@ router.put('/:id/riattiva', async (req, res) => {
     if (utente.stato === 'attivo') return res.status(400).json({ error: 'Utente già attivo' });
 
     await User.aggiornaStato(id, 'attivo');
-    console.log(`[UTENZE] Utente ${utente.email} riattivato da ${req.user.email}`);
     res.json({ message: `Account di ${utente.email} riattivato` });
   } catch (err) {
     console.error('[UTENZE] Errore riattiva:', err.message);
@@ -128,7 +124,6 @@ router.delete('/:id', async (req, res) => {
     if (utente.ruolo === 'admin') return res.status(400).json({ error: "Non puoi eliminare l'account admin" });
 
     await User.elimina(id);
-    console.log(`[UTENZE] Utente ${utente.email} eliminato da ${req.user.email}`);
     res.json({ message: `Account di ${utente.email} eliminato` });
   } catch (err) {
     console.error('[UTENZE] Errore elimina:', err.message);

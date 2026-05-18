@@ -360,6 +360,14 @@ async function initDB() {
       )
     `);
 
+    // Indici per performance — idempotenti, ignorano errore se già esistono
+    await conn.query(`ALTER TABLE censimenti_immobili ADD INDEX idx_ci_user (user_id)`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD INDEX idx_ci_stato (stato_interesse)`).catch(() => {});
+    await conn.query(`ALTER TABLE censimenti_immobili ADD INDEX idx_ci_val (valutazione_id)`).catch(() => {});
+    await conn.query(`ALTER TABLE valutazioni ADD INDEX idx_val_user (user_id)`).catch(() => {});
+    await conn.query(`ALTER TABLE portafoglio ADD INDEX idx_pf_user (user_id)`).catch(() => {});
+    await conn.query(`ALTER TABLE locazioni_attive ADD INDEX idx_loc_user (user_id)`).catch(() => {});
+
     console.log('[DB] Tabelle verificate/create con successo');
   } finally {
     conn.release();

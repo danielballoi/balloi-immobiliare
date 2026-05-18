@@ -661,7 +661,7 @@ function CensimentiTab() {
   const carica = () => {
     setLoading(true);
     getCensimenti()
-      .then(data => { setImmobili(data); console.log(`[CENSIMENTI] ${data.length} immobili caricati`); })
+      .then(data => { setImmobili(data); })
       .catch(err => console.error('[CENSIMENTI] Errore caricamento:', err))
       .finally(() => setLoading(false));
   };
@@ -1395,7 +1395,7 @@ function LocazioniTab() {
   const carica = () => {
     setLoading(true);
     getLocazioni()
-      .then(data => { setLocazioni(data); console.log(`[LOCAZIONI] ${data.length} locazioni caricate`); })
+      .then(data => { setLocazioni(data); })
       .catch(err => console.error('[LOCAZIONI] Errore caricamento:', err))
       .finally(() => setLoading(false));
   };
@@ -1458,7 +1458,6 @@ function LocazioniTab() {
       else await creaLocazione(form);
       setModale(false);
       carica();
-      console.log(`[LOCAZIONI] Locazione ${editItem ? 'aggiornata' : 'creata'}`);
     } catch (err) {
       console.error('[LOCAZIONI] Errore salvataggio:', err);
       setErroreForm('Errore durante il salvataggio. Riprova.');
@@ -1525,7 +1524,6 @@ function LocazioniTab() {
     const loc = locazioni.find(l => l.id === rinnovaItem.id);
     try {
       await aggiornaLocazione(rinnovaItem.id, { ...loc, stato: 'ATTIVA', data_inizio: fmtDate(loc.data_inizio), data_fine: nuovaDataFine });
-      console.log(`[LOCAZIONI] Locazione ${rinnovaItem.id} rinnovata fino al ${nuovaDataFine}`);
       setRinnovaItem(null);
       carica();
     } catch (err) {
@@ -1995,7 +1993,6 @@ function ValutazioniTab() {
     setLoading(true);
     Promise.all([getPortafoglio(), getSummaryPortafoglio(), getCensimenti()])
       .then(([lista, sum, censimenti]) => {
-        console.log(`[VALUTAZIONI] ${lista.length} wizard, ${censimenti.filter(c => c.origine === 'VALUTAZIONE_AUTONOMA').length} autonome`);
         setImmobili(lista);
         setSummary(sum);
         setValAutonome(censimenti.filter(c => c.origine === 'VALUTAZIONE_AUTONOMA'));
@@ -2010,7 +2007,6 @@ function ValutazioniTab() {
     setRimuovendo(conferma.id);
     try {
       await rimuoviDaPortafoglio(conferma.id);
-      console.log(`[VALUTAZIONI] Rimossa valutazione ${conferma.id}`);
       setConferma(null);
       carica();
     } catch (err) {
@@ -2063,7 +2059,6 @@ function ValutazioniTab() {
         stato_conservazione: duplicaItem.stato_conservazione || null,
         fascia_omi:          duplicaItem.fascia_omi          || null,
       });
-      console.log('[VALUTAZIONI] Censimento creato OK');
       const idCensito = duplicaItem.id;
       setDuplicaItem(null);
       // Rimuove dalla lista senza navigare via

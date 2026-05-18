@@ -46,7 +46,6 @@ async function calcolaVCMHandler(req, res, next) {
       return res.status(400).json({ error: 'Campi obbligatori: zona_codice, tipologia, stato, superficie_mq' });
     }
 
-    console.log(`[CTRL-VALUTAZIONI] calcolaVCM: ${tipologia} in ${zona_codice}`);
     const result = await calcolaVCM({
       zona_codice, tipologia, stato,
       superficie_mq:        parseFloat(superficie_mq),
@@ -162,7 +161,6 @@ async function calcolaDCFHandler(req, res, next) {
  */
 async function salva(req, res, next) {
   try {
-    console.log('[CTRL-VALUTAZIONI] salva valutazione');
     const id = await ValutazioniModel.salvaValutazione(req.body);
     res.json({ success: true, valutazione_id: id });
   } catch (err) {

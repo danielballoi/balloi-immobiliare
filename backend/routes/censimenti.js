@@ -25,7 +25,6 @@ router.get('/', async (req, res) => {
       'SELECT * FROM censimenti_immobili WHERE user_id = ? ORDER BY data_inserimento DESC',
       [req.user.id]
     );
-    console.log(`[CENSIMENTI] ${rows.length} censimenti per utente ${req.user.id}`);
     res.json(rows);
   } catch (err) {
     console.error('[CENSIMENTI] Errore lista:', err.message);
@@ -87,7 +86,6 @@ router.post('/', async (req, res) => {
         giudizio_personale || null, origine || 'MANUALE', url_annuncio || null,
       ]
     );
-    console.log(`[CENSIMENTI] Nuovo censimento ID ${result.insertId} per utente ${req.user.id}`);
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('[CENSIMENTI] Errore inserimento:', err.message);
@@ -176,7 +174,6 @@ router.patch('/:id/note', async (req, res) => {
       [note ?? null, id, req.user.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Censimento non trovato' });
-    console.log(`[CENSIMENTI] Note aggiornate per ID ${id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[CENSIMENTI] Errore aggiornamento note:', err.message);
@@ -201,7 +198,6 @@ router.patch('/:id/stato', async (req, res) => {
       [stato_interesse, id, req.user.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Censimento non trovato' });
-    console.log(`[CENSIMENTI] Stato aggiornato a ${stato_interesse} per ID ${id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[CENSIMENTI] Errore cambio stato:', err.message);
@@ -221,7 +217,6 @@ router.patch('/:id/preferito', async (req, res) => {
       [preferito ? 1 : 0, id, req.user.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Censimento non trovato' });
-    console.log(`[CENSIMENTI] Preferito ${preferito ? 'aggiunto' : 'rimosso'} per ID ${id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[CENSIMENTI] Errore toggle preferito:', err.message);
@@ -240,7 +235,6 @@ router.delete('/:id', async (req, res) => {
       [id, req.user.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Censimento non trovato' });
-    console.log(`[CENSIMENTI] Eliminato censimento ID ${id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[CENSIMENTI] Errore eliminazione:', err.message);

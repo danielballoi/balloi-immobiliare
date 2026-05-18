@@ -19,7 +19,6 @@ const { pool } = require('../config/db');
  * @returns {Promise<Array>} Array di zone con prezzo_medio e locazione_media
  */
 async function getZoneConPrezzi(comune, area = null) {
-  console.log(`[MODEL-ZONE] getZoneConPrezzi: comune=${comune}, area=${area}`);
 
   // Logica filtro:
   //   area specificata → filtra per area (CAGLIARI o HINTERLAND), ignora comune
@@ -55,7 +54,6 @@ async function getZoneConPrezzi(comune, area = null) {
     ORDER BY z.descrizione_zona
   `, params);
 
-  console.log(`[MODEL-ZONE] Restituite ${rows.length} zone`);
   return rows;
 }
 
@@ -68,7 +66,6 @@ async function getZoneConPrezzi(comune, area = null) {
  * @returns {Promise<Array>} Zone ordinate per prezzo decrescente
  */
 async function getZoneHeatmap(comune, stato, area = null) {
-  console.log(`[MODEL-ZONE] getZoneHeatmap: comune=${comune}, stato=${stato}, area=${area}`);
 
   // Stessa logica di getZoneConPrezzi: area ha priorità su comune
   let whereClause = '';
@@ -102,7 +99,6 @@ async function getZoneHeatmap(comune, stato, area = null) {
     ORDER BY prezzo_medio DESC
   `, paramsOrdinati);
 
-  console.log(`[MODEL-ZONE] Heatmap: ${rows.length} zone`);
   return rows;
 }
 
@@ -114,7 +110,6 @@ async function getZoneHeatmap(comune, stato, area = null) {
  * @returns {Promise<Array>} Lista zone corrispondenti (max 20)
  */
 async function searchZone(q, comune) {
-  console.log(`[MODEL-ZONE] searchZone: q="${q}", comune=${comune}`);
   const [rows] = await pool.query(`
     SELECT id, link_zona, descrizione_zona, comune, fascia, area
     FROM omi_zone
@@ -133,7 +128,6 @@ async function searchZone(q, comune) {
  * @returns {Promise<Object|null>} Zona con prezzi medi, null se non trovata
  */
 async function getZonaByCode(codice) {
-  console.log(`[MODEL-ZONE] getZonaByCode: ${codice}`);
   const [rows] = await pool.query(`
     SELECT
       z.*,
@@ -157,7 +151,6 @@ async function getZonaByCode(codice) {
  * @returns {Promise<Array>} Array di { comune, area, totale_zone }
  */
 async function getComuniDisponibili() {
-  console.log('[MODEL-ZONE] getComuniDisponibili');
   const [rows] = await pool.query(`
     SELECT
       comune,

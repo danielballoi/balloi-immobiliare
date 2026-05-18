@@ -120,7 +120,6 @@ export default function ImportDati() {
 
   // ── Caricamento statistiche e log ────────────────────────────────────
   const caricaDati = () => {
-    console.log('[IMPORT] Caricamento stats, log e NTN stats');
     Promise.all([getImportStats(), getImportLog(), getNTNStats()])
       .then(([s, l, ntn]) => { setStats(s); setLogs(l); setStatsNTN(ntn); })
       .catch(err => console.error('[IMPORT] Errore caricamento:', err))
@@ -132,7 +131,6 @@ export default function ImportDati() {
   const avviaImportCartella = async () => {
     setImportandoCartella(true);
     setRisultatoCartella(null);
-    console.log('[IMPORT] Avvio import cartella DATI_HINTERLAND');
     try {
       const result = await importCartella();
       setRisultatoCartella(result);
@@ -149,7 +147,6 @@ export default function ImportDati() {
     if (!fileNTN) return;
     setImportandoNTN(true);
     setRisultatoNTN(null);
-    console.log(`[IMPORT NTN] Avvio: ${fileNTN.name}`);
     try {
       const result = await importNTN(fileNTN);
       setRisultatoNTN(result);
@@ -179,11 +176,9 @@ export default function ImportDati() {
     if (!fileScelto) return;
     setImportando(true);
     setRisultatoCSV(null);
-    console.log(`[IMPORT] Avvio import CSV: ${fileScelto.name}`);
 
     try {
       const result = await importCSV(fileScelto);
-      console.log('[IMPORT] Risultato:', result);
       setRisultatoCSV(result);
       caricaDati();  // Aggiorna stats e log
     } catch (err) {
@@ -199,7 +194,6 @@ export default function ImportDati() {
     e.preventDefault();
     setSalvandoManuale(true);
     setMessaggioManuale(null);
-    console.log('[IMPORT] Inserimento manuale:', formManuale);
 
     try {
       await insertManuale(formManuale);
@@ -218,7 +212,6 @@ export default function ImportDati() {
     if (!fileOMIZone) return;
     setImportandoOMIZone(true);
     setRisultatoOMIZone(null);
-    console.log(`[IMPORT OMI] Zone: ${fileOMIZone.name}`);
     try {
       const result = await importOMISemestraleZone(fileOMIZone);
       setRisultatoOMIZone(result);
@@ -235,7 +228,6 @@ export default function ImportDati() {
     if (!fileOMIValori) return;
     setImportandoOMIValori(true);
     setRisultatoOMIValori(null);
-    console.log(`[IMPORT OMI] Valori: ${fileOMIValori.name}`);
     try {
       const result = await importOMISemestraleValori(fileOMIValori);
       setRisultatoOMIValori(result);

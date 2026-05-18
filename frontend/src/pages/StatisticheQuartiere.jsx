@@ -470,7 +470,6 @@ export default function StatisticheQuartiere() {
       return;
     }
     if (statistiche.length === 0) {
-      console.log(`[STATISTICHE] Nessun dato OMI per "${nomeEffettivo}", mostro modal dati mancanti`);
       setShowModalDatiMancanti(true);
     } else {
       setShowModalDatiMancanti(false);

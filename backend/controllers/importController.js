@@ -68,12 +68,10 @@ function template(req, res) {
 async function importCSV(req, res, next) {
   if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
 
-  console.log(`[CTRL-IMPORT] importCSV: ${req.file.originalname}, ${req.file.size} bytes`);
   const { separatore = ';' } = req.body;
 
   const parsed = parseCSV(req.file.buffer, separatore);
   if (parsed.errors.length > 0) {
-    console.warn(`[CTRL-IMPORT] Errori parsing CSV: ${parsed.errors.length}`);
   }
 
   try {
@@ -100,7 +98,6 @@ async function insertManuale(req, res, next) {
       });
     }
 
-    console.log(`[CTRL-IMPORT] insertManuale: zona ${zona_codice}`);
     const result = await ImportModel.insertManuale(req.body);
     res.status(201).json({ success: true, affected: result.affectedRows });
   } catch (err) {
@@ -115,7 +112,6 @@ async function insertManuale(req, res, next) {
 async function importNTN(req, res, next) {
   if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
 
-  console.log(`[CTRL-IMPORT] importNTN: ${req.file.originalname}`);
   const { separatore = ';' } = req.body;
 
   const parsed = parseCSV(req.file.buffer, separatore);
@@ -137,7 +133,6 @@ async function importNTN(req, res, next) {
 async function importZone(req, res, next) {
   if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
 
-  console.log(`[CTRL-IMPORT] importZone: ${req.file.originalname}`);
   const { separatore = ';' } = req.body;
 
   const parsed = parseCSV(req.file.buffer, separatore);
@@ -161,7 +156,6 @@ async function importCartella(req, res, next) {
     return res.status(500).json({ error: 'DATI_OMI_PATH non configurato nel file .env' });
   }
 
-  console.log(`[CTRL-IMPORT] importCartella: ${cartellaBase}`);
   try {
     const result = await ImportModel.importaCartellaOMI(cartellaBase);
     res.json({ success: true, ...result });
@@ -180,7 +174,6 @@ async function importCartella(req, res, next) {
 async function importOMIZone(req, res, next) {
   if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
 
-  console.log(`[CTRL-IMPORT] importOMIZone: ${req.file.originalname}, ${req.file.size} bytes`);
   try {
     const result = await ImportModel.importaOMISemestraleZone(
       req.file.originalname,
@@ -201,7 +194,6 @@ async function importOMIZone(req, res, next) {
 async function importOMIValori(req, res, next) {
   if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
 
-  console.log(`[CTRL-IMPORT] importOMIValori: ${req.file.originalname}, ${req.file.size} bytes`);
   try {
     const result = await ImportModel.importaOMISemestraleValori(
       req.file.originalname,
@@ -221,7 +213,6 @@ async function getLog(req, res, next) {
   try {
     const { limit = 20 } = req.query;
     const logs = await ImportModel.getImportLog(parseInt(limit));
-    console.log(`[CTRL-IMPORT] Log: ${logs.length} record`);
     res.json(logs);
   } catch (err) {
     next(err);

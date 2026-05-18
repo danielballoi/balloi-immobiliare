@@ -22,7 +22,6 @@ const { pool } = require('../config/db');
  * @returns {Promise<Array>} Lista valori (max 200)
  */
 async function getValori({ zona_codice, tipologia, stato, anno, semestre } = {}) {
-  console.log('[MODEL-VALORI] getValori con filtri:', { zona_codice, tipologia, stato, anno, semestre });
 
   // Costruiamo la query dinamicamente solo con i filtri forniti
   let sql = `
@@ -91,7 +90,6 @@ async function getStatistiche(zona, nome = null, comune = 'Cagliari') {
 
   if (nome) {
     // Aggrega per nome quartiere: include tutti i codici OMI con lo stesso nome
-    console.log(`[MODEL-VALORI] getStatistiche per nome quartiere: ${nome}`);
     sql = `
       SELECT
         v.stato,
@@ -113,7 +111,6 @@ async function getStatistiche(zona, nome = null, comune = 'Cagliari') {
     params = [nome, comune];
   } else {
     // Query per codice zona esatto (compatibilità con link vecchi)
-    console.log(`[MODEL-VALORI] getStatistiche per codice zona: ${zona}`);
     sql = `
       SELECT
         v.stato,
@@ -133,7 +130,6 @@ async function getStatistiche(zona, nome = null, comune = 'Cagliari') {
   }
 
   const [rows] = await pool.query(sql, params);
-  console.log(`[MODEL-VALORI] Statistiche: ${rows.length} righe`);
   return rows;
 }
 
@@ -155,7 +151,6 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
 
   if (nome) {
     // Trend annuale aggregato per nome quartiere
-    console.log(`[MODEL-VALORI] getTrend annuale per quartiere: ${nome}`);
     sql = `
       SELECT
         anno,
@@ -173,7 +168,6 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
     sql += ' GROUP BY anno ORDER BY anno ASC';
   } else {
     // Trend per codice zona esatto, raggruppato per semestre
-    console.log(`[MODEL-VALORI] getTrend per codice zona: ${zona}`);
     sql = `
       SELECT
         anno,
@@ -189,7 +183,6 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
   }
 
   const [rows] = await pool.query(sql, params);
-  console.log(`[MODEL-VALORI] Trend: ${rows.length} periodi`);
   return rows;
 }
 
@@ -204,7 +197,6 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
  * @returns {Promise<Array>} Un record per anno con statistiche prezzi
  */
 async function getTipologiaAnnuale(nome, tipo, stato = 'NORMALE', comune = 'Cagliari') {
-  console.log(`[MODEL-VALORI] getTipologiaAnnuale: ${tipo} in ${nome}`);
 
   const [rows] = await pool.query(`
     SELECT
@@ -225,7 +217,6 @@ async function getTipologiaAnnuale(nome, tipo, stato = 'NORMALE', comune = 'Cagl
     ORDER BY anno ASC
   `, [nome, comune, tipo, stato]);
 
-  console.log(`[MODEL-VALORI] Tipologia-annuale: ${rows.length} anni`);
   return rows;
 }
 

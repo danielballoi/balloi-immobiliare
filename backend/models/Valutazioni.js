@@ -18,7 +18,6 @@ const { pool } = require('../config/db');
  * @returns {Promise<number>} ID della valutazione inserita
  */
 async function salvaValutazione(data) {
-  console.log(`[MODEL-VALUTAZIONI] salvaValutazione: ${data.indirizzo} in ${data.zona_codice}`);
 
   const [result] = await pool.query(`
     INSERT INTO valutazioni (

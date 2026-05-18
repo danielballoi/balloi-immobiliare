@@ -45,7 +45,6 @@ function useStatistiche(nomeZona, comune = 'Cagliari') {
       return;
     }
 
-    console.log(`[HOOK-STATISTICHE] Caricamento dati per: ${nomeZona}`);
     setLoading(true);
     setErrore(null);
 
@@ -56,7 +55,6 @@ function useStatistiche(nomeZona, comune = 'Cagliari') {
       getTrendZona('_',      { nome: nomeZona, stato: 'NORMALE', comune }),
     ])
       .then(([stats, trendData]) => {
-        console.log(`[HOOK-STATISTICHE] Stats: ${stats.length} righe, Trend: ${trendData.length} anni`);
         setStatistiche(stats);
 
         // Formatta il trend per Recharts: arrotonda i valori per la visualizzazione

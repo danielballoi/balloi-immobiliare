@@ -67,7 +67,6 @@ function calcolaTIR(flussi) {
     tasso = nuovoTasso;
   }
 
-  console.warn('[DCF] TIR non convergente con Newton-Raphson, uso bisezione');
 
   // Fallback: metodo della bisezione (più lento ma robusto)
   let low = -0.99, high = 10.0;
@@ -123,7 +122,6 @@ function calcolaDCF({
   costi_vendita_pct = 3,       // NUOVO: era hardcoded 0.03
   calcola_sensitivity = false, // NUOVO: se true, calcola matrice TIR per sensitivity analysis
 }) {
-  console.log(`[DCF] Inizio calcolo - prezzo: €${prezzo_acquisto}, canone: €${canone_mensile}/mese, orizzonte: ${orizzonte_anni} anni`);
 
   // ── Step 1: Struttura del capitale ───────────────────────────────────────
   const costi_acquisto  = prezzo_acquisto * (costi_acquisto_pct / 100);
@@ -139,7 +137,6 @@ function calcolaDCF({
     : 0;
   const debito_annuo = rata_mensile * 12;
 
-  console.log(`[DCF] Struttura capitale - equity: €${equity.toFixed(0)}, debito: €${debito.toFixed(0)}, rata: €${rata_mensile.toFixed(2)}/mese`);
 
   // ── Step 2: NOI anno 0 (base) ─────────────────────────────────────────────
   const reddito_lordo_base = canone_mensile * 12;
@@ -190,10 +187,8 @@ function calcolaDCF({
   if (metodo_exit === 'reddituale') {
     const noi_finale = noi_base * Math.pow(1 + tasso_crescita_noi_pct / 100, orizzonte_anni);
     valore_rivendita_lordo = noi_finale / (cap_rate_exit_pct / 100);
-    console.log(`[DCF] Exit reddituale: NOI finale €${noi_finale.toFixed(0)}, valore lordo €${valore_rivendita_lordo.toFixed(0)}`);
   } else {
     valore_rivendita_lordo = prezzo_acquisto * Math.pow(1 + tasso_crescita_valore_pct / 100, orizzonte_anni);
-    console.log(`[DCF] Exit apprezzamento: valore lordo €${valore_rivendita_lordo.toFixed(0)}`);
   }
 
   // Saldo mutuo residuo esatto (ammortamento alla francese)
@@ -240,7 +235,6 @@ function calcolaDCF({
   const cf_primo_anno = cashflows_dettaglio[0]?.cash_flow_netto ?? 0;
   const cash_on_cash_pct = equity > 0 ? (cf_primo_anno / equity) * 100 : 0;
 
-  console.log(`[DCF] VAN: €${van.toFixed(0)}, TIR: ${tir_pct}%, ROI: ${roi_totale_pct.toFixed(2)}%`);
 
   // ── Step 9: Sensitivity analysis (opzionale) ─────────────────────────────
   // Calcola una matrice TIR al variare di cap_rate_exit e tasso_crescita_noi
@@ -267,7 +261,6 @@ function calcolaDCF({
       },
       capUniq, crescUniq
     );
-    console.log(`[DCF] Sensitivity calcolata: ${capUniq.length}×${crescUniq.length} celle`);
   }
 
   return {

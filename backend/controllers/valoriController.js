@@ -60,7 +60,6 @@ async function statistiche(req, res, next) {
     const { nome, comune = 'Cagliari' } = req.query;
     const zona = req.params.zona;
 
-    console.log(`[CTRL-VALORI] statistiche: zona=${zona}, nome=${nome}`);
     const rows = await ValoriModel.getStatistiche(zona, nome || null, comune);
     res.json(rows);
   } catch (err) {
@@ -78,7 +77,6 @@ async function trend(req, res, next) {
     const { nome, stato = 'NORMALE', tipologia, comune = 'Cagliari' } = req.query;
     const zona = req.params.zona;
 
-    console.log(`[CTRL-VALORI] trend: zona=${zona}, nome=${nome}`);
     const rows = await ValoriModel.getTrend(zona, { nome, stato, tipologia, comune });
     res.json(rows);
   } catch (err) {
@@ -98,7 +96,6 @@ async function tipologiaAnnuale(req, res, next) {
       return res.status(400).json({ error: 'Parametri nome e tipo richiesti' });
     }
 
-    console.log(`[CTRL-VALORI] tipologiaAnnuale: ${tipo} in ${nome}`);
     const rows = await ValoriModel.getTipologiaAnnuale(nome, tipo, stato, comune);
     res.json(rows);
   } catch (err) {

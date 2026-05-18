@@ -20,7 +20,6 @@ async function ntnZona(req, res, next) {
       return res.status(400).json({ error: 'Parametri obbligatori: nome, tipo' });
     }
 
-    console.log(`[CTRL-NTN] ntnZona: ${tipo} in ${nome}`);
     const rows = await NTNModel.getNTNZona(nome, tipo, comune);
     res.json(rows);
   } catch (err) {

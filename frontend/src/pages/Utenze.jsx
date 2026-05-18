@@ -99,7 +99,6 @@ export default function Utenze() {
       const data = await getUtenze();
       setUtenti(data.utenti);
       setConteggi(data.conteggi);
-      console.log('[UTENZE] Lista caricata:', data.conteggi);
     } catch (err) {
       setErrore('Errore nel caricamento utenti');
       console.error('[UTENZE] Errore:', err.message);
@@ -116,7 +115,6 @@ export default function Utenze() {
     try {
       const data = await getSegnalazioni();
       setSegnalazioni(data);
-      console.log('[UTENZE] Segnalazioni caricate:', data.length);
     } catch (err) {
       console.error('[UTENZE] Errore segnalazioni:', err.message);
     } finally {
@@ -132,7 +130,6 @@ export default function Utenze() {
     try {
       await segnaLetta(id);
       setSegnalazioni(prev => prev.map(s => s.id === id ? { ...s, stato: 'LETTO' } : s));
-      console.log('[UTENZE] Segnalazione', id, 'marcata letta');
     } catch (err) {
       console.error('[UTENZE] Errore marca letta:', err.message);
     }

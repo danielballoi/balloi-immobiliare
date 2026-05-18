@@ -47,7 +47,6 @@ function useTipologia(nome, tipo, stato = 'NORMALE') {
     // Non caricare se mancano parametri obbligatori
     if (!nome || !tipo) return;
 
-    console.log(`[HOOK-TIPOLOGIA] Caricamento: ${tipo} in ${nome} (${stato})`);
     setLoading(true);
     setErrore(null);
 
@@ -57,7 +56,6 @@ function useTipologia(nome, tipo, stato = 'NORMALE') {
       getNTNZona(nome, tipo),
     ])
       .then(([rows, ntnRows]) => {
-        console.log(`[HOOK-TIPOLOGIA] Prezzi: ${rows.length} anni, NTN: ${ntnRows.length} anni`);
 
         // Formatta i dati prezzi per il grafico
         setDati(rows.map(r => ({

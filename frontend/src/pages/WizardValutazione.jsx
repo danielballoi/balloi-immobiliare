@@ -371,7 +371,6 @@ export default function WizardValutazione() {
 
   // ── Caricamento zone e tipologie ────────────────────────────────────
   useEffect(() => {
-    console.log('[WIZARD] Caricamento zone');
     Promise.all([getZone(), getHeatmap(null, 'HINTERLAND')])
       .then(([cagliariZone, hinterlandZone]) => {
         const tutte = [
@@ -379,7 +378,6 @@ export default function WizardValutazione() {
           ...hinterlandZone.map(z => ({ ...z, area: 'HINTERLAND' })),
         ];
         setZone(tutte);
-        console.log(`[WIZARD] ${tutte.length} zone totali`);
       })
       .catch(err => console.error('[WIZARD] Errore caricamento zone:', err));
   }, []);
@@ -387,13 +385,11 @@ export default function WizardValutazione() {
   // ── Handler autocomplete strade (Cagliari) ──────────────────────────
   // Quando l'utente sceglie una via, popola indirizzo e trova la zona OMI
   function handleStradeSeleziona(item) {
-    console.log('[WIZARD] Via selezionata:', item.via, '→ link_zona:', item.link_zona);
     upd('indirizzo', item.via);
 
     // Auto-fill zona_codice dal link_zona della via
     if (item.link_zona) {
       upd('zona_codice', item.link_zona);
-      console.log('[WIZARD] Zona auto-completata:', item.link_zona);
     } else if (item.quartiere) {
       // Fallback: cerca corrispondenza per quartiere
       const zona = zone.find(z =>
@@ -401,7 +397,6 @@ export default function WizardValutazione() {
       );
       if (zona) {
         upd('zona_codice', zona.link_zona);
-        console.log('[WIZARD] Zona trovata per quartiere:', zona.link_zona);
       }
     }
   }
@@ -459,7 +454,6 @@ export default function WizardValutazione() {
         : Promise.resolve(null);
 
       const [redRis, dcfRis] = await Promise.all([redPromise, dcfPromise]);
-      console.log('[WIZARD] RED:', redRis, '| DCF:', dcfRis);
       setVal(prev => ({ ...prev, reddituale: redRis, dcf: dcfRis }));
       setStepAttivo(4);
     } catch (err) {
@@ -540,7 +534,6 @@ export default function WizardValutazione() {
       };
 
       const { valutazione_id } = await salvaValutazione(payload);
-      console.log('[WIZARD] Valutazione salvata ID:', valutazione_id);
 
       await aggiungiAPortafoglio({
         valutazione_id,
