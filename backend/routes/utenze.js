@@ -35,10 +35,10 @@ router.get('/', async (req, res) => {
     utenti.forEach(u => { if (conteggi[u.stato] !== undefined) conteggi[u.stato]++; });
 
     // Conta segnalazioni nuove — per il badge "nuovo messaggio"
-    const [[rowSeg]] = await pool.query(
+    const { rows: rowSeg } = await pool.query(
       "SELECT COUNT(*) as nuove FROM segnalazioni WHERE stato = 'NUOVO'"
     );
-    conteggi.messaggi_nuovi = rowSeg.nuove;
+    conteggi.messaggi_nuovi = rowSeg[0].nuove;
 
     res.json({ utenti, conteggi });
   } catch (err) {
@@ -64,7 +64,7 @@ router.put('/:id/approva', async (req, res) => {
     res.json({ message: `Account di ${utente.email} attivato con successo` });
   } catch (err) {
     console.error('[UTENZE] Errore approva:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'approvazione' });
+    res.status(500).json({ error: "Errore durante l'approvazione" });
   }
 });
 
@@ -127,7 +127,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: `Account di ${utente.email} eliminato` });
   } catch (err) {
     console.error('[UTENZE] Errore elimina:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'eliminazione' });
+    res.status(500).json({ error: "Errore durante l'eliminazione" });
   }
 });
 

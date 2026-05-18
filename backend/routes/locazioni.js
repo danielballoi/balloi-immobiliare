@@ -18,8 +18,8 @@ router.use(requireAuth);
 // ── GET / — lista locazioni dell'utente autenticato ──────────────────────
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT * FROM locazioni_attive WHERE user_id = ? ORDER BY data_inserimento DESC',
+    const { rows } = await pool.query(
+      'SELECT * FROM locazioni_attive WHERE user_id = $1 ORDER BY data_inserimento DESC',
       [req.user.id]
     );
     res.json(rows);
@@ -41,13 +41,14 @@ router.post('/', async (req, res) => {
   if (!indirizzo) return res.status(400).json({ error: 'Indirizzo obbligatorio' });
 
   try {
-    const [result] = await pool.query(
+    const { rows } = await pool.query(
       `INSERT INTO locazioni_attive
         (user_id, indirizzo, quartiere, tipologia, superficie_mq, canone_mensile,
          nome_inquilino, cognome_inquilino, email_inquilino, telefono_inquilino,
          data_inizio, data_fine, stato, note,
          tipo_contratto, deposito_cauzionale)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       RETURNING id`,
       [
         req.user.id,
         indirizzo,
@@ -67,10 +68,10 @@ router.post('/', async (req, res) => {
         deposito_cauzionale || null,
       ]
     );
-    res.status(201).json({ success: true, id: result.insertId });
+    res.status(201).json({ success: true, id: rows[0].id });
   } catch (err) {
     console.error('[LOCAZIONI] Errore inserimento:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'inserimento' });
+    res.status(500).json({ error: "Errore durante l'inserimento" });
   }
 });
 
@@ -80,8 +81,8 @@ router.put('/:id', async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
 
   try {
-    const [rows] = await pool.query(
-      'SELECT id FROM locazioni_attive WHERE id = ? AND user_id = ?',
+    const { rows } = await pool.query(
+      'SELECT id FROM locazioni_attive WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Locazione non trovata' });
@@ -95,11 +96,11 @@ router.put('/:id', async (req, res) => {
 
     await pool.query(
       `UPDATE locazioni_attive
-       SET indirizzo=?, quartiere=?, tipologia=?, superficie_mq=?, canone_mensile=?,
-           nome_inquilino=?, cognome_inquilino=?, email_inquilino=?, telefono_inquilino=?,
-           data_inizio=?, data_fine=?, stato=?, note=?,
-           tipo_contratto=?, deposito_cauzionale=?
-       WHERE id = ? AND user_id = ?`,
+       SET indirizzo=$1, quartiere=$2, tipologia=$3, superficie_mq=$4, canone_mensile=$5,
+           nome_inquilino=$6, cognome_inquilino=$7, email_inquilino=$8, telefono_inquilino=$9,
+           data_inizio=$10, data_fine=$11, stato=$12, note=$13,
+           tipo_contratto=$14, deposito_cauzionale=$15
+       WHERE id = $16 AND user_id = $17`,
       [
         indirizzo, quartiere || null, tipologia || null,
         superficie_mq || null, canone_mensile || null,
@@ -114,7 +115,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[LOCAZIONI] Errore aggiornamento:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'aggiornamento' });
+    res.status(500).json({ error: "Errore durante l'aggiornamento" });
   }
 });
 
@@ -124,15 +125,15 @@ router.delete('/:id', async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
 
   try {
-    const [result] = await pool.query(
-      'DELETE FROM locazioni_attive WHERE id = ? AND user_id = ?',
+    const result = await pool.query(
+      'DELETE FROM locazioni_attive WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Locazione non trovata' });
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Locazione non trovata' });
     res.json({ success: true });
   } catch (err) {
     console.error('[LOCAZIONI] Errore eliminazione:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'eliminazione' });
+    res.status(500).json({ error: "Errore durante l'eliminazione" });
   }
 });
 
