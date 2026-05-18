@@ -11,7 +11,7 @@
 const { pool } = require('../config/db');
 
 async function getPortafoglio(userId, limit = 100, offset = 0) {
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       p.*,
       COALESCE(p.vcm_valore_min, v.vcm_valore_min)       AS vcm_valore_min,
@@ -30,16 +30,16 @@ async function getPortafoglio(userId, limit = 100, offset = 0) {
       v.data_valutazione
     FROM portafoglio p
     LEFT JOIN valutazioni v ON p.valutazione_id = v.id
-    WHERE p.user_id = ?
+    WHERE p.user_id = $1
     ORDER BY p.data_inserimento DESC
-    LIMIT ? OFFSET ?
+    LIMIT $2 OFFSET $3
   `, [userId, parseInt(limit), parseInt(offset)]);
 
   return rows;
 }
 
 async function getSummary(userId) {
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       COUNT(*)                        AS num_immobili,
       SUM(prezzo_acquisto)            AS investimento_totale,
@@ -50,7 +50,7 @@ async function getSummary(userId) {
       SUM(van)                        AS van_totale,
       AVG(roi_totale_pct)             AS roi_medio
     FROM portafoglio
-    WHERE user_id = ?
+    WHERE user_id = $1
   `, [userId]);
 
   const summary = rows[0];
@@ -65,19 +65,19 @@ async function getSummary(userId) {
 async function aggiungiImmobile(userId, dati) {
   // Verifica che la valutazione appartenga all'utente
   if (dati.valutazione_id) {
-    const [v] = await pool.query(
-      'SELECT id FROM valutazioni WHERE id = ? AND user_id = ?',
+    const { rows: v } = await pool.query(
+      'SELECT id FROM valutazioni WHERE id = $1 AND user_id = $2',
       [dati.valutazione_id, userId]
     );
     if (!v.length) throw Object.assign(new Error('Valutazione non trovata'), { status: 404 });
 
     await pool.query(
-      'UPDATE valutazioni SET salvato_portafoglio = 1 WHERE id = ? AND user_id = ?',
+      'UPDATE valutazioni SET salvato_portafoglio = TRUE WHERE id = $1 AND user_id = $2',
       [dati.valutazione_id, userId]
     );
   }
 
-  const [result] = await pool.query(`
+  const { rows } = await pool.query(`
     INSERT INTO portafoglio (
       user_id,
       valutazione_id, indirizzo, zona_codice, tipologia, stato_immobile,
@@ -88,12 +88,13 @@ async function aggiungiImmobile(userId, dati) {
       vcm_valore_min, vcm_valore_max, vcm_prezzo_base_mq, vcm_punti_alti,
       red_valore_mercato, red_noi_annuo, red_rendimento_lordo_pct, red_rendimento_netto_pct,
       dcf_van, dcf_tir_pct, dcf_roi_totale_pct, dcf_cash_on_cash_pct
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?,
-              ?, ?,
-              ?, ?, ?, ?,
-              ?, ?, ?, ?,
-              ?, ?, ?, ?)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+              $16, $17, $18, $19, $20, $21,
+              $22, $23,
+              $24, $25, $26, $27,
+              $28, $29, $30, $31,
+              $32, $33, $34, $35)
+    RETURNING id
   `, [
     userId,
     dati.valutazione_id || null,
@@ -108,27 +109,27 @@ async function aggiungiImmobile(userId, dati) {
     dati.dcf_van ?? null, dati.dcf_tir_pct ?? null, dati.dcf_roi_totale_pct ?? null, dati.dcf_cash_on_cash_pct ?? null,
   ]);
 
-  return result.insertId;
+  return rows[0].id;
 }
 
 async function aggiornaImmobile(userId, id, dati) {
-  const [result] = await pool.query(`
+  const result = await pool.query(`
     UPDATE portafoglio SET
-      canone_mensile   = COALESCE(?, canone_mensile),
-      vcm_valore_medio = COALESCE(?, vcm_valore_medio),
-      tir_pct          = COALESCE(?, tir_pct),
-      roi_totale_pct   = COALESCE(?, roi_totale_pct),
-      van              = COALESCE(?, van),
-      note             = COALESCE(?, note)
-    WHERE id = ? AND user_id = ?
+      canone_mensile   = COALESCE($1, canone_mensile),
+      vcm_valore_medio = COALESCE($2, vcm_valore_medio),
+      tir_pct          = COALESCE($3, tir_pct),
+      roi_totale_pct   = COALESCE($4, roi_totale_pct),
+      van              = COALESCE($5, van),
+      note             = COALESCE($6, note)
+    WHERE id = $7 AND user_id = $8
   `, [dati.canone_mensile, dati.vcm_valore_medio, dati.tir_pct, dati.roi_totale_pct, dati.van, dati.note, id, userId]);
 
-  return result.affectedRows;
+  return result.rowCount;
 }
 
 async function rimuoviImmobile(userId, id) {
-  const [rows] = await pool.query(
-    'SELECT valutazione_id FROM portafoglio WHERE id = ? AND user_id = ?',
+  const { rows } = await pool.query(
+    'SELECT valutazione_id FROM portafoglio WHERE id = $1 AND user_id = $2',
     [id, userId]
   );
 
@@ -136,13 +137,13 @@ async function rimuoviImmobile(userId, id) {
 
   if (rows[0].valutazione_id) {
     await pool.query(
-      'UPDATE valutazioni SET salvato_portafoglio = 0 WHERE id = ? AND user_id = ?',
+      'UPDATE valutazioni SET salvato_portafoglio = FALSE WHERE id = $1 AND user_id = $2',
       [rows[0].valutazione_id, userId]
     );
   }
 
-  const [result] = await pool.query('DELETE FROM portafoglio WHERE id = ? AND user_id = ?', [id, userId]);
-  return result.affectedRows;
+  const result = await pool.query('DELETE FROM portafoglio WHERE id = $1 AND user_id = $2', [id, userId]);
+  return result.rowCount;
 }
 
 module.exports = {

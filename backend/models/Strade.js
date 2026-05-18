@@ -43,13 +43,6 @@ const ARTICOLI_ITALIANI = [
  *   2. Rimuove il prefisso stradale (VIA, VIALE, PIAZZA…)
  *   3. Rimuove l'articolo iniziale (DELLE, DEI, DEL, DELL'…)
  *
- * Esempi:
- *   "Via Roma"           → "ROMA"
- *   "Via delle Libellule"→ "LIBELLULE"  (trova "LIBELLULE (DELLE)")
- *   "Via dei Grilli"     → "GRILLI"     (trova "GRILLI (DEI)")
- *   "Viale Diaz"         → "DIAZ"
- *   "Piazza Yenne"       → "YENNE"
- *
  * @param {string} q - testo grezzo dall'utente
  * @returns {string} testo normalizzato
  */
@@ -65,11 +58,9 @@ function normalizzaQuery(q) {
   }
 
   // Step 2: rimuove articolo italiano iniziale
-  // (solo se rimane ancora qualcosa di significativo dopo)
   for (const art of ARTICOLI_ITALIANI) {
     if (s.startsWith(art)) {
       const senzaArticolo = s.slice(art.length).trim();
-      // Assicura che ciò che rimane abbia almeno 2 caratteri
       if (senzaArticolo.length >= 2) {
         s = senzaArticolo;
       }
@@ -86,9 +77,8 @@ function normalizzaQuery(q) {
  *   1. Vie che INIZIANO con il testo cercato (rilevanza alta, mostrate prime)
  *   2. Vie che CONTENGONO il testo cercato (rilevanza media, aggiunte dopo)
  *
- * Il JOIN con omi_zone porta il nome leggibile della zona OMI (es.
- * "PIRRI CENTRO - MONREALE - SANTA MARIA CHIARA") da mostrare nel frontend.
- * La TRIM(BOTH '''') serve perché le descrizioni sono salvate con apici: 'NOME'
+ * Il JOIN con omi_zone porta il nome leggibile della zona OMI.
+ * In PostgreSQL usiamo TRIM(BOTH '''' FROM col) per gli apici.
  *
  * @param {string} q     - testo digitato (es. "Via Roma" o "Roma")
  * @param {number} limit - max risultati (default 15)
@@ -99,7 +89,7 @@ async function searchStrade(q, limit = 15) {
 
   if (!qNorm || qNorm.length < 2) return [];
 
-  const [rows] = await pool.query(
+  const { rows } = await pool.query(
     `(
        -- Step 1: denominazioni che INIZIANO con la query (più rilevanti)
        SELECT
@@ -112,9 +102,9 @@ async function searchStrade(q, limit = 15) {
        LEFT JOIN omi_zone z
          ON TRIM(s.link_zona) = TRIM(z.link_zona)
         AND (z.area = 'CAGLIARI' OR z.comune = 'Cagliari')
-       WHERE s.via LIKE ?
+       WHERE s.via LIKE $1
        ORDER BY s.via
-       LIMIT ?
+       LIMIT $2
      )
      UNION
      (
@@ -129,19 +119,19 @@ async function searchStrade(q, limit = 15) {
        LEFT JOIN omi_zone z
          ON TRIM(s.link_zona) = TRIM(z.link_zona)
         AND (z.area = 'CAGLIARI' OR z.comune = 'Cagliari')
-       WHERE s.via LIKE ? AND s.via NOT LIKE ?
+       WHERE s.via LIKE $3 AND s.via NOT LIKE $4
        ORDER BY s.via
-       LIMIT ?
+       LIMIT $5
      )
      ORDER BY rilevanza, via
-     LIMIT ?`,
+     LIMIT $6`,
     [
-      `${qNorm}%`,   // inizia con (step 1)
-      limit,
-      `%${qNorm}%`,  // contiene (step 2)
-      `${qNorm}%`,   // esclude duplicati già trovati nello step 1
-      limit,
-      limit,
+      `${qNorm}%`,   // $1 inizia con (step 1)
+      limit,          // $2
+      `%${qNorm}%`,  // $3 contiene (step 2)
+      `${qNorm}%`,   // $4 esclude duplicati già trovati nello step 1
+      limit,          // $5
+      limit,          // $6
     ]
   );
 
@@ -150,17 +140,16 @@ async function searchStrade(q, limit = 15) {
 
 /**
  * Recupera tutte le vie di un quartiere specifico.
- * Utile per mostrare il dettaglio quando l'utente seleziona una zona.
  *
  * @param {string} quartiere - es. "GENNERUXI"
  * @returns {Promise<Array>}
  */
 async function getVieByQuartiere(quartiere) {
 
-  const [rows] = await pool.query(
+  const { rows } = await pool.query(
     `SELECT via, quartiere, link_zona
      FROM strade_cagliari
-     WHERE UPPER(quartiere) = UPPER(?)
+     WHERE UPPER(quartiere) = UPPER($1)
      ORDER BY via`,
     [quartiere]
   );
@@ -169,13 +158,12 @@ async function getVieByQuartiere(quartiere) {
 
 /**
  * Lista quartieri distinti con conteggio vie e nome zona OMI.
- * MAX(link_zona) per compatibilità MySQL strict mode (only_full_group_by).
  *
  * @returns {Promise<Array<{quartiere, n_vie, link_zona, zona_nome}>>}
  */
 async function getQuartieriConVie() {
 
-  const [rows] = await pool.query(
+  const { rows } = await pool.query(
     `SELECT
        s.quartiere,
        COUNT(*)  AS n_vie,
@@ -185,7 +173,7 @@ async function getQuartieriConVie() {
      LEFT JOIN omi_zone z
        ON TRIM(s.link_zona) = TRIM(z.link_zona)
       AND (z.area = 'CAGLIARI' OR z.comune = 'Cagliari')
-     GROUP BY s.quartiere
+     GROUP BY s.quartiere, z.descrizione_zona
      ORDER BY s.quartiere`
   );
   return rows;
@@ -193,8 +181,8 @@ async function getQuartieriConVie() {
 
 /** Conta le vie nel DB — per verificare se lo scraping è stato eseguito */
 async function countStrade() {
-  const [[{ n }]] = await pool.query(`SELECT COUNT(*) AS n FROM strade_cagliari`);
-  return n;
+  const { rows } = await pool.query(`SELECT COUNT(*) AS n FROM strade_cagliari`);
+  return parseInt(rows[0].n);
 }
 
 module.exports = { searchStrade, getVieByQuartiere, getQuartieriConVie, countStrade };

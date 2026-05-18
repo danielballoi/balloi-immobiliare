@@ -27,14 +27,14 @@ async function getZoneConPrezzi(comune, area = null) {
   let whereClause = '';
   const params = [];
   if (area) {
-    whereClause = 'WHERE z.area = ?';
+    whereClause = 'WHERE z.area = $1';
     params.push(area);
   } else if (comune) {
-    whereClause = 'WHERE z.comune = ?';
+    whereClause = 'WHERE z.comune = $1';
     params.push(comune);
   }
 
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       MIN(z.id)        AS id,
       MIN(z.link_zona) AS link_zona,
@@ -68,17 +68,18 @@ async function getZoneConPrezzi(comune, area = null) {
 async function getZoneHeatmap(comune, stato, area = null) {
 
   // Stessa logica di getZoneConPrezzi: area ha priorità su comune
+  // Il primo parametro ($1) è sempre v.stato
   let whereClause = '';
-  const paramsOrdinati = [stato]; // primo param è sempre v.stato
+  const paramsOrdinati = [stato];
   if (area) {
-    whereClause = 'AND z.area = ?';
+    whereClause = 'AND z.area = $2';
     paramsOrdinati.push(area);
   } else if (comune) {
-    whereClause = 'AND z.comune = ?';
+    whereClause = 'AND z.comune = $2';
     paramsOrdinati.push(comune);
   }
 
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       MIN(z.id)        AS id,
       MIN(z.link_zona) AS link_zona,
@@ -92,11 +93,11 @@ async function getZoneHeatmap(comune, stato, area = null) {
     LEFT JOIN omi_valori v
       ON TRIM(z.link_zona) = TRIM(v.zona_codice)
       AND v.anno = (SELECT MAX(anno) FROM omi_valori)
-      AND v.stato = ?
+      AND v.stato = $1
     WHERE 1=1 ${whereClause}
     GROUP BY z.descrizione_zona, z.comune, z.area
-    HAVING prezzo_medio IS NOT NULL
-    ORDER BY prezzo_medio DESC
+    HAVING AVG((v.compr_min + v.compr_max) / 2) IS NOT NULL
+    ORDER BY AVG((v.compr_min + v.compr_max) / 2) DESC
   `, paramsOrdinati);
 
   return rows;
@@ -110,11 +111,11 @@ async function getZoneHeatmap(comune, stato, area = null) {
  * @returns {Promise<Array>} Lista zone corrispondenti (max 20)
  */
 async function searchZone(q, comune) {
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT id, link_zona, descrizione_zona, comune, fascia, area
     FROM omi_zone
-    WHERE comune = ?
-      AND (descrizione_zona LIKE ? OR link_zona LIKE ?)
+    WHERE comune = $1
+      AND (descrizione_zona LIKE $2 OR link_zona LIKE $3)
     ORDER BY descrizione_zona
     LIMIT 20
   `, [comune, `%${q}%`, `%${q}%`]);
@@ -128,7 +129,7 @@ async function searchZone(q, comune) {
  * @returns {Promise<Object|null>} Zona con prezzi medi, null se non trovata
  */
 async function getZonaByCode(codice) {
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       z.*,
       AVG((v.compr_min + v.compr_max) / 2) AS prezzo_medio_normale,
@@ -138,7 +139,7 @@ async function getZonaByCode(codice) {
       ON TRIM(z.link_zona) = TRIM(v.zona_codice)
       AND v.anno = (SELECT MAX(anno) FROM omi_valori)
       AND v.stato = 'NORMALE'
-    WHERE z.link_zona = ?
+    WHERE z.link_zona = $1
     GROUP BY z.id
   `, [codice]);
   return rows.length ? rows[0] : null;
@@ -151,7 +152,7 @@ async function getZonaByCode(codice) {
  * @returns {Promise<Array>} Array di { comune, area, totale_zone }
  */
 async function getComuniDisponibili() {
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       comune,
       area,
@@ -168,24 +169,18 @@ async function getComuniDisponibili() {
  * Usato dall'import CSV zone (feature Hinterland).
  *
  * @param {Object} zona - Dati della zona da inserire
- * @param {string} zona.link_zona          - Codice univoco zona OMI
- * @param {string} zona.descrizione_zona   - Nome del quartiere/zona
- * @param {string} zona.comune             - Nome del comune
- * @param {string} zona.fascia             - Fascia OMI (A/B/C)
- * @param {string} zona.tipologia          - Tipologia zona
- * @param {string} zona.area               - 'CAGLIARI' o 'HINTERLAND'
- * @returns {Promise<Object>} Risultato MySQL (affectedRows, insertId)
+ * @returns {Promise<Object>} Risultato (rowCount)
  */
 async function upsertZona(zona) {
-  const [result] = await pool.query(`
+  const result = await pool.query(`
     INSERT INTO omi_zone (link_zona, descrizione_zona, comune, fascia, tipologia, area)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      descrizione_zona = VALUES(descrizione_zona),
-      comune           = VALUES(comune),
-      fascia           = VALUES(fascia),
-      tipologia        = VALUES(tipologia),
-      area             = VALUES(area)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (link_zona) DO UPDATE SET
+      descrizione_zona = EXCLUDED.descrizione_zona,
+      comune           = EXCLUDED.comune,
+      fascia           = EXCLUDED.fascia,
+      tipologia        = EXCLUDED.tipologia,
+      area             = EXCLUDED.area
   `, [
     zona.link_zona,
     zona.descrizione_zona,

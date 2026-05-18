@@ -24,24 +24,24 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query(
-      'INSERT INTO segnalazioni (user_id, oggetto, messaggio) VALUES (?, ?, ?)',
+    const { rows } = await pool.query(
+      'INSERT INTO segnalazioni (user_id, oggetto, messaggio) VALUES ($1, $2, $3) RETURNING id',
       [req.user.id, oggetto || 'Segnalazione', messaggio.trim()]
     );
-    res.status(201).json({ success: true, id: result.insertId });
+    res.status(201).json({ success: true, id: rows[0].id });
   } catch (err) {
     console.error('[SEGNALAZIONI] Errore invio:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'invio' });
+    res.status(500).json({ error: "Errore durante l'invio" });
   }
 });
 
 // ── GET /count — conta segnalazioni NUOVO (admin only, per badge sidebar) ──
 router.get('/count', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [[row]] = await pool.query(
+    const { rows } = await pool.query(
       "SELECT COUNT(*) as nuove FROM segnalazioni WHERE stato = 'NUOVO'"
     );
-    res.json({ nuove: row.nuove });
+    res.json({ nuove: rows[0].nuove });
   } catch (err) {
     console.error('[SEGNALAZIONI] Errore count:', err.message);
     res.status(500).json({ error: 'Errore nel conteggio' });
@@ -51,7 +51,7 @@ router.get('/count', requireAuth, requireAdmin, async (req, res) => {
 // ── GET / — lista completa segnalazioni (solo admin) ─────────────────────
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query(`
+    const { rows } = await pool.query(`
       SELECT s.*, u.nome, u.cognome, u.email, u.username
       FROM segnalazioni s
       LEFT JOIN users u ON s.user_id = u.id
@@ -70,11 +70,11 @@ router.put('/:id/letto', requireAuth, requireAdmin, async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
 
   try {
-    await pool.query("UPDATE segnalazioni SET stato = 'LETTO' WHERE id = ?", [id]);
+    await pool.query("UPDATE segnalazioni SET stato = 'LETTO' WHERE id = $1", [id]);
     res.json({ success: true });
   } catch (err) {
     console.error('[SEGNALAZIONI] Errore aggiornamento stato:', err.message);
-    res.status(500).json({ error: 'Errore durante l\'aggiornamento' });
+    res.status(500).json({ error: "Errore durante l'aggiornamento" });
   }
 });
 

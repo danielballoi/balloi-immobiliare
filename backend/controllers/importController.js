@@ -99,7 +99,7 @@ async function insertManuale(req, res, next) {
     }
 
     const result = await ImportModel.insertManuale(req.body);
-    res.status(201).json({ success: true, affected: result.affectedRows });
+    res.status(201).json({ success: true, affected: result.rowCount });
   } catch (err) {
     next(err);
   }

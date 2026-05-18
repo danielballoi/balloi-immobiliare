@@ -19,7 +19,7 @@ const { pool } = require('../config/db');
  */
 async function salvaValutazione(data) {
 
-  const [result] = await pool.query(`
+  const { rows } = await pool.query(`
     INSERT INTO valutazioni (
       indirizzo, zona_codice, tipologia, stato_immobile, superficie_mq,
       piano, anno_costruzione, num_locali, num_bagni, url_annuncio, ascensore, box_auto, balcone_terrazza, cantina,
@@ -35,26 +35,28 @@ async function salvaValutazione(data) {
       dcf_valore_rivendita_finale, dcf_van, dcf_tir_pct, dcf_roi_totale_pct, dcf_cash_on_cash_pct,
       metodologia_principale, note, salvato_portafoglio
     ) VALUES (
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?
+      $1,  $2,  $3,  $4,  $5,
+      $6,  $7,  $8,  $9,  $10,  $11, $12, $13, $14,
+      $15, $16, $17, $18, $19, $20,
+      $21, $22, $23,
+      $24, $25, $26,
+      $27, $28, $29, $30, $31,
+      $32, $33, $34, $35,
+      $36, $37, $38, $39,
+      $40, $41, $42, $43,
+      $44, $45, $46, $47,
+      $48, $49, $50,
+      $51, $52, $53, $54, $55,
+      $56, $57, $58
     )
+    RETURNING id
   `, [
     data.indirizzo, data.zona_codice, data.tipologia, data.stato_immobile, data.superficie_mq,
     data.piano, data.anno_costruzione,
     data.num_locali ?? null, data.num_bagni ?? null, data.url_annuncio ?? null,
-    data.ascensore ? 1 : 0, data.box_auto ? 1 : 0,
-    data.balcone_terrazza ? 1 : 0, data.cantina ? 1 : 0,
+    // Booleani: converti in true/false per PostgreSQL
+    Boolean(data.ascensore), Boolean(data.box_auto),
+    Boolean(data.balcone_terrazza), Boolean(data.cantina),
     data.classe_energetica ?? null, data.esposizione ?? null, data.vista ?? null,
     data.qualita_costruzione ?? null, data.luminosita ?? null, data.stato_conservazione ?? null,
     data.prezzo_dichiarato ?? null, data.fonte_prezzo ?? null, data.note_prezzo ?? null,
@@ -66,10 +68,10 @@ async function salvaValutazione(data) {
     data.dcf_ltv_pct, data.dcf_tasso_mutuo_pct, data.dcf_durata_mutuo_anni, data.dcf_rata_mensile,
     data.dcf_orizzonte_anni, data.dcf_tasso_crescita_noi_pct, data.dcf_tasso_attualizzazione_pct,
     data.dcf_valore_rivendita_finale, data.dcf_van, data.dcf_tir_pct, data.dcf_roi_totale_pct, data.dcf_cash_on_cash_pct,
-    data.metodologia_principale, data.note, data.salvato_portafoglio ? 1 : 0,
+    data.metodologia_principale, data.note, Boolean(data.salvato_portafoglio),
   ]);
 
-  return result.insertId;
+  return rows[0].id;
 }
 
 /**
@@ -80,13 +82,13 @@ async function salvaValutazione(data) {
  * @returns {Promise<Array>} Lista valutazioni (colonne riassuntive)
  */
 async function getValutazioni(limit = 50, offset = 0) {
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT id, indirizzo, zona_codice, tipologia, stato_immobile, superficie_mq,
       vcm_valore_medio, dcf_van, dcf_tir_pct, dcf_roi_totale_pct,
       metodologia_principale, data_valutazione, salvato_portafoglio
     FROM valutazioni
     ORDER BY data_valutazione DESC
-    LIMIT ? OFFSET ?
+    LIMIT $1 OFFSET $2
   `, [parseInt(limit), parseInt(offset)]);
   return rows;
 }
@@ -98,7 +100,7 @@ async function getValutazioni(limit = 50, offset = 0) {
  * @returns {Promise<Object|null>} Valutazione completa, null se non trovata
  */
 async function getValutazioneById(id) {
-  const [rows] = await pool.query('SELECT * FROM valutazioni WHERE id = ?', [id]);
+  const { rows } = await pool.query('SELECT * FROM valutazioni WHERE id = $1', [id]);
   return rows.length ? rows[0] : null;
 }
 
@@ -109,7 +111,7 @@ async function getValutazioneById(id) {
  * @returns {Promise<void>}
  */
 async function deleteValutazione(id) {
-  await pool.query('DELETE FROM valutazioni WHERE id = ?', [id]);
+  await pool.query('DELETE FROM valutazioni WHERE id = $1', [id]);
 }
 
 module.exports = {

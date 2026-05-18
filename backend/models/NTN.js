@@ -21,7 +21,7 @@ const { pool } = require('../config/db');
  */
 async function getNTNZona(nome, tipo, comune = 'Cagliari') {
 
-  const [rows] = await pool.query(`
+  const { rows } = await pool.query(`
     SELECT
       anno,
       SUM(ntn_compravendita) AS ntn_compravendita,
@@ -29,9 +29,9 @@ async function getNTNZona(nome, tipo, comune = 'Cagliari') {
     FROM omi_ntn
     WHERE zona_codice IN (
       SELECT link_zona FROM omi_zone
-      WHERE descrizione_zona = ? AND comune = ?
+      WHERE descrizione_zona = $1 AND comune = $2
     )
-    AND descrizione_tipologia = ?
+    AND descrizione_tipologia = $3
     GROUP BY anno
     ORDER BY anno ASC
   `, [nome, comune, tipo]);
@@ -46,8 +46,11 @@ async function getNTNZona(nome, tipo, comune = 'Cagliari') {
  * @returns {Promise<Object>} { totale_ntn, anni_disponibili[] }
  */
 async function getStatsNTN() {
-  const [[{ totale }]] = await pool.query('SELECT COUNT(*) AS totale FROM omi_ntn');
-  const [anni]         = await pool.query('SELECT DISTINCT anno FROM omi_ntn ORDER BY anno DESC');
+  const { rows: countRows } = await pool.query('SELECT COUNT(*) AS totale FROM omi_ntn');
+  const totale = countRows[0].totale;
+
+  const { rows: anni } = await pool.query('SELECT DISTINCT anno FROM omi_ntn ORDER BY anno DESC');
+
   return {
     totale_ntn: totale,
     anni_disponibili: anni.map(r => r.anno),
