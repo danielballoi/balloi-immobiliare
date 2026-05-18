@@ -69,7 +69,30 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\" -Recurse -Depth 2)",
       "Bash(ConvertTo-Json -Depth 10)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\" -Recurse -Depth 2 | Select-Object FullName | ForEach-Object { $_.FullName })",
-      "Bash(npx kill-port *)"
+      "Bash(npx kill-port *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(npm --version)",
+      "Bash(docker --version)",
+      "Bash(psql *)",
+      "PowerShell(psql *)",
+      "PowerShell(ls \"C:\\\\Program Files\\\\\" | Select-Object Name | Sort-Object Name)",
+      "PowerShell(wsl --status 2>&1; wsl psql --version 2>&1)",
+      "PowerShell(winget *)",
+      "PowerShell(choco *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(npm uninstall *)",
+      "PowerShell($env:PGPASSWORD = \"\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -c \"CREATE USER devuser WITH SUPERUSER PASSWORD 'devpass';\" 2>&1)",
+      "PowerShell($env:PGPASSWORD = \"postgres\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -h localhost -c \"SELECT version\\(\\);\" 2>&1 | Out-String)",
+      "PowerShell($env:PGPASSWORD = \"postgres\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -h localhost -c \"CREATE USER devuser WITH SUPERUSER PASSWORD 'devpass';\" 2>&1 | Out-String)",
+      "PowerShell($env:PGPASSWORD = \"postgres\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -h localhost -c \"CREATE DATABASE balloi OWNER devuser;\" 2>&1 | Out-String)",
+      "PowerShell($env:PGPASSWORD = \"devpass\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U devuser -d balloi -h localhost -c \"SELECT version\\(\\);\" 2>&1 | Out-String)",
+      "Bash(echo \"Server PID: $!\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:5000/api/zone)",
+      "PowerShell(Stop-Process *)"
     ]
   }
 }
