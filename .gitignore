@@ -9,3 +9,4 @@ dist-ssr/
 .DS_Store
 .claude/
 data_migration_backups/
+backend/node_modules
