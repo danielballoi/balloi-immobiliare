@@ -92,7 +92,30 @@
       "Bash(echo \"Server PID: $!\")",
       "Read(//tmp/**)",
       "Bash(curl -s http://localhost:5000/api/zone)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(cat frontend/vite.config.js)",
+      "Bash(cat frontend/vite.config.ts)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/api/health)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:5000/api/health\" -Method Get | ConvertTo-Json)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -u root --password=\"\" -e \"SHOW DATABASES;\" 2>$null)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -u root --password=\"\" omi -e \"SHOW TABLES;\" 2>$null)",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .users.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(600, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .valutazioni.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(800, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .strade_cagliari.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(400, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .omi_zone.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(500, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .censimenti_immobili.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(600, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .portafoglio.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(600, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_mysql.sql\" -Pattern \"^INSERT INTO .segnalazioni.\" | Select-Object -First 1 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(600, $_.Line.Length\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_pg.sql\" -Pattern \"ON CONFLICT DO NOTHING\" | ForEach-Object { $_.Line.Substring\\(0, 80\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_pg.sql\" -Pattern \"^INSERT INTO users\" | ForEach-Object { $_.Line.Substring\\(0, 400\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_pg.sql\" -Pattern \"^INSERT INTO valutazioni\" | ForEach-Object { $_.Line.Substring\\(0, 600\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backup_data_pg.sql\" -Pattern \"^INSERT INTO omi_zone\" | ForEach-Object { $_.Line.Substring\\(0, 500\\) })",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -u root --password=\"\" omi -e \"DESCRIBE valutazioni;\" 2>$null)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -u root --password=\"\" omi -e \"DESCRIBE censimenti_immobili;\" 2>$null)",
+      "PowerShell(cd \"C:\\\\Users\\\\dalib\\\\Desktop\\\\balloi-immobiiare\\\\backend\" ; Start-Process -NoNewWindow -FilePath \"node\" -ArgumentList \"server.js\" -PassThru | ForEach-Object { Write-Output \"Server PID: $\\($_.Id\\)\" }; Start-Sleep -Seconds 4; Invoke-RestMethod -Uri \"http://localhost:5000/api/health\" -ErrorAction SilentlyContinue | ConvertTo-Json)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -u root --password=\"\" omi -e \"SELECT id, user_id, indirizzo FROM portafoglio;\" 2>$null)",
+      "Bash(mkdir -p data_migration_backups)",
+      "Bash(mv backup_data_mysql.sql backup_data_pg.sql backup_pg_pre_import.sql import_errors.log convert_mysql_to_pg.js data_migration_backups/)"
     ]
   }
 }
