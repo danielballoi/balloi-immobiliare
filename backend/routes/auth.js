@@ -37,10 +37,16 @@ const authLimiter = rateLimit({
 });
 
 // ── Cookie options base ────────────────────────────────────────────────────
+// In produzione FE (Vercel) e BE (Render) sono su domini diversi, quindi le
+// richieste sono "cross-site": SameSite=None è necessario perché il browser
+// invii il cookie, ed è consentito solo insieme a Secure (richiede HTTPS).
+// In locale invece FE e BE sono sullo stesso host (localhost) → Lax va bene
+// anche senza HTTPS.
+const isProd = process.env.NODE_ENV === 'production';
 const cookieBase = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
   path: '/',
 };
 
