@@ -12,7 +12,6 @@ const { pool } = require('../config/db');
 
 /**
  * Recupera valori OMI con filtri opzionali.
- * I placeholder vengono numerati dinamicamente: $1, $2, ...
  *
  * @param {Object} filtri               - Filtri da applicare
  * @param {string} [filtri.zona_codice] - Codice zona OMI
@@ -34,17 +33,16 @@ async function getValori({ zona_codice, tipologia, stato, anno, semestre } = {})
     WHERE 1=1
   `;
   const params = [];
-  let idx = 1;
 
-  if (zona_codice) { sql += ` AND v.zona_codice = $${idx++}`;               params.push(zona_codice); }
-  if (tipologia)   { sql += ` AND v.descrizione_tipologia LIKE $${idx++}`;  params.push(`%${tipologia}%`); }
-  if (stato)       { sql += ` AND v.stato = $${idx++}`;                     params.push(stato); }
-  if (anno)        { sql += ` AND v.anno = $${idx++}`;                      params.push(anno); }
-  if (semestre)    { sql += ` AND v.semestre LIKE $${idx++}`;               params.push(`%${semestre}%`); }
+  if (zona_codice) { sql += ' AND v.zona_codice = ?';               params.push(zona_codice); }
+  if (tipologia)   { sql += ' AND v.descrizione_tipologia LIKE ?';  params.push(`%${tipologia}%`); }
+  if (stato)       { sql += ' AND v.stato = ?';                     params.push(stato); }
+  if (anno)        { sql += ' AND v.anno = ?';                      params.push(anno); }
+  if (semestre)    { sql += ' AND v.semestre LIKE ?';               params.push(`%${semestre}%`); }
 
   sql += ' ORDER BY v.anno DESC, v.semestre DESC LIMIT 200';
 
-  const { rows } = await pool.query(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows;
 }
 
@@ -54,7 +52,7 @@ async function getValori({ zona_codice, tipologia, stato, anno, semestre } = {})
  * @returns {Promise<string[]>} Array di nomi tipologia
  */
 async function getTipologie() {
-  const { rows } = await pool.query(`
+  const [rows] = await pool.query(`
     SELECT DISTINCT descrizione_tipologia
     FROM omi_valori
     WHERE descrizione_tipologia IS NOT NULL
@@ -69,7 +67,7 @@ async function getTipologie() {
  * @returns {Promise<Array>} Array di { anno, semestre }
  */
 async function getAnniDisponibili() {
-  const { rows } = await pool.query(`
+  const [rows] = await pool.query(`
     SELECT DISTINCT anno, semestre
     FROM omi_valori
     ORDER BY anno DESC, semestre DESC
@@ -79,7 +77,8 @@ async function getAnniDisponibili() {
 
 /**
  * Statistiche prezzi per zona (anno più recente), ripartite per tipologia e stato.
- * Se viene passato `nome`, aggrega TUTTE le sottozone con lo stesso nome quartiere.
+ * Se viene passato `nome`, aggrega TUTTE le sottozone con lo stesso nome quartiere
+ * (utile quando un quartiere ha più codici OMI interni).
  *
  * @param {string} zona  - Codice zona OMI (usato se nome non specificato)
  * @param {string} [nome] - Nome quartiere (aggrega per nome, ignorando zona)
@@ -103,7 +102,7 @@ async function getStatistiche(zona, nome = null, comune = 'Cagliari') {
       FROM omi_valori v
       WHERE v.zona_codice IN (
         SELECT link_zona FROM omi_zone
-        WHERE descrizione_zona = $1 AND comune = $2
+        WHERE descrizione_zona = ? AND comune = ?
       )
       AND v.anno = (SELECT MAX(anno) FROM omi_valori)
       GROUP BY v.stato, v.descrizione_tipologia
@@ -122,7 +121,7 @@ async function getStatistiche(zona, nome = null, comune = 'Cagliari') {
         AVG((v.loc_min + v.loc_max) / 2)     AS locazione_media_mq,
         COUNT(*)                             AS num_records
       FROM omi_valori v
-      WHERE v.zona_codice = $1
+      WHERE v.zona_codice = ?
         AND v.anno = (SELECT MAX(anno) FROM omi_valori)
       GROUP BY v.stato, v.descrizione_tipologia
       ORDER BY v.stato, v.descrizione_tipologia
@@ -130,7 +129,7 @@ async function getStatistiche(zona, nome = null, comune = 'Cagliari') {
     params = [zona];
   }
 
-  const { rows } = await pool.query(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows;
 }
 
@@ -160,12 +159,12 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
       FROM omi_valori
       WHERE zona_codice IN (
         SELECT link_zona FROM omi_zone
-        WHERE descrizione_zona = $1 AND comune = $2
+        WHERE descrizione_zona = ? AND comune = ?
       )
-      AND stato = $3
+      AND stato = ?
     `;
     params = [nome, comune, stato];
-    if (tipologia) { sql += ` AND descrizione_tipologia LIKE $${params.length + 1}`; params.push(`%${tipologia}%`); }
+    if (tipologia) { sql += ' AND descrizione_tipologia LIKE ?'; params.push(`%${tipologia}%`); }
     sql += ' GROUP BY anno ORDER BY anno ASC';
   } else {
     // Trend per codice zona esatto, raggruppato per semestre
@@ -176,14 +175,14 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
         AVG((compr_min + compr_max) / 2) AS prezzo_medio_mq,
         AVG((loc_min   + loc_max)   / 2) AS locazione_media_mq
       FROM omi_valori
-      WHERE zona_codice = $1 AND stato = $2
+      WHERE zona_codice = ? AND stato = ?
     `;
     params = [zona, stato];
-    if (tipologia) { sql += ` AND descrizione_tipologia LIKE $${params.length + 1}`; params.push(`%${tipologia}%`); }
+    if (tipologia) { sql += ' AND descrizione_tipologia LIKE ?'; params.push(`%${tipologia}%`); }
     sql += ' GROUP BY anno, semestre ORDER BY anno ASC, semestre ASC';
   }
 
-  const { rows } = await pool.query(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows;
 }
 
@@ -199,7 +198,7 @@ async function getTrend(zona, { nome, stato = 'NORMALE', tipologia, comune = 'Ca
  */
 async function getTipologiaAnnuale(nome, tipo, stato = 'NORMALE', comune = 'Cagliari') {
 
-  const { rows } = await pool.query(`
+  const [rows] = await pool.query(`
     SELECT
       anno,
       COUNT(*)                             AS num_records,
@@ -210,10 +209,10 @@ async function getTipologiaAnnuale(nome, tipo, stato = 'NORMALE', comune = 'Cagl
     FROM omi_valori
     WHERE zona_codice IN (
       SELECT link_zona FROM omi_zone
-      WHERE descrizione_zona = $1 AND comune = $2
+      WHERE descrizione_zona = ? AND comune = ?
     )
-    AND descrizione_tipologia = $3
-    AND stato = $4
+    AND descrizione_tipologia = ?
+    AND stato = ?
     GROUP BY anno
     ORDER BY anno ASC
   `, [nome, comune, tipo, stato]);

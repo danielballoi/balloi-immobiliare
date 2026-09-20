@@ -18,7 +18,7 @@ import axios from 'axios';
 // ── Istanza Axios configurata ──────────────────────────────────────────────
 // withCredentials: true → invia i cookie httpOnly al backend (XSS-safe auth)
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: '/api',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,

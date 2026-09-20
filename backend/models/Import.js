@@ -25,7 +25,7 @@ function parseNumeroCSV(val) {
 
 /**
  * Importa un array di righe CSV nella tabella omi_valori (prezzi).
- * Usa transazione PostgreSQL per garantire atomicità (tutto o niente).
+ * Usa transazione MySQL per garantire atomicità (tutto o niente).
  *
  * @param {string}   filename - Nome del file CSV originale (per il log)
  * @param {Array}    righe    - Array di oggetti (colonne normalizzate a lowercase)
@@ -34,21 +34,19 @@ function parseNumeroCSV(val) {
 async function importaCSVValori(filename, righe) {
 
   // Crea record nel log di import (stato: processing)
-  const { rows: logRows } = await pool.query(`
+  const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
-    VALUES ($1, 'Import CSV', $2, 'processing')
-    RETURNING id
+    VALUES (?, 'Import CSV', ?, 'processing')
   `, [filename, righe.length]);
-  const logId = logRows[0].id;
+  const logId = logResult.insertId;
 
   const errori = [];
   let righe_importate = 0;
   let righe_errore = 0;
 
-  // Usa client dedicato per la transazione
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     for (let i = 0; i < righe.length; i++) {
       const riga = righe[i];
@@ -70,17 +68,17 @@ async function importaCSVValori(filename, righe) {
           throw new Error(`Riga ${i + 2}: campi obbligatori mancanti`);
         }
 
-        // INSERT con ON CONFLICT per non creare duplicati se si reimporta lo stesso file
-        await client.query(`
+        // INSERT con ON DUPLICATE KEY per non creare duplicati se si reimporta lo stesso file
+        await conn.query(`
           INSERT INTO omi_valori
             (zona_codice, descrizione_tipologia, stato, anno, semestre,
              compr_min, compr_max, loc_min, loc_max)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          ON CONFLICT (zona_codice, descrizione_tipologia, stato, anno, semestre) DO UPDATE SET
-            compr_min = EXCLUDED.compr_min,
-            compr_max = EXCLUDED.compr_max,
-            loc_min   = EXCLUDED.loc_min,
-            loc_max   = EXCLUDED.loc_max
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            compr_min = VALUES(compr_min),
+            compr_max = VALUES(compr_max),
+            loc_min   = VALUES(loc_min),
+            loc_max   = VALUES(loc_max)
         `, [zona_codice, descrizione_tipologia, stato, anno, semestre,
             compravendita_min, compravendita_max, locazione_min, locazione_max]);
 
@@ -95,22 +93,22 @@ async function importaCSVValori(filename, righe) {
       }
     }
 
-    await client.query('COMMIT');
+    await conn.commit();
   } catch (errTx) {
-    await client.query('ROLLBACK');
+    await conn.rollback();
     console.error('[MODEL-IMPORT] Rollback transazione:', errTx.message);
-    await pool.query('UPDATE import_log SET stato=$1, errori=$2 WHERE id=$3', ['error', errTx.message, logId]);
+    await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
     throw errTx;
   } finally {
-    client.release();
+    conn.release();
   }
 
   // Aggiorna il log con il risultato finale
   const statoFinale = righe_errore === 0 ? 'success' : (righe_importate === 0 ? 'error' : 'partial');
   await pool.query(`
     UPDATE import_log
-    SET stato=$1, righe_importate=$2, righe_errore=$3, errori=$4
-    WHERE id=$5
+    SET stato=?, righe_importate=?, righe_errore=?, errori=?
+    WHERE id=?
   `, [statoFinale, righe_importate, righe_errore, errori.slice(0, 50).join('\n'), logId]);
 
   return {
@@ -132,20 +130,19 @@ async function importaCSVValori(filename, righe) {
  */
 async function importaCSVNTN(filename, righe) {
 
-  const { rows: logRows } = await pool.query(`
+  const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
-    VALUES ($1, 'Import NTN', $2, 'processing')
-    RETURNING id
+    VALUES (?, 'Import NTN', ?, 'processing')
   `, [filename, righe.length]);
-  const logId = logRows[0].id;
+  const logId = logResult.insertId;
 
   const errori = [];
   let righe_importate = 0;
   let righe_errore = 0;
 
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     for (let i = 0; i < righe.length; i++) {
       const r = righe[i];
@@ -164,12 +161,12 @@ async function importaCSVNTN(filename, righe) {
           throw new Error(`Riga ${i + 2}: zona_codice, tipologia e anno sono obbligatori`);
         }
 
-        await client.query(`
+        await conn.query(`
           INSERT INTO omi_ntn (comune, zona_codice, fascia, descrizione_tipologia, anno, semestre, ntn_compravendita, ntn_locazione)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (zona_codice, descrizione_tipologia, anno, semestre) DO UPDATE SET
-            ntn_compravendita = EXCLUDED.ntn_compravendita,
-            ntn_locazione     = EXCLUDED.ntn_locazione
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            ntn_compravendita = VALUES(ntn_compravendita),
+            ntn_locazione     = VALUES(ntn_locazione)
         `, [comune, zona_codice, fascia, tipo, anno, semestre, ntn_compr, ntn_loc]);
 
         righe_importate++;
@@ -180,18 +177,18 @@ async function importaCSVNTN(filename, righe) {
       }
     }
 
-    await client.query('COMMIT');
+    await conn.commit();
   } catch (errTx) {
-    await client.query('ROLLBACK');
-    await pool.query('UPDATE import_log SET stato=$1, errori=$2 WHERE id=$3', ['error', errTx.message, logId]);
+    await conn.rollback();
+    await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
     throw errTx;
   } finally {
-    client.release();
+    conn.release();
   }
 
   const statoFinale = righe_errore === 0 ? 'success' : (righe_importate === 0 ? 'error' : 'partial');
   await pool.query(`
-    UPDATE import_log SET stato=$1, righe_importate=$2, righe_errore=$3, errori=$4 WHERE id=$5
+    UPDATE import_log SET stato=?, righe_importate=?, righe_errore=?, errori=? WHERE id=?
   `, [statoFinale, righe_importate, righe_errore, errori.slice(0, 50).join('\n'), logId]);
 
   return {
@@ -216,20 +213,19 @@ async function importaCSVNTN(filename, righe) {
  */
 async function importaCSVZone(filename, righe) {
 
-  const { rows: logRows } = await pool.query(`
+  const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
-    VALUES ($1, 'Import Zone', $2, 'processing')
-    RETURNING id
+    VALUES (?, 'Import Zone', ?, 'processing')
   `, [filename, righe.length]);
-  const logId = logRows[0].id;
+  const logId = logResult.insertId;
 
   const errori = [];
   let righe_importate = 0;
   let righe_errore = 0;
 
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     for (let i = 0; i < righe.length; i++) {
       const r = righe[i];
@@ -248,15 +244,15 @@ async function importaCSVZone(filename, righe) {
         // Imposta area automaticamente: Cagliari città o hinterland?
         const area = comune.toLowerCase() === 'cagliari' ? 'CAGLIARI' : 'HINTERLAND';
 
-        await client.query(`
+        await conn.query(`
           INSERT INTO omi_zone (link_zona, descrizione_zona, comune, fascia, tipologia, area)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (link_zona) DO UPDATE SET
-            descrizione_zona = EXCLUDED.descrizione_zona,
-            comune           = EXCLUDED.comune,
-            fascia           = EXCLUDED.fascia,
-            tipologia        = EXCLUDED.tipologia,
-            area             = EXCLUDED.area
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            descrizione_zona = VALUES(descrizione_zona),
+            comune           = VALUES(comune),
+            fascia           = VALUES(fascia),
+            tipologia        = VALUES(tipologia),
+            area             = VALUES(area)
         `, [link_zona, descrizione_zona, comune, fascia, tipologia, area]);
 
         righe_importate++;
@@ -267,18 +263,18 @@ async function importaCSVZone(filename, righe) {
       }
     }
 
-    await client.query('COMMIT');
+    await conn.commit();
   } catch (errTx) {
-    await client.query('ROLLBACK');
-    await pool.query('UPDATE import_log SET stato=$1, errori=$2 WHERE id=$3', ['error', errTx.message, logId]);
+    await conn.rollback();
+    await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
     throw errTx;
   } finally {
-    client.release();
+    conn.release();
   }
 
   const statoFinale = righe_errore === 0 ? 'success' : (righe_importate === 0 ? 'error' : 'partial');
   await pool.query(`
-    UPDATE import_log SET stato=$1, righe_importate=$2, righe_errore=$3, errori=$4 WHERE id=$5
+    UPDATE import_log SET stato=?, righe_importate=?, righe_errore=?, errori=? WHERE id=?
   `, [statoFinale, righe_importate, righe_errore, errori.slice(0, 50).join('\n'), logId]);
 
   return {
@@ -295,7 +291,7 @@ async function importaCSVZone(filename, righe) {
  * Inserisce manualmente un singolo record in omi_valori.
  *
  * @param {Object} dati - Dati del record da inserire
- * @returns {Promise<Object>} Risultato con rowCount
+ * @returns {Promise<Object>} Risultato MySQL (affectedRows)
  */
 async function insertManuale(dati) {
   const {
@@ -304,16 +300,17 @@ async function insertManuale(dati) {
     locazione_min, locazione_max,
   } = dati;
 
-  const result = await pool.query(`
+
+  const [result] = await pool.query(`
     INSERT INTO omi_valori
       (zona_codice, descrizione_tipologia, stato, anno, semestre,
        compr_min, compr_max, loc_min, loc_max)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    ON CONFLICT (zona_codice, descrizione_tipologia, stato, anno, semestre) DO UPDATE SET
-      compr_min = EXCLUDED.compr_min,
-      compr_max = EXCLUDED.compr_max,
-      loc_min   = EXCLUDED.loc_min,
-      loc_max   = EXCLUDED.loc_max
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      compr_min = VALUES(compr_min),
+      compr_max = VALUES(compr_max),
+      loc_min   = VALUES(loc_min),
+      loc_max   = VALUES(loc_max)
   `, [zona_codice, descrizione_tipologia, stato, parseInt(anno), parseInt(semestre),
       parseFloat(compravendita_min), parseFloat(compravendita_max),
       locazione_min ? parseFloat(locazione_min) : null,
@@ -335,12 +332,12 @@ async function insertManuale(dati) {
  * @returns {Promise<Array>} Lista import log
  */
 async function getImportLog(limit = 20) {
-  const { rows } = await pool.query(`
+  const [rows] = await pool.query(`
     SELECT id, filename, tipo, righe_totali, righe_importate, righe_errore,
            stato, data_import
     FROM import_log
     ORDER BY data_import DESC
-    LIMIT $1
+    LIMIT ?
   `, [parseInt(limit)]);
   return rows;
 }
@@ -351,17 +348,12 @@ async function getImportLog(limit = 20) {
  * @returns {Promise<Object>} { totale_valori, totale_zone, anni_disponibili }
  */
 async function getStatsDatabase() {
-  const { rows: rvRows } = await pool.query('SELECT COUNT(*) AS totale FROM omi_valori');
-  const totaleValori = rvRows[0].totale;
-
-  const { rows: rzRows } = await pool.query('SELECT COUNT(*) AS totale FROM omi_zone');
-  const totaleZone = rzRows[0].totale;
-
-  const { rows: anni } = await pool.query('SELECT DISTINCT anno FROM omi_valori ORDER BY anno DESC LIMIT 5');
-
+  const [[totaleValori]] = await pool.query('SELECT COUNT(*) AS totale FROM omi_valori');
+  const [[totaleZone]]   = await pool.query('SELECT COUNT(*) AS totale FROM omi_zone');
+  const [anni]           = await pool.query('SELECT DISTINCT anno FROM omi_valori ORDER BY anno DESC LIMIT 5');
   return {
-    totale_valori: totaleValori,
-    totale_zone:   totaleZone,
+    totale_valori: totaleValori.totale,
+    totale_zone:   totaleZone.totale,
     anni_disponibili: anni.map(r => r.anno),
   };
 }
@@ -397,13 +389,13 @@ function leggiCSV(filePath) {
 
 /**
  * Inserisce zone da righe CSV nel formato ufficiale OMI (ZONE.csv).
- * Usa INSERT ... ON CONFLICT DO NOTHING per saltare zone già presenti (dedup su link_zona).
+ * Usa INSERT IGNORE per saltare zone già presenti (dedup su link_zona).
  *
  * @param {Array}  righe      - Righe CSV già parsate
- * @param {Object} client     - Client PostgreSQL in transazione
+ * @param {Object} conn       - Connessione MySQL
  * @returns {{ importate: number, saltate: number }}
  */
-async function _inserisciZoneOMI(righe, client) {
+async function _inserisciZoneOMI(righe, conn) {
   let importate = 0;
   let saltate   = 0;
 
@@ -420,14 +412,13 @@ async function _inserisciZoneOMI(righe, client) {
 
     if (!linkZona || !zona) continue; // riga intestazione o vuota
 
-    const result = await client.query(`
-      INSERT INTO omi_zone
+    const [result] = await conn.query(`
+      INSERT IGNORE INTO omi_zone
         (comune_istat, comune, fascia, zona, zona_codice, link_zona, descrizione_zona, microzona, tipologia)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (link_zona) DO NOTHING
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [comuneIst, comune, fascia, zona, linkZona, linkZona, descZona, microzona, tipologia]);
 
-    if (result.rowCount > 0) importate++;
+    if (result.affectedRows > 0) importate++;
     else saltate++;
   }
 
@@ -436,15 +427,15 @@ async function _inserisciZoneOMI(righe, client) {
 
 /**
  * Inserisce valori da righe CSV nel formato ufficiale OMI (VALORI.csv).
- * Usa INSERT ... ON CONFLICT DO NOTHING per saltare valori già presenti.
+ * Usa INSERT IGNORE per saltare valori già presenti.
  *
  * @param {Array}  righe    - Righe CSV già parsate
  * @param {number} anno     - Anno ricavato dal nome cartella
  * @param {string} semestre - Semestre nel formato '2024_01'
- * @param {Object} client   - Client PostgreSQL in transazione
+ * @param {Object} conn     - Connessione MySQL
  * @returns {{ importate: number, saltate: number }}
  */
-async function _inserisciValoriOMI(righe, anno, semestre, client) {
+async function _inserisciValoriOMI(righe, anno, semestre, conn) {
   let importate = 0;
   let saltate   = 0;
 
@@ -462,16 +453,15 @@ async function _inserisciValoriOMI(righe, anno, semestre, client) {
 
     if (!zonaCodice || !descTip || comprMin === null) continue;
 
-    const result = await client.query(`
-      INSERT INTO omi_valori
+    const [result] = await conn.query(`
+      INSERT IGNORE INTO omi_valori
         (zona_codice, fascia, tipologia, descrizione_tipologia, stato,
          compr_min, compr_max, loc_min, loc_max, superficie, anno, semestre)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      ON CONFLICT (zona_codice, descrizione_tipologia, stato, anno, semestre) DO NOTHING
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [zonaCodice, fascia, tipologia, descTip, stato,
         comprMin, comprMax, locMin, locMax, superficie, anno, semestre]);
 
-    if (result.rowCount > 0) importate++;
+    if (result.affectedRows > 0) importate++;
     else saltate++;
   }
 
@@ -502,12 +492,11 @@ async function importaCartellaOMI(cartellaBase) {
     throw new Error('Nessuna cartella semestre trovata (formato atteso: YYYY_SS_PROV)');
   }
 
-  const { rows: logRows } = await pool.query(`
+  const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
-    VALUES ($1, 'Import Hinterland', $2, 'processing')
-    RETURNING id
+    VALUES (?, 'Import Hinterland', ?, 'processing')
   `, [`DATI_HINTERLAND (${subdir.length} semestri)`, subdir.length]);
-  const logId = logRows[0].id;
+  const logId = logResult.insertId;
 
   let totZoneImportate  = 0;
   let totZoneSaltate    = 0;
@@ -515,9 +504,9 @@ async function importaCartellaOMI(cartellaBase) {
   let totValSaltati     = 0;
   const errori = [];
 
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     for (const cartella of subdir) {
       // Ricava anno e semestre dal nome cartella (es. 2024_01_PROV → anno=2024, sem=2024_01)
@@ -533,7 +522,7 @@ async function importaCartellaOMI(cartellaBase) {
       for (const zoneFile of zoneFiles) {
         try {
           const righe = leggiCSV(path.join(dirPath, zoneFile));
-          const stats = await _inserisciZoneOMI(righe, client);
+          const stats = await _inserisciZoneOMI(righe, conn);
           totZoneImportate += stats.importate;
           totZoneSaltate   += stats.saltate;
         } catch (e) {
@@ -547,7 +536,7 @@ async function importaCartellaOMI(cartellaBase) {
       for (const valFile of valFiles) {
         try {
           const righe = leggiCSV(path.join(dirPath, valFile));
-          const stats = await _inserisciValoriOMI(righe, anno, semestre, client);
+          const stats = await _inserisciValoriOMI(righe, anno, semestre, conn);
           totValImportati += stats.importate;
           totValSaltati   += stats.saltate;
         } catch (e) {
@@ -557,20 +546,20 @@ async function importaCartellaOMI(cartellaBase) {
       }
     }
 
-    await client.query('COMMIT');
+    await conn.commit();
   } catch (errTx) {
-    await client.query('ROLLBACK');
-    await pool.query('UPDATE import_log SET stato=$1, errori=$2 WHERE id=$3', ['error', errTx.message, logId]);
+    await conn.rollback();
+    await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
     throw errTx;
   } finally {
-    client.release();
+    conn.release();
   }
 
   const stato = errori.length === 0 ? 'success' : 'partial';
   await pool.query(`
     UPDATE import_log
-    SET stato=$1, righe_importate=$2, righe_errore=$3, errori=$4
-    WHERE id=$5
+    SET stato=?, righe_importate=?, righe_errore=?, errori=?
+    WHERE id=?
   `, [stato, totZoneImportate + totValImportati, errori.length,
       errori.slice(0, 50).join('\n'), logId]);
 
@@ -618,21 +607,22 @@ function _parseOMIBuffer(buffer) {
 /**
  * Importa ZONE.csv nel formato ufficiale OMI (file semestrale dell'Agenzia delle Entrate).
  * Ogni riga deve avere Prov=CA — le righe di altre province vengono saltate e conteggiate.
- * Usa ON CONFLICT DO UPDATE: idempotente alla re-importazione dello stesso semestre.
+ * Usa ON DUPLICATE KEY UPDATE: idempotente alla re-importazione dello stesso semestre.
  *
  * @param {string} filename - Nome del file originale (per il log)
  * @param {Buffer} buffer   - Contenuto del file CSV
- * @returns {Promise<Object>} Statistiche import
+ * @returns {Promise<Object>} { log_id, anno_rilevato, semestre_rilevato, righe_totali,
+ *                              importate, aggiornate, saltate_provincia_errata, saltate_vuote,
+ *                              errori_campione, stato }
  */
 async function importaOMISemestraleZone(filename, buffer) {
   const { annoRilevato, semestreRilevato, righe } = _parseOMIBuffer(buffer);
 
-  const { rows: logRows } = await pool.query(`
+  const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
-    VALUES ($1, 'OMI Semestrale Zone', $2, 'processing')
-    RETURNING id
+    VALUES (?, 'OMI Semestrale Zone', ?, 'processing')
   `, [filename, righe.length]);
-  const logId = logRows[0].id;
+  const logId = logResult.insertId;
 
   let importate  = 0;
   let aggiornate = 0;
@@ -640,9 +630,9 @@ async function importaOMISemestraleZone(filename, buffer) {
   let saltate_vuote     = 0;
   const errori = [];
 
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     for (let i = 0; i < righe.length; i++) {
       const r = righe[i];
@@ -665,26 +655,24 @@ async function importaOMISemestraleZone(filename, buffer) {
       const area       = comune.toUpperCase() === 'CAGLIARI' ? 'CAGLIARI' : 'HINTERLAND';
 
       try {
-        const result = await client.query(`
+        const [result] = await conn.query(`
           INSERT INTO omi_zone
             (comune_istat, comune, fascia, zona, zona_codice, link_zona,
              descrizione_zona, microzona, tipologia, area)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (link_zona) DO UPDATE SET
-            comune_istat     = EXCLUDED.comune_istat,
-            comune           = EXCLUDED.comune,
-            fascia           = EXCLUDED.fascia,
-            descrizione_zona = EXCLUDED.descrizione_zona,
-            microzona        = EXCLUDED.microzona,
-            tipologia        = EXCLUDED.tipologia,
-            area             = EXCLUDED.area
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            comune_istat     = VALUES(comune_istat),
+            comune           = VALUES(comune),
+            fascia           = VALUES(fascia),
+            descrizione_zona = VALUES(descrizione_zona),
+            microzona        = VALUES(microzona),
+            tipologia        = VALUES(tipologia),
+            area             = VALUES(area)
         `, [comuneIst, comune, fascia, zona, linkZona, linkZona,
             descZona, microzona, tipologia, area]);
 
-        // rowCount 1 = insert nuovo oppure update — usiamo xmax per distinguere insert da update
-        // In PostgreSQL ON CONFLICT DO UPDATE restituisce sempre rowCount=1.
-        // Usiamo il numero di aggiornati vs inseriti in modo semplificato:
-        if (result.rowCount === 1) importate++;
+        // affectedRows 1 = insert nuovo, 2 = aggiornamento duplicato
+        if (result.affectedRows === 1) importate++;
         else aggiornate++;
       } catch (errRiga) {
         errori.push(`Riga ${i + 3}: ${errRiga.message}`);
@@ -692,19 +680,19 @@ async function importaOMISemestraleZone(filename, buffer) {
       }
     }
 
-    await client.query('COMMIT');
+    await conn.commit();
   } catch (errTx) {
-    await client.query('ROLLBACK');
-    await pool.query('UPDATE import_log SET stato=$1, errori=$2 WHERE id=$3', ['error', errTx.message, logId]);
+    await conn.rollback();
+    await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
     throw errTx;
   } finally {
-    client.release();
+    conn.release();
   }
 
   const totOk    = importate + aggiornate;
   const stato    = errori.length === 0 ? 'success' : (totOk === 0 ? 'error' : 'partial');
   await pool.query(`
-    UPDATE import_log SET stato=$1, righe_importate=$2, righe_errore=$3, errori=$4 WHERE id=$5
+    UPDATE import_log SET stato=?, righe_importate=?, righe_errore=?, errori=? WHERE id=?
   `, [stato, totOk, errori.length + saltate_provincia, errori.slice(0, 50).join('\n'), logId]);
 
   return {
@@ -725,7 +713,7 @@ async function importaOMISemestraleZone(filename, buffer) {
  * Importa VALORI.csv nel formato ufficiale OMI (file semestrale dell'Agenzia delle Entrate).
  * Anno e semestre vengono estratti automaticamente dalla riga di metadati del CSV.
  * Ogni riga deve avere Prov=CA — le righe di altre province vengono saltate.
- * Usa ON CONFLICT DO UPDATE: idempotente alla re-importazione dello stesso semestre.
+ * Usa ON DUPLICATE KEY UPDATE: idempotente alla re-importazione dello stesso semestre.
  *
  * @param {string} filename - Nome del file originale (per il log)
  * @param {Buffer} buffer   - Contenuto del file CSV
@@ -741,12 +729,11 @@ async function importaOMISemestraleValori(filename, buffer) {
     );
   }
 
-  const { rows: logRows } = await pool.query(`
+  const [logResult] = await pool.query(`
     INSERT INTO import_log (filename, tipo, righe_totali, stato)
-    VALUES ($1, 'OMI Semestrale Valori', $2, 'processing')
-    RETURNING id
+    VALUES (?, 'OMI Semestrale Valori', ?, 'processing')
   `, [filename, righe.length]);
-  const logId = logRows[0].id;
+  const logId = logResult.insertId;
 
   let importate  = 0;
   let aggiornate = 0;
@@ -754,9 +741,9 @@ async function importaOMISemestraleValori(filename, buffer) {
   let saltate_vuote     = 0;
   const errori = [];
 
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     for (let i = 0; i < righe.length; i++) {
       const r = righe[i];
@@ -780,23 +767,23 @@ async function importaOMISemestraleValori(filename, buffer) {
       const superficie = (r.sup_nl_compr || '').trim();
 
       try {
-        const result = await client.query(`
+        const [result] = await conn.query(`
           INSERT INTO omi_valori
             (zona_codice, fascia, tipologia, descrizione_tipologia, stato,
              compr_min, compr_max, loc_min, loc_max, superficie, anno, semestre)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-          ON CONFLICT (zona_codice, descrizione_tipologia, stato, anno, semestre) DO UPDATE SET
-            compr_min  = EXCLUDED.compr_min,
-            compr_max  = EXCLUDED.compr_max,
-            loc_min    = EXCLUDED.loc_min,
-            loc_max    = EXCLUDED.loc_max,
-            superficie = EXCLUDED.superficie,
-            fascia     = EXCLUDED.fascia
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            compr_min  = VALUES(compr_min),
+            compr_max  = VALUES(compr_max),
+            loc_min    = VALUES(loc_min),
+            loc_max    = VALUES(loc_max),
+            superficie = VALUES(superficie),
+            fascia     = VALUES(fascia)
         `, [zonaCodice, fascia, tipologia, descTip, stato,
             comprMin, comprMax, locMin, locMax, superficie,
             annoRilevato, semestreRilevato]);
 
-        if (result.rowCount === 1) importate++;
+        if (result.affectedRows === 1) importate++;
         else aggiornate++;
       } catch (errRiga) {
         errori.push(`Riga ${i + 3}: ${errRiga.message}`);
@@ -804,19 +791,19 @@ async function importaOMISemestraleValori(filename, buffer) {
       }
     }
 
-    await client.query('COMMIT');
+    await conn.commit();
   } catch (errTx) {
-    await client.query('ROLLBACK');
-    await pool.query('UPDATE import_log SET stato=$1, errori=$2 WHERE id=$3', ['error', errTx.message, logId]);
+    await conn.rollback();
+    await pool.query('UPDATE import_log SET stato=?, errori=? WHERE id=?', ['error', errTx.message, logId]);
     throw errTx;
   } finally {
-    client.release();
+    conn.release();
   }
 
   const totOk = importate + aggiornate;
   const stato = errori.length === 0 ? 'success' : (totOk === 0 ? 'error' : 'partial');
   await pool.query(`
-    UPDATE import_log SET stato=$1, righe_importate=$2, righe_errore=$3, errori=$4 WHERE id=$5
+    UPDATE import_log SET stato=?, righe_importate=?, righe_errore=?, errori=? WHERE id=?
   `, [stato, totOk, errori.length + saltate_provincia, errori.slice(0, 50).join('\n'), logId]);
 
   return {

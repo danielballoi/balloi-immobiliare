@@ -37,11 +37,8 @@ const authLimiter = rateLimit({
 });
 
 // ── Cookie options base ────────────────────────────────────────────────────
-// In produzione FE (Vercel) e BE (Render) sono su domini diversi, quindi le
-// richieste sono "cross-site": SameSite=None è necessario perché il browser
-// invii il cookie, ed è consentito solo insieme a Secure (richiede HTTPS).
-// In locale invece FE e BE sono sullo stesso host (localhost) → Lax va bene
-// anche senza HTTPS.
+// In produzione (dominio diverso per FE/BE) servirebbe SameSite=None+Secure;
+// in locale FE e BE sono sullo stesso host quindi 'lax' basta.
 const isProd = process.env.NODE_ENV === 'production';
 const cookieBase = {
   httpOnly: true,
@@ -74,7 +71,7 @@ async function generaRefreshToken(userId) {
   const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   await pool.query(
-    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
     [userId, hash, expiresAt]
   );
   return rawToken;
@@ -137,6 +134,7 @@ router.post('/register', authLimiter, async (req, res) => {
     const password_hash = await bcrypt.hash(password, 12);
     await User.create({ username, email, password_hash, nome, cognome, ruolo: 'user', stato: 'pending' });
 
+
     res.status(202).json({
       pending: true,
       message: "Richiesta inviata! Il tuo account deve essere approvato dall'amministratore. Riceverai accesso a breve."
@@ -181,6 +179,7 @@ router.post('/login', authLimiter, async (req, res) => {
     const refreshToken = await generaRefreshToken(utente.id);
     impostaCookies(res, accessToken, refreshToken);
 
+
     res.json({
       user: {
         id:       utente.id,
@@ -210,8 +209,8 @@ router.post('/refresh', async (req, res) => {
 
   try {
     const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const { rows: righe } = await pool.query(
-      'SELECT * FROM refresh_tokens WHERE token_hash = $1 AND expires_at > NOW()',
+    const [righe] = await pool.query(
+      'SELECT * FROM refresh_tokens WHERE token_hash = ? AND expires_at > NOW()',
       [hash]
     );
 
@@ -224,13 +223,13 @@ router.post('/refresh', async (req, res) => {
     const utente = await User.findById(rt.user_id);
 
     if (!utente || utente.stato !== 'attivo') {
-      await pool.query('DELETE FROM refresh_tokens WHERE token_hash = $1', [hash]);
+      await pool.query('DELETE FROM refresh_tokens WHERE token_hash = ?', [hash]);
       cancellaCookies(res);
       return res.status(403).json({ error: 'Account non attivo' });
     }
 
     // Rotazione: elimina il vecchio, emette il nuovo
-    await pool.query('DELETE FROM refresh_tokens WHERE token_hash = $1', [hash]);
+    await pool.query('DELETE FROM refresh_tokens WHERE token_hash = ?', [hash]);
     const nuovoAccess  = generaAccessToken(utente);
     const nuovoRefresh = await generaRefreshToken(utente.id);
     impostaCookies(res, nuovoAccess, nuovoRefresh);
@@ -250,7 +249,7 @@ router.post('/logout', async (req, res) => {
   const rawToken = req.cookies?.balloi_refresh;
   if (rawToken) {
     const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    await pool.query('DELETE FROM refresh_tokens WHERE token_hash = $1', [hash]).catch(() => {});
+    await pool.query('DELETE FROM refresh_tokens WHERE token_hash = ?', [hash]).catch(() => {});
   }
   cancellaCookies(res);
   res.json({ ok: true });
