@@ -1,0 +1,60 @@
+name: balloi-immobiliare
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?imposta DB_ROOT_PASSWORD nel file .env}
+      MYSQL_DATABASE: ${DB_NAME:-omi}
+      # Utente dedicato all'app: NON usa root
+      MYSQL_USER: ${DB_USER:-balloi}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?imposta DB_PASSWORD nel file .env}
+    volumes:
+      # Dati persistenti: sopravvivono a riavvii e ricreazione del container
+      - db_data:/var/lib/mysql
+      # Solo struttura delle tabelle, eseguita al primo avvio con volume vuoto
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Nessuna porta pubblicata: il DB e' raggiungibile solo dalla rete interna di Compose
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "5000"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-omi}
+      DB_USER: ${DB_USER:-balloi}
+      DB_PASSWORD: ${DB_PASSWORD:?imposta DB_PASSWORD nel file .env}
+      JWT_SECRET: ${JWT_SECRET:?imposta JWT_SECRET nel file .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_NOME: ${ADMIN_NOME:-Admin}
+    # Nessuna porta pubblicata: si raggiunge solo tramite nginx (servizio frontend)
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  db_data:
