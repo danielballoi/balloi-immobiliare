@@ -37,13 +37,14 @@ const authLimiter = rateLimit({
 });
 
 // ── Cookie options base ────────────────────────────────────────────────────
-// In produzione (dominio diverso per FE/BE) servirebbe SameSite=None+Secure;
-// in locale FE e BE sono sullo stesso host quindi 'lax' basta.
+// Frontend e backend stanno sullo stesso dominio (dietro reverse proxy anche
+// in produzione), quindi SameSite=Lax basta di default. COOKIE_SAMESITE
+// permette di cambiarlo da env se il deploy dovesse richiederlo.
 const isProd = process.env.NODE_ENV === 'production';
 const cookieBase = {
   httpOnly: true,
   secure: isProd,
-  sameSite: isProd ? 'none' : 'lax',
+  sameSite: process.env.COOKIE_SAMESITE || 'lax',
   path: '/',
 };
 
