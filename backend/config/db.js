@@ -177,24 +177,33 @@ async function initDB() {
     await conn.query(`ALTER TABLE users ADD COLUMN cognome VARCHAR(100) DEFAULT NULL`).catch(() => {});
     await conn.query(`ALTER TABLE users ADD COLUMN stato   ENUM('pending','attivo','bloccato') DEFAULT 'pending'`).catch(() => {});
 
-    // ── Seed account Daniel admin (idempotente) ───────────────────────────
-    const [esistenti] = await conn.query(
-      'SELECT id FROM users WHERE email = ? LIMIT 1',
-      ['danielballoi1995@outlook.it']
-    );
-    if (esistenti.length === 0) {
-      const hash = await bcrypt.hash('***RIMOSSA***', 12);
-      await conn.query(
-        'INSERT INTO users (username, email, password_hash, nome, cognome, ruolo, stato) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['danielballoi', 'danielballoi1995@outlook.it', hash, 'Daniel', 'Balloi', 'admin', 'attivo']
+    // ── Seed account admin (idempotente) ──────────────────────────────────
+    // Le credenziali NON stanno nel codice: si leggono dalle variabili d'ambiente.
+    // Se ADMIN_EMAIL / ADMIN_PASSWORD mancano, il seed viene saltato.
+    const adminEmail    = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (adminEmail && adminPassword && adminPassword.length >= 12) {
+      const [esistenti] = await conn.query(
+        'SELECT id FROM users WHERE email = ? LIMIT 1',
+        [adminEmail]
       );
-      console.log('[DB] Account admin creato: danielballoi1995@outlook.it');
+      if (esistenti.length === 0) {
+        const hash = await bcrypt.hash(adminPassword, 12);
+        await conn.query(
+          'INSERT INTO users (username, email, password_hash, nome, cognome, ruolo, stato) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [process.env.ADMIN_USERNAME || 'admin', adminEmail, hash,
+           process.env.ADMIN_NOME || 'Admin', process.env.ADMIN_COGNOME || null, 'admin', 'attivo']
+        );
+        console.log('[DB] Account admin creato');
+      } else {
+        // Assicura che l'admin esistente sia attivo (non tocca la password)
+        await conn.query(
+          'UPDATE users SET stato = ?, ruolo = ? WHERE email = ?',
+          ['attivo', 'admin', adminEmail]
+        );
+      }
     } else {
-      // Assicura che l'admin esistente sia attivo (migrazione da versioni precedenti)
-      await conn.query(
-        'UPDATE users SET stato = ?, ruolo = ?, nome = COALESCE(nome, ?), cognome = COALESCE(cognome, ?) WHERE email = ?',
-        ['attivo', 'admin', 'Daniel', 'Balloi', 'danielballoi1995@outlook.it']
-      );
+      console.warn('[DB] Seed admin saltato: imposta ADMIN_EMAIL e ADMIN_PASSWORD (min 12 caratteri)');
     }
 
     // Tabella censimenti_immobili — immobili registrati manualmente dall'utente
