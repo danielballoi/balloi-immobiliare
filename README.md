@@ -85,6 +85,7 @@ Tutte le variabili sono definite (senza valori reali) in `backend/.env.example`.
 | `JWT_SECRET` | Chiave segreta per firmare i token JWT |
 | `JWT_EXPIRES_IN` | Durata di validita del token JWT |
 | `CORS_ORIGINS` | Origini frontend autorizzate dal CORS, separate da virgola |
+| `COOKIE_SAMESITE` | Attributo SameSite dei cookie di sessione (default `lax`, adatto quando frontend e backend condividono dominio) |
 | `DATI_OMI_PATH` | Percorso locale della cartella dati OMI (solo sviluppo) |
 | `ADMIN_EMAIL` | Email dell'account amministratore creato al primo avvio |
 | `ADMIN_PASSWORD` | Password dell'account amministratore (minimo 12 caratteri; se mancante o troppo corta il seed viene saltato) |
@@ -126,7 +127,7 @@ balloi-immobiiare/
 - Containerizzazione con Docker e Docker Compose.
 - Pipeline di Continuous Integration con GitHub Actions.
 - Pubblicazione dell'immagine su GitHub Container Registry (GHCR).
-- Deploy su AWS.
+- Deploy su AWS con infrastruttura come codice (Terraform).
 - Migrazione del database a PostgreSQL.
 
 ## Screenshot
