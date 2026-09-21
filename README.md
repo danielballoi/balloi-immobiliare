@@ -46,6 +46,47 @@ flowchart LR
 - Node.js >= 18
 - MySQL installato e in esecuzione (database creato manualmente prima del primo avvio)
 
+## Avvio con Docker
+
+Il modo piu rapido per far partire l'intero sistema (database, backend e frontend) senza installare Node.js o MySQL sul proprio computer. Servono solo Docker e Docker Compose.
+
+1. Copia il file di esempio delle variabili d'ambiente:
+
+```bash
+cp .env.example .env
+```
+
+2. Apri `.env` e sostituisci i valori segnaposto: le password del database (`DB_ROOT_PASSWORD`, `DB_PASSWORD`), `JWT_SECRET` (si genera con `openssl rand -hex 64`) e, per creare l'account amministratore al primo avvio, `ADMIN_EMAIL` e `ADMIN_PASSWORD` (almeno 12 caratteri). Il file `.env` non viene versionato.
+
+3. Costruisci le immagini e avvia i container:
+
+```bash
+docker compose up --build -d
+```
+
+4. Apri http://localhost:8080 e accedi con l'account amministratore configurato.
+
+### Come e composto
+
+- **frontend**: nginx serve l'applicazione React gia compilata e inoltra le richieste `/api/` al backend (reverse proxy). E l'unico servizio raggiungibile dall'esterno, sulla porta 8080.
+- **backend**: Node.js/Express, eseguito come utente non-root, con healthcheck su `/api/health`. Raggiungibile solo dalla rete interna di Compose.
+- **db**: MySQL 8.4 con un volume dedicato (`db_data`) per la persistenza. Alla prima esecuzione crea le tabelle da `db/schema.sql`. Anche il database e raggiungibile solo dalla rete interna.
+
+I servizi partono in ordine (db, poi backend, poi frontend) e ognuno aspetta che il precedente sia in stato `healthy`.
+
+### Comandi utili
+
+```bash
+docker compose ps                # stato dei servizi
+docker compose logs -f backend   # log del backend in tempo reale
+docker compose down              # ferma e rimuove i container, i dati restano nel volume
+docker compose down -v           # ATTENZIONE: rimuove anche il volume, cancella i dati
+```
+
+### Nota sui dati
+
+`db/schema.sql` contiene solo la struttura delle tabelle, nessun dato. Al primo avvio il database e quindi vuoto: i dati OMI e le altre informazioni vanno caricati con la funzione di importazione dell'applicazione. I dati reali non sono nel repository.
+
 ## Avvio in locale
 
 1. Clonare il repository.
