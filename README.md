@@ -1,5 +1,7 @@
 # Balloi Immobiliare
 
+[![CI](https://github.com/danielballoi/balloi-immobiliare/actions/workflows/ci.yml/badge.svg)](https://github.com/danielballoi/balloi-immobiliare/actions/workflows/ci.yml)
+
 Dashboard web per investimenti immobiliari a Cagliari e nell'hinterland: censimento degli immobili, valutazione con dati OMI ufficiali (Osservatorio del Mercato Immobiliare) e gestione di un portafoglio di investimenti. Pensata per chi vuole analizzare zone, valutare un immobile con più metodologie e tenere traccia delle proprie opportunità.
 
 ## Funzionalita

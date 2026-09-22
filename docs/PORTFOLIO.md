@@ -64,3 +64,32 @@ Risposta modello: l'immagine e il pacchetto di sola lettura costruito da un Dock
 - Proteggere gli endpoint `/api/import/*` con autenticazione e ruolo amministratore (oggi sono aperti) e disattivare l'import da cartella in produzione.
 - Correggere il rate limiter (condizione `skip` basata su `req.path`).
 - Ruotare la password amministratore storica e il `JWT_SECRET` prima di qualsiasi deploy pubblico.
+
+---
+
+## Giorno 3 (22/9/2026) — Continuous Integration con GitHub Actions
+
+### Cosa e stato fatto
+
+- Creata la pipeline `.github/workflows/ci.yml`, eseguita a ogni push e pull request sul ramo main, con tre job paralleli.
+- **Job backend**: avvia un service container MySQL 8.4 dedicato al test, applica `db/schema.sql`, installa le dipendenze con `npm ci`, avvia il server con `npm start` e verifica `/api/health` con un ciclo di tentativi (fino a 60 secondi), cosi' la pipeline non fallisce per un avvio lento.
+- **Job frontend**: installa le dipendenze, esegue `npm run lint` (segnalato ma non bloccante, dato che il progetto non aveva ancora una pipeline di lint) e compila la SPA con `npm run build`.
+- **Job docker**: ricostruisce le immagini `balloi-backend` e `balloi-frontend` dagli stessi Dockerfile usati in locale, poi valida `docker-compose.yml` con un file `.env` fittizio (segreti finti, generati ed eliminati nella macchina della CI, mai gli stessi di quelli reali).
+- Aggiunto il badge di stato nel README, che riflette in tempo reale l'esito dell'ultima esecuzione.
+- Prima esecuzione riuscita al primo tentativo su tutti e tre i job (circa 50 secondi il piu' lento), perche' la pipeline riusa esattamente schema, versione di Node e comandi gia' validati in locale nei giorni precedenti.
+
+### Una riga per il CV
+
+> Pipeline di Continuous Integration su GitHub Actions per un'app full-stack: job paralleli per backend (con database di servizio MySQL e healthcheck applicativo), frontend (lint e build) e immagini Docker, con badge di stato nel README.
+
+### Domanda da colloquio
+
+**"Perche' hai usato un 'service container' MySQL nella CI invece di, per esempio, un database SQLite finto o dei mock?"**
+
+Risposta modello: perche' il codice usa query e tipi specifici di MySQL, e un database diverso o un mock non avrebbe dato garanzie reali sul comportamento in produzione. GitHub Actions permette di affiancare al job un container MySQL usa e getta, raggiungibile su localhost per tutta la durata del job: e' lo stesso principio del `docker-compose.yml` usato in locale, applicato al test. Il costo in piu' (qualche secondo di avvio) e' accettabile in cambio di un test che assomiglia davvero all'ambiente reale.
+
+### Da completare
+
+- Aggiungere test automatici sulla logica di valutazione (previsto nel giorno dedicato a test e protezione degli endpoint di import).
+- Far diventare bloccante il lint del frontend una volta sistemati gli avvisi esistenti.
+- Pubblicare l'immagine Docker su GitHub Container Registry dalla pipeline (giorno dedicato al registry).
