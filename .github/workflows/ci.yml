@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend - installazione e avvio
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+          MYSQL_DATABASE: omi_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci_root_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Installa Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installa le dipendenze
+        working-directory: backend
+        run: npm ci
+
+      - name: Crea le tabelle nel database di prova
+        run: mysql -h127.0.0.1 -uroot -pci_root_password omi_ci < db/schema.sql
+
+      - name: Avvia il backend e controlla /api/health
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          PORT: "5000"
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_NAME: omi_ci
+          DB_USER: root
+          DB_PASSWORD: ci_root_password
+          JWT_SECRET: ci_only_secret_never_used_elsewhere
+          ADMIN_EMAIL: ci@example.com
+          ADMIN_PASSWORD: ci_password_almeno_12_caratteri
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5000/api/health; then
+              echo "Backend pronto"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Il backend non ha risposto in tempo"
+          exit 1
+
+  frontend:
+    name: Frontend - lint e build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Installa Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installa le dipendenze
+        working-directory: frontend
+        run: npm ci
+
+      - name: Controlla lo stile del codice (non blocca la pipeline)
+        working-directory: frontend
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Compila la SPA
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    name: Docker - build immagini e validazione compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Costruisci l'immagine del backend
+        run: docker build -t balloi-backend ./backend
+
+      - name: Costruisci l'immagine del frontend
+        run: docker build -t balloi-frontend ./frontend
+
+      - name: Valida docker-compose.yml con segreti fittizi
+        run: |
+          cat > .env <<ENVEOF
+          DB_ROOT_PASSWORD=ci_root_password
+          DB_NAME=omi_ci
+          DB_USER=balloi
+          DB_PASSWORD=ci_password
+          NODE_ENV=production
+          JWT_SECRET=ci_only_secret_never_used_elsewhere
+          JWT_EXPIRES_IN=7d
+          CORS_ORIGINS=http://localhost:8080
+          COOKIE_SAMESITE=lax
+          ADMIN_EMAIL=ci@example.com
+          ADMIN_PASSWORD=ci_password_almeno_12_caratteri
+          ADMIN_USERNAME=admin
+          ADMIN_NOME=Admin
+          WEB_PORT=8080
+          ENVEOF
+          docker compose config --quiet
+          echo "docker-compose.yml valido"
