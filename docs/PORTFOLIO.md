@@ -145,3 +145,43 @@ Risposta modello: ho verificato la licenza reale dei dati (non fidandomi della p
 
 - Usare `db/seed-pubblico-omi.sql` al momento del deploy su AWS (Giorno 8).
 - Se in futuro si vuole precaricare qualche valutazione di esempio sull'account online, gestire il remapping dello `user_id`.
+
+## Giorno 6 (22/9/2026) — Le immagini Docker pubblicate su GitHub Container Registry
+
+### Cosa e' stato fatto
+- Esteso il job `docker` della pipeline CI con login automatico su GHCR (GitHub Container Registry), usando il token generato da GitHub Actions ad ogni esecuzione (`GITHUB_TOKEN`), senza creare nessun account o segreto esterno.
+- Il push delle immagini avviene solo quando il codice arriva davvero su `main` (mai da una pull request), per non pubblicare immagini di codice non ancora approvato.
+- Ogni immagine viene taggata due volte: `latest` e con il commit SHA esatto, cosi' si sa sempre quale immagine corrisponde a quale commit.
+- Verificato che la pipeline fosse verde al primo tentativo, compreso il pezzo nuovo, e che i due pacchetti (`balloi-immobiliare-backend`, `balloi-immobiliare-frontend`) fossero davvero comparsi nella sezione Packages del repository su GitHub.
+- Corretto un problema trovato riflettendo su cosa significasse davvero "pubblicato": i tre job della pipeline (`backend`, `frontend`, `docker`) giravano in parallelo, quindi il job `docker` avrebbe potuto pubblicare un'immagine anche se i test del backend fossero falliti. Aggiunto `needs: [backend, frontend]` al job `docker`, cosi' la pubblicazione parte solo se gli altri due controlli sono gia' passati.
+
+### Una riga per il CV
+Pipeline CI/CD che builda e pubblica automaticamente immagini Docker versionate su GitHub Container Registry solo dopo che test e lint sono passati, ad ogni merge su main.
+
+### Domanda da colloquio
+Perche' il push delle immagini avviene solo sugli eventi push a main e non anche sulle pull request, e perche' dipende dagli altri job?
+Perche' una pull request puo' contenere codice non ancora revisionato: pubblicarne comunque l'immagine significherebbe distribuire build non verificate. E perche' senza una dipendenza esplicita (`needs`) tra i job, GitHub Actions li esegue in parallelo: un job di pubblicazione indipendente potrebbe completare e pubblicare un'immagine anche se un altro job, come i test, sta fallendo nello stesso momento.
+
+### Da completare
+- Valutare se rendere pubblici i pacchetti GHCR prima di mostrarli nel portfolio.
+- Giorno 7: release automatica da tag semantico e changelog.
+
+## Giorno 6 (22/9/2026) — Le immagini Docker pubblicate su GitHub Container Registry
+
+### Cosa e' stato fatto
+- Esteso il job `docker` della pipeline CI con login automatico su GHCR (GitHub Container Registry), usando il token generato da GitHub Actions ad ogni esecuzione (`GITHUB_TOKEN`), senza creare nessun account o segreto esterno.
+- Il push delle immagini avviene solo quando il codice arriva davvero su `main` (mai da una pull request), per non pubblicare immagini di codice non ancora approvato.
+- Ogni immagine viene taggata due volte: `latest` e con il commit SHA esatto, cosi' si sa sempre quale immagine corrisponde a quale commit.
+- Verificato che la pipeline fosse verde al primo tentativo, compreso il pezzo nuovo, e che i due pacchetti (`balloi-immobiliare-backend`, `balloi-immobiliare-frontend`) fossero davvero comparsi nella sezione Packages del repository su GitHub.
+- Corretto un problema trovato riflettendo su cosa significasse davvero "pubblicato": i tre job della pipeline (`backend`, `frontend`, `docker`) giravano in parallelo, quindi il job `docker` avrebbe potuto pubblicare un'immagine anche se i test del backend fossero falliti. Aggiunto `needs: [backend, frontend]` al job `docker`, cosi' la pubblicazione parte solo se gli altri due controlli sono gia' passati.
+
+### Una riga per il CV
+Pipeline CI/CD che builda e pubblica automaticamente immagini Docker versionate su GitHub Container Registry solo dopo che test e lint sono passati, ad ogni merge su main.
+
+### Domanda da colloquio
+Perche' il push delle immagini avviene solo sugli eventi push a main e non anche sulle pull request, e perche' dipende dagli altri job?
+Perche' una pull request puo' contenere codice non ancora revisionato: pubblicarne comunque l'immagine significherebbe distribuire build non verificate. E perche' senza una dipendenza esplicita (`needs`) tra i job, GitHub Actions li esegue in parallelo: un job di pubblicazione indipendente potrebbe completare e pubblicare un'immagine anche se un altro job, come i test, sta fallendo nello stesso momento.
+
+### Da completare
+- Valutare se rendere pubblici i pacchetti GHCR prima di mostrarli nel portfolio.
+- Giorno 7: release automatica da tag semantico e changelog.
