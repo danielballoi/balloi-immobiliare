@@ -15,7 +15,7 @@ const REQUISITI_PWD = [
   { label: 'Almeno 8 caratteri',   test: pwd => pwd.length >= 8 },
   { label: '1 lettera maiuscola',   test: pwd => /[A-Z]/.test(pwd) },
   { label: '1 numero',              test: pwd => /[0-9]/.test(pwd) },
-  { label: '1 carattere speciale',  test: pwd => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd) },
+  { label: '1 carattere speciale',  test: pwd => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd) },
 ];
 
 // ── Popup "registrazione in attesa" ───────────────────────────────────────
