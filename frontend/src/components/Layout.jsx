@@ -174,6 +174,21 @@ export default function Layout() {
         >
           <Outlet />
         </main>
+
+        {/* ── Footer: attribuzione dati OMI ──────────────────────── */}
+        <footer
+          style={{
+            flexShrink: 0,
+            padding: '8px 20px',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-secondary)',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            textAlign: 'center',
+          }}
+        >
+          Dati immobiliari: fonte Agenzia delle Entrate — Osservatorio del Mercato Immobiliare (OMI)
+        </footer>
       </div>
     </div>
   );
