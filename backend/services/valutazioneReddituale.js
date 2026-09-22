@@ -63,8 +63,6 @@ function calcolaReddituale({
   // ── Step 6: Rendimento per mq (opzionale) ────────────────────────────────
   const canone_annuo_mq = superficie_mq > 0 ? (reddito_lordo_annuo / superficie_mq) : null;
 
-  if (rendimento_lordo_pct !== null)
-
   return {
     // Input
     canone_mensile,
