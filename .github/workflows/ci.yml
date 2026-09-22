@@ -9,7 +9,7 @@ on:
 
 jobs:
   backend:
-    name: Backend - installazione e avvio
+    name: Backend - installazione, test e avvio
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -27,21 +27,20 @@ jobs:
     steps:
       - name: Scarica il codice
         uses: actions/checkout@v4
-
       - name: Installa Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
-
       - name: Installa le dipendenze
         working-directory: backend
         run: npm ci
-
+      - name: Esegui i test automatici
+        working-directory: backend
+        run: npm test
       - name: Crea le tabelle nel database di prova
         run: mysql -h127.0.0.1 -uroot -pci_root_password omi_ci < db/schema.sql
-
       - name: Avvia il backend e controlla /api/health
         working-directory: backend
         env:
@@ -73,23 +72,19 @@ jobs:
     steps:
       - name: Scarica il codice
         uses: actions/checkout@v4
-
       - name: Installa Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Installa le dipendenze
         working-directory: frontend
         run: npm ci
-
       - name: Controlla lo stile del codice (non blocca la pipeline)
         working-directory: frontend
         run: npm run lint
         continue-on-error: true
-
       - name: Compila la SPA
         working-directory: frontend
         run: npm run build
@@ -100,13 +95,10 @@ jobs:
     steps:
       - name: Scarica il codice
         uses: actions/checkout@v4
-
       - name: Costruisci l'immagine del backend
         run: docker build -t balloi-backend ./backend
-
       - name: Costruisci l'immagine del frontend
         run: docker build -t balloi-frontend ./frontend
-
       - name: Valida docker-compose.yml con segreti fittizi
         run: |
           cat > .env <<ENVEOF
