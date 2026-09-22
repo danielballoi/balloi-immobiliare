@@ -7,16 +7,33 @@
  *   POST /ntn                   Import NTN da CSV (multipart/form-data)
  *   POST /zone                  Import definizioni zone da CSV — feature Hinterland
  *   POST /manuale               Inserimento manuale singolo record
- *   POST /cartella              Import bulk da cartella DATI_HINTERLAND sul server
+ *   POST /cartella               Import bulk da cartella DATI_HINTERLAND sul server (solo fuori produzione)
  *   POST /omi-semestrale-zone   Import ZONE.csv formato ufficiale OMI (Agenzia Entrate)
  *   POST /omi-semestrale-valori Import VALORI.csv formato ufficiale OMI (Agenzia Entrate)
+ *
+ * Tutte le rotte richiedono login e ruolo admin: l'import cambia dati che
+ * vedono tutti gli utenti dell'app, non è un'operazione da utente qualsiasi.
  */
 
-const router = require('express').Router();
-const ctrl   = require('../controllers/importController');
+const router        = require('express').Router();
+const ctrl           = require('../controllers/importController');
+const requireAuth    = require('../middleware/auth');
+const requireAdmin   = require('../middleware/requireAdmin');
 
 // Middleware upload: usato per le route POST con file CSV
 const upload = ctrl.uploadMiddleware;
+
+// Applicato a TUTTE le rotte sotto /api/import, comprese le GET
+router.use(requireAuth, requireAdmin);
+
+// /cartella legge una cartella del filesystem del server: non esiste nei
+// container (Docker/AWS), quindi la disattiviamo fuori dall'ambiente di sviluppo.
+function soloSviluppo(req, res, next) {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Endpoint non disponibile in produzione' });
+  }
+  next();
+}
 
 router.get('/template',                        ctrl.template);
 router.get('/log',                             ctrl.getLog);
@@ -25,7 +42,7 @@ router.post('/csv',                  upload,   ctrl.importCSV);
 router.post('/ntn',                  upload,   ctrl.importNTN);
 router.post('/zone',                 upload,   ctrl.importZone);
 router.post('/manuale',                        ctrl.insertManuale);
-router.post('/cartella',                       ctrl.importCartella);
+router.post('/cartella',             soloSviluppo, ctrl.importCartella);
 router.post('/omi-semestrale-zone',  upload,   ctrl.importOMIZone);
 router.post('/omi-semestrale-valori', upload,  ctrl.importOMIValori);
 
