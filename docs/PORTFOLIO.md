@@ -93,3 +93,55 @@ Risposta modello: perche' il codice usa query e tipi specifici di MySQL, e un da
 - Aggiungere test automatici sulla logica di valutazione (previsto nel giorno dedicato a test e protezione degli endpoint di import).
 - Far diventare bloccante il lint del frontend una volta sistemati gli avvisi esistenti.
 - Pubblicare l'immagine Docker su GitHub Container Registry dalla pipeline (giorno dedicato al registry).
+
+## Giorno 4 (22/9/2026) — Sicurezza degli endpoint, un bug reale e i primi test automatici
+
+### Cosa e' stato fatto
+
+- Letto per intero `backend/routes/import.js`: nessuna delle dieci rotte aveva un middleware di autenticazione. Corretto applicando `router.use(requireAuth, requireAdmin)` una sola volta in cima al file, cosi' protegge automaticamente anche le rotte future; disattivato `/api/import/cartella` fuori dall'ambiente di sviluppo (legge una cartella del filesystem del server, inesistente nei container). Verificato con `curl -X POST` prima (400, nessun controllo) e dopo (401, bloccato dal middleware).
+- Letti per intero i tre servizi di valutazione per progettare test basati sul codice reale, non su supposizioni. Trovato un bug vero in `calcolaReddituale`: un `if` senza parentesi graffe rendeva condizionale il `return` successivo, la funzione restituiva `undefined` quando il parametro opzionale `prezzo_acquisto` non veniva passato. Riprodotto e riverificato con `docker compose exec backend node -e "..."` prima e dopo la correzione.
+- Installato Jest tramite un container Node usa e getta (l'immagine di produzione lo esclude di proposito, essendo una dipendenza di sviluppo). Scritti 20 test automatici su 3 file (`valutazioneReddituale`, `valutazioneComparativa`, `valutazioneFinanziaria`), incluso un test di regressione sul bug appena trovato; ogni numero verificato eseguendo davvero il codice prima di scriverlo in un'asserzione.
+- Aggiunto `npm test` al job backend della CI, eseguito subito dopo `npm ci` e prima dell'avvio del server (fail fast), reso bloccante.
+- Eseguito il lint del frontend per intero (non solo dalle annotazioni troncate di GitHub): 69 problemi reali, soprattutto componenti React dichiarati dentro il render e `setState` sincroni in `useEffect`. Deciso di non renderlo bloccante oggi: troppi per una correzione sicura in un giorno, documentato invece di ignorato. Corretto solo l'unico avviso a costo zero (due escape inutili in una regex di `Register.jsx`).
+
+### Una riga per il CV
+
+> Chiusa una falla di autenticazione su endpoint di scrittura del database, individuato e corretto un bug di logica tramite lettura del codice, introdotta una suite di 20 test automatici resi bloccanti in CI (fail fast) e gestito consapevolmente il debito tecnico di lint invece di ignorarlo o bloccare la pipeline senza una decisione misurata.
+
+### Domanda da colloquio
+
+**"Perche' hai reso bloccanti i test ma non il lint, nella stessa pipeline?"**
+
+Risposta modello: rispondono a domande diverse — i test verificano che la logica sia corretta (un fallimento e' quasi sempre un bug reale), il lint verifica stile e alcuni pattern rischiosi. Ho eseguito il lint per intero prima di decidere, trovato 65 avvisi reali, troppi per correggerli tutti senza rischio in un giorno, e scelto di lasciarlo non bloccante ma visibile, misurando il debito con un numero preciso invece di ignorarlo o bloccare tutto d'un colpo.
+
+### Da completare
+
+- Ridurre a pezzi il debito di lint (componenti React dichiarati dentro il render, `setState` sincrono in `useEffect`), poi rendere il lint bloccante in CI.
+- Ruotare password amministratore e `JWT_SECRET` prima del deploy pubblico.
+- Log su stdout invece di `server.log`; fix del rate limiter.
+
+---
+
+## Giorno 5 (22/9/2026) — Strategia dati per l'istanza online
+
+### Cosa e' stato fatto
+
+- Verificata la licenza reale dei dati OMI (Agenzia delle Entrate) prima di decidere come popolare il database dell'istanza online: dichiarata CC BY 4.0 su dati.gov.it, ma con termini contrattuali dell'Agenzia delle Entrate piu' vaghi e la stessa ambiguita' segnalata dalla community italiana degli open data.
+- Decisione documentata in un ADR (`docs/decisioni/0002-dati-istanza-online.md`): l'istanza online parte con un seed dei soli dati pubblici OMI (zone, valori, NTN, strade), con attribuzione della fonte visibile in app; le tabelle collegate a un account specifico (`valutazioni`, `portafoglio`, verificato dallo schema che hanno una colonna `user_id`) restano vuote all'avvio, non per privacy ma per evitare un remapping di id verso il nuovo account amministratore creato online, e per restare un momento di demo dal vivo.
+- Creato `db/seed-pubblico-omi.sql`, esportato con `mysqldump` direttamente dal container in esecuzione (solo le quattro tabelle pubbliche), verificato che non contenga nessun'altra tabella prima di versionarlo.
+- Aggiunta una riga di attribuzione della fonte OMI nel footer di `Layout.jsx`, visibile su ogni pagina dell'applicazione senza dover cercare.
+
+### Una riga per il CV
+
+> Verifica di conformita' di una licenza dati (Agenzia delle Entrate - OMI) prima di un deploy pubblico, decisione documentata in un Architecture Decision Record, separazione tra dati pubblici e dati legati ad account utente a livello di schema, script riproducibile di seed dei soli dati pubblici per l'ambiente online.
+
+### Domanda da colloquio
+
+**"Come hai deciso quali dati includere nell'istanza pubblica del progetto?"**
+
+Risposta modello: ho verificato la licenza reale dei dati (non fidandomi della prima etichetta trovata: c'era discrepanza tra quanto dichiarato su un portale open data e i termini del sito ufficiale), poi controllato lo schema del database per capire quali tabelle fossero dati pubblici grezzi e quali legate a un account specifico. Ho documentato la decisione in un ADR con le alternative scartate, e scritto uno script separato che esporta solo le tabelle pubbliche dal database in esecuzione, cosi' il file e' riproducibile e verificabile invece di essere un dump manuale non controllato.
+
+### Da completare
+
+- Usare `db/seed-pubblico-omi.sql` al momento del deploy su AWS (Giorno 8).
+- Se in futuro si vuole precaricare qualche valutazione di esempio sull'account online, gestire il remapping dello `user_id`.
