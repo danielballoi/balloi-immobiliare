@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Crea la release e pubblica le immagini versionate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Costruisci l'immagine del backend
+        run: docker build -t balloi-backend ./backend
+
+      - name: Costruisci l'immagine del frontend
+        run: docker build -t balloi-frontend ./frontend
+
+      - name: Accedi a GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tagga e pubblica l'immagine del backend con la versione
+        run: |
+          docker tag balloi-backend ghcr.io/danielballoi/balloi-immobiliare-backend:${{ github.ref_name }}
+          docker push ghcr.io/danielballoi/balloi-immobiliare-backend:${{ github.ref_name }}
+
+      - name: Tagga e pubblica l'immagine del frontend con la versione
+        run: |
+          docker tag balloi-frontend ghcr.io/danielballoi/balloi-immobiliare-frontend:${{ github.ref_name }}
+          docker push ghcr.io/danielballoi/balloi-immobiliare-frontend:${{ github.ref_name }}
+
+      - name: Crea la release su GitHub con changelog automatico
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
