@@ -27,13 +27,14 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting globale — /api/auth ha il proprio limiter più restrittivo
+// Rate limiting globale: login e register hanno già authLimiter (routes/auth.js), qui li saltiamo.
+// Nota: dentro app.use('/api') req.path è relativo (es. '/auth/login', non '/api/auth/login').
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path.startsWith('/api/auth'),
+  skip: (req) => ['/auth/login', '/auth/register'].includes(req.path),
 });
 app.use('/api', apiLimiter);
 
