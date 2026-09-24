@@ -11,8 +11,8 @@ app.set('trust proxy', 1);
 const PORT   = process.env.PORT || 5000;
 const isProd = process.env.NODE_ENV === 'production';
 
-// Security headers
-app.use(helmet({ contentSecurityPolicy: false }));
+// Security headers (l'API restituisce solo JSON: la CSP per le pagine HTML va configurata in nginx)
+app.use(helmet());
 
 // CORS — whitelist via env, fallback localhost per dev
 const allowedOrigins = process.env.CORS_ORIGINS
