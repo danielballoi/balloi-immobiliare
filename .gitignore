@@ -10,3 +10,10 @@ dist-ssr/
 .claude/
 data_migration_backups/
 backend/node_modules
+infra/terraform.tfvars
+infra/.terraform/
+infra/*.tfstate*
+infra/lambda/*.zip
+
+# File scaricati dalla chat di Claude (mai nel repo)
+Claude outputs/
