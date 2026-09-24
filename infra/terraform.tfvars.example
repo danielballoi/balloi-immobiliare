@@ -1,0 +1,3 @@
+alert_email = "tua-email@esempio.it"
+my_ip          = "0.0.0.0/32"
+ssh_public_key = "ssh-ed25519 AAAA... tua-chiave-pubblica"
