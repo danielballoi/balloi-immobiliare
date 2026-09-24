@@ -166,22 +166,58 @@ Perche' una pull request puo' contenere codice non ancora revisionato: pubblicar
 - Valutare se rendere pubblici i pacchetti GHCR prima di mostrarli nel portfolio.
 - Giorno 7: release automatica da tag semantico e changelog.
 
-## Giorno 6 (22/9/2026) — Le immagini Docker pubblicate su GitHub Container Registry
+## Giorno 7 (23/9/2026) — Release automatica da tag semantico e chiusura dei gate di sicurezza
 
 ### Cosa e' stato fatto
-- Esteso il job `docker` della pipeline CI con login automatico su GHCR (GitHub Container Registry), usando il token generato da GitHub Actions ad ogni esecuzione (`GITHUB_TOKEN`), senza creare nessun account o segreto esterno.
-- Il push delle immagini avviene solo quando il codice arriva davvero su `main` (mai da una pull request), per non pubblicare immagini di codice non ancora approvato.
-- Ogni immagine viene taggata due volte: `latest` e con il commit SHA esatto, cosi' si sa sempre quale immagine corrisponde a quale commit.
-- Verificato che la pipeline fosse verde al primo tentativo, compreso il pezzo nuovo, e che i due pacchetti (`balloi-immobiliare-backend`, `balloi-immobiliare-frontend`) fossero davvero comparsi nella sezione Packages del repository su GitHub.
-- Corretto un problema trovato riflettendo su cosa significasse davvero "pubblicato": i tre job della pipeline (`backend`, `frontend`, `docker`) giravano in parallelo, quindi il job `docker` avrebbe potuto pubblicare un'immagine anche se i test del backend fossero falliti. Aggiunto `needs: [backend, frontend]` al job `docker`, cosi' la pubblicazione parte solo se gli altri due controlli sono gia' passati.
+- Nuovo workflow `.github/workflows/release.yml`, separato dalla CI: parte solo al push di un tag `v*.*.*`, costruisce e pubblica su GHCR le immagini taggate con la versione esatta e crea una release GitHub con changelog generato automaticamente dai messaggi di commit.
+- Prima release `v0.1.0`: si parte da `0.x` perche' il progetto non e' ancora congelato; `v1.0.0` e' riservata alla consegna finale.
+- Rigenerato `JWT_SECRET` con `openssl rand` scrivendolo nel file `.env` senza mai mostrarlo a schermo.
+- Letto per intero il codice di autenticazione prima di valutare l'impatto della rotazione: l'access token (JWT, 15 minuti) dipende dalla chiave, il refresh token (stringa casuale verificata sul database, 30 giorni) no. Risultato: la rotazione invalida i token falsificabili con la chiave vecchia senza disconnettere gli utenti legittimi.
 
 ### Una riga per il CV
-Pipeline CI/CD che builda e pubblica automaticamente immagini Docker versionate su GitHub Container Registry solo dopo che test e lint sono passati, ad ogni merge su main.
+Release versionate automaticamente da tag semantici con immagini Docker e changelog generati dalla pipeline, e rotazione dei segreti JWT senza interruzione del servizio.
 
 ### Domanda da colloquio
-Perche' il push delle immagini avviene solo sugli eventi push a main e non anche sulle pull request, e perche' dipende dagli altri job?
-Perche' una pull request puo' contenere codice non ancora revisionato: pubblicarne comunque l'immagine significherebbe distribuire build non verificate. E perche' senza una dipendenza esplicita (`needs`) tra i job, GitHub Actions li esegue in parallelo: un job di pubblicazione indipendente potrebbe completare e pubblicare un'immagine anche se un altro job, come i test, sta fallendo nello stesso momento.
+Perche' ruotare la chiave JWT non disconnette gli utenti?
+Perche' la chiave firma solo l'access token, che dura 15 minuti. Il refresh token e' una stringa casuale verificata sul database: quando l'access token viene rifiutato, il frontend usa il refresh token per ottenerne uno nuovo firmato con la chiave nuova. Chi avesse la chiave vecchia non puo' piu' falsificare token validi.
+
+## Giorno 8 (23/9/2026) — Deploy su AWS con Terraform e un incidente reale
+
+### Cosa e' stato fatto
+- Infrastruttura AWS descritta interamente in Terraform (`infra/`): istanza EC2 `t3.micro`, security group con SSH ristretto al solo IP personale, budget da 1 $ con avvisi email, bucket S3 privato e cifrato per i backup, ruolo IAM assegnato all'istanza (nessuna chiave AWS statica sul server).
+- Deploy dell'intera app (database, backend, frontend) con docker compose su una singola istanza, usando le immagini pubblicate su GHCR con una versione fissata.
+- Scelta architetturale motivata: niente separazione frontend su S3+CloudFront, perche' per un progetto con traffico minimo avrebbe aggiunto complessita' senza benefici misurabili. La complessita' risparmiata e' stata investita nei backup automatici.
+- Script di avvio (`user_data.sh`) che configura da solo una nuova istanza recuperando configurazione e ultimo backup da S3.
+- Cinque bug di deploy diagnosticati e risolti (tra cui cookie `Secure` scartati su HTTP semplice e un bind-mount che creava una cartella al posto di un file mancante).
+- Incidente reale: istanza terminata per errore dalla console. Stato verificato via AWS CLI, istanza ricreata con `terraform apply`, e ricostruita la causa di un secondo problema a cascata (inizializzazione del database interrotta a meta') partendo dai timestamp dei log.
+
+### Una riga per il CV
+Deploy su AWS con infrastruttura come codice (Terraform), backup automatici su S3 tramite ruolo IAM senza credenziali statiche, e gestione di un incidente reale in produzione con analisi delle cause.
+
+### Domanda da colloquio
+Un'istanza di produzione viene terminata per errore: come procedi?
+Prima verifico lo stato reale dalle API (AWS CLI) e non solo dalla console. Poi ricreo l'infrastruttura dal codice con Terraform, che rileva da solo la risorsa mancante. Infine ricostruisco la sequenza degli eventi dai log per trovare la causa di ogni problema successivo, invece di applicare correzioni alla cieca.
+
+## Giorno 9 (24/9/2026) — Sicurezza automatica della supply chain e bug trovati con i test
+
+### Cosa e' stato fatto
+- Attivati i controlli di sicurezza di GitHub: Dependabot (aggiornamenti settimanali di npm, Docker e GitHub Actions, con gli aggiornamenti minori raggruppati), avvisi sulle vulnerabilita', CodeQL, secret scanning con push protection, segnalazione privata delle vulnerabilita' e `SECURITY.md`.
+- Il secret scanning non ha trovato nulla nell'intera cronologia: conferma indipendente della pulizia fatta al Giorno 1.
+- CodeQL ha segnalato 4 problemi: permessi del token dei workflow ridotti al minimo (`contents: read`), configurazione di default di Helmet riattivata, e un avviso CSRF chiuso con motivazione scritta (gia' mitigato dai cookie `SameSite=Lax`).
+- 93 avvisi sulle dipendenze ridotti a zero: prima separate le dipendenze di produzione da quelle di sviluppo con `npm audit --omit=dev`, poi corretti con aggiornamenti compatibili (`npm audit fix`), Express 4.22.3 (invece di forzare `qs` con un override) e `multer` 2.4.0 tramite pull request di Dependabot. Ogni passaggio verificato con test, build, rebuild dei container e prova nel browser.
+- Scoperto che `npm audit` e Dependabot davano risultati diversi su `multer` per via del suffisso di pre-release nella versione (`1.4.5-lts.2`): due strumenti sono meglio di uno.
+- Bug del rate limiter riprodotto con gli header `RateLimit-Remaining` (199 -> 197), corretto e riverificato (199 -> 198), controllando che `/refresh` restasse protetto.
+- Bug trovato testando il caso di errore: un file non CSV nell'import restituiva 500. Ora gli errori di upload rispondono 400/413 con un messaggio chiaro, e i log distinguono gli errori del client da quelli del server.
+- Verificato prima di correggere: il punto "log su stdout" del piano era gia' risolto, il file `server.log` era un residuo di maggio escluso da Git e dalle immagini.
+
+### Una riga per il CV
+Sicurezza della supply chain automatizzata con Dependabot, CodeQL e secret scanning; 93 avvisi di vulnerabilita' ridotti a zero con un triage basato sul rischio reale e aggiornamenti verificati.
+
+### Domanda da colloquio
+Dependabot segnala 93 vulnerabilita': da dove parti?
+Non dal numero, ma dal rischio reale. Separo le dipendenze che girano in produzione da quelle usate solo per sviluppo e test, raggruppo gli avvisi per libreria (molti sono la stessa falla contata piu' volte), applico prima gli aggiornamenti compatibili e verifico con test e build, poi valuto i salti di versione major uno alla volta. E testo anche i casi di errore: e' cosi' che e' emerso un bug che i test automatici non coprivano.
 
 ### Da completare
-- Valutare se rendere pubblici i pacchetti GHCR prima di mostrarli nel portfolio.
-- Giorno 7: release automatica da tag semantico e changelog.
+- Verifica manuale di un import CSV reale con `multer` 2.x.
+- Valutare una ad una le pull request major di Dependabot (Express 5, dotenv, ESLint, GitHub Actions); ignorare le versioni di Node dispari (non LTS).
+- Content Security Policy per le pagine HTML servite da nginx.
