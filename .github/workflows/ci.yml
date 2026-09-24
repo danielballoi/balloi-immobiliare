@@ -26,7 +26,7 @@ jobs:
           --health-retries=10
     steps:
       - name: Scarica il codice
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Installa Node.js
         uses: actions/setup-node@v4
         with:
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Scarica il codice
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Installa Node.js
         uses: actions/setup-node@v4
         with:
@@ -98,7 +98,7 @@ jobs:
       packages: write
     steps:
       - name: Scarica il codice
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Costruisci l'immagine del backend
         run: docker build -t balloi-backend ./backend
