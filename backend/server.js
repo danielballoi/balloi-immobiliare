@@ -68,9 +68,22 @@ app.use((req, res) => {
 
 // Error handler — maschera dettagli in produzione
 app.use((err, req, res, next) => {
-  console.error('[ERROR]', err);
-  const msg = isProd ? 'Errore interno del server' : (err.message || 'Errore interno del server');
-  res.status(err.status || 500).json({ error: msg });
+  // Errori di upload di multer (es. file troppo grande): colpa della richiesta, non del server
+  if (err.name === 'MulterError') {
+    err.status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    if (err.code === 'LIMIT_FILE_SIZE') err.message = 'File troppo grande (massimo 50 MB)';
+  }
+  const status = err.status || 500;
+  if (status >= 500) {
+    console.error('[ERROR]', err);
+  } else {
+    console.warn(`[WARN] ${status} ${req.method} ${req.originalUrl}: ${err.message}`);
+  }
+  // 4xx: messaggio previsto da noi, sicuro da mostrare. 5xx: dettagli mascherati in produzione.
+  const msg = status < 500
+    ? err.message
+    : (isProd ? 'Errore interno del server' : (err.message || 'Errore interno del server'));
+  res.status(status).json({ error: msg });
 });
 
 async function start() {

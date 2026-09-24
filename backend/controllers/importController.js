@@ -21,7 +21,9 @@ const upload = multer({
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
     } else {
-      cb(new Error('Solo file CSV sono accettati'));
+      const err = new Error('Solo file CSV sono accettati');
+      err.status = 400; // errore del client: tipo di file non valido
+      cb(err);
     }
   },
 });
