@@ -28,7 +28,7 @@ jobs:
       - name: Scarica il codice
         uses: actions/checkout@v4
       - name: Installa Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -73,7 +73,7 @@ jobs:
       - name: Scarica il codice
         uses: actions/checkout@v4
       - name: Installa Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
