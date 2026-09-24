@@ -40,6 +40,6 @@ jobs:
           docker push ghcr.io/danielballoi/balloi-immobiliare-frontend:${{ github.ref_name }}
 
       - name: Crea la release su GitHub con changelog automatico
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
