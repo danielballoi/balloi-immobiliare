@@ -9,9 +9,9 @@ variable "project_tag" {
   default     = "balloi-immobiliare"
 }
 
-variable "my_ip" {
-  description = "Il tuo IP pubblico in formato CIDR (es. 93.45.12.8/32), per limitare l'accesso SSH solo a te"
-  type        = string
+variable "my_ips" {
+  description = "I tuoi IP pubblici in formato CIDR (es. 93.45.12.8/32), uno per ogni rete da cui lavori: limitano l'accesso SSH solo a te"
+  type        = list(string)
 }
 
 variable "ssh_public_key" {
