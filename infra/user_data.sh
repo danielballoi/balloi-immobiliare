@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+# Swap da 2 GB: la t3.micro ha 1 GB di RAM e senza swap MySQL viene ucciso
+# dall'OOM killer durante l'import del dump (visto nel test del 25/9)
+if [ ! -f /swapfile ]; then
+  dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 BUCKET="balloi-immobiliare-backup-576134963750"
 APP_DIR="/home/ec2-user/balloi-immobiliare"
 
@@ -25,6 +35,10 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    # Configurazione leggera per 1 GB di RAM: niente performance schema, cache InnoDB limitata
+    command:
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=128M
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?imposta DB_ROOT_PASSWORD nel file .env}
       MYSQL_DATABASE: ${DB_NAME:-omi}
@@ -41,7 +55,7 @@ services:
       start_period: 30s
 
   backend:
-    image: ghcr.io/danielballoi/balloi-immobiliare-backend:v0.1.0
+    image: ghcr.io/danielballoi/balloi-immobiliare-backend:v0.2.0
     restart: unless-stopped
     depends_on:
       db:
@@ -64,7 +78,7 @@ services:
       ADMIN_NOME: ${ADMIN_NOME:-Admin}
 
   frontend:
-    image: ghcr.io/danielballoi/balloi-immobiliare-frontend:v0.1.0
+    image: ghcr.io/danielballoi/balloi-immobiliare-frontend:v0.2.0
     restart: unless-stopped
     depends_on:
       backend:
@@ -89,13 +103,27 @@ chmod +x backup.sh
 aws s3 cp "s3://$BUCKET/schema.sql" ./db/schema.sql || true
 aws s3 cp "s3://$BUCKET/env/.env" ./.env || true
 
+# CORS_ORIGINS con l'IP pubblico di QUESTA istanza: cambia a ogni ricreazione
+# e non usiamo un Elastic IP (costo). L'IP si legge dal metadata service di AWS
+# (IMDSv2: prima si chiede un token, poi si usa per la richiesta).
+if [ -f ./.env ]; then
+  TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+  PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+  if grep -q '^CORS_ORIGINS=' .env; then
+    sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=http://$PUBLIC_IP:8080|" .env
+  else
+    echo "CORS_ORIGINS=http://$PUBLIC_IP:8080" >> .env
+  fi
+fi
+
 chown -R ec2-user:ec2-user "$APP_DIR"
 
 if [ -f ./.env ] && [ -f ./db/schema.sql ]; then
   docker compose up -d
 
+  # "(healthy)" con le parentesi: senza, grep troverebbe anche "(unhealthy)"
   for i in $(seq 1 30); do
-    if docker compose ps db | grep -q "healthy"; then
+    if docker compose ps db | grep -q "(healthy)"; then
       break
     fi
     sleep 5
