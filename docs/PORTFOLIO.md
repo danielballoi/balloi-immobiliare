@@ -221,3 +221,20 @@ Non dal numero, ma dal rischio reale. Separo le dipendenze che girano in produzi
 - Verifica manuale di un import CSV reale con `multer` 2.x.
 - Valutare una ad una le pull request major di Dependabot (Express 5, dotenv, ESLint, GitHub Actions); ignorare le versioni di Node dispari (non LTS).
 - Content Security Policy per le pagine HTML servite da nginx.
+
+## Giorno 10 (25/9/2026) — Avvio completamente automatico su AWS e documentazione
+
+### Cosa e' stato fatto
+- Validato end-to-end l'avvio automatico dell'istanza: `terraform apply` crea la macchina, che al primo avvio si configura da sola (cloud-init) recuperando configurazione e ultimo backup da S3, senza nessun intervento manuale.
+- Il test ha fatto emergere tre problemi reali, tutti risolti nel codice: MySQL terminato dall'OOM killer durante l'import (1 GB di RAM, nessuno swap) → swap da 2 GB e MySQL in configurazione leggera; crediti CPU impostati a mano e persi alla ricreazione → dichiarati in `ec2.tf`; IP pubblico diverso a ogni ricreazione che rompeva il CORS → l'istanza legge il proprio IP dal metadata service (IMDSv2) e aggiorna `CORS_ORIGINS`, senza pagare un Elastic IP.
+- Diagnosi fatta dall'esterno verso l'interno: `curl -v`, stato dell'istanza e log della console con AWS CLI (che ha mostrato l'OOM killer quando SSH non rispondeva), poi SSH, `free -h`, `cloud-init status`, log dei container.
+- Risultato misurato: avvio completo in 126 secondi, 229 MB di swap usati durante l'avvio.
+- Produzione aggiornata alla release `v0.2.0`; SSH ammesso da una lista di IP (`my_ips`).
+- README riscritto come vetrina del progetto (architettura, pipeline, deploy, operatività, sicurezza, roadmap), runbook di diagnosi in `docs/runbook.md`, ADR 0003 (istanza singola, senza IP fisso, con swap) e ADR 0004 (PostgreSQL come evoluzione).
+
+### Una riga per il CV
+Avvio completamente automatico di un ambiente AWS con Terraform e cloud-init: diagnosticato e risolto un problema di memoria (OOM) e l'IP dinamico senza costi aggiuntivi, con runbook e ADR documentati.
+
+### Domanda da colloquio
+Terraform dice "Apply complete!" ma l'app non risponde: cosa fai?
+"Apply complete" significa solo che l'infrastruttura esiste. Verifico dall'esterno verso l'interno: `curl` sull'health check, poi stato dell'istanza e log della console con AWS CLI, che funzionano anche se SSH non risponde. Nel mio caso i log mostravano MySQL ucciso dall'OOM killer: la causa era la memoria, non la rete o il codice.
