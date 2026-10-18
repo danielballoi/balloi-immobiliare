@@ -14,7 +14,7 @@ jobs:
       packages: write
     steps:
       - name: Scarica il codice
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Costruisci l'immagine del backend
         run: docker build -t balloi-backend ./backend
