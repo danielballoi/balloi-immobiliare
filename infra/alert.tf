@@ -1,4 +1,3 @@
-# ── SNS: topic + iscrizione email ──────────────────────────────────────────
 resource "aws_sns_topic" "istanza_accesa" {
   name = "balloi-istanza-accesa"
 }
@@ -9,7 +8,6 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = var.alert_email
 }
 
-# ── Lambda: controlla se un'istanza del progetto e' accesa ────────────────
 data "archive_file" "check_instance_zip" {
   type        = "zip"
   source_file = "${path.module}/lambda/check_instance.py"
@@ -71,7 +69,6 @@ resource "aws_lambda_function" "check_instance" {
   }
 }
 
-# ── EventBridge: sveglia la Lambda ogni ora ────────────────────────────────
 resource "aws_cloudwatch_event_rule" "ogni_ora" {
   name                = "balloi-controllo-orario-istanza"
   schedule_expression = "rate(1 hour)"

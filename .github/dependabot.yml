@@ -1,6 +1,5 @@
 version: 2
 updates:
-  # Librerie npm del backend
   - package-ecosystem: "npm"
     directory: "/backend"
     schedule:
@@ -12,7 +11,6 @@ updates:
       aggiornamenti-minori:
         update-types: ["minor", "patch"]
 
-  # Librerie npm del frontend
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
@@ -24,7 +22,6 @@ updates:
       aggiornamenti-minori:
         update-types: ["minor", "patch"]
 
-  # Immagini base nei Dockerfile (FROM node:..., FROM nginx:...)
   - package-ecosystem: "docker"
     directories:
       - "/backend"
@@ -34,7 +31,6 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Versioni delle azioni nei workflow (actions/checkout@v4, ...)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

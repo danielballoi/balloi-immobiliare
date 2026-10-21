@@ -71,8 +71,6 @@ resource "aws_key_pair" "deploy" {
 }
 
 resource "aws_instance" "app" {
-  # Crediti CPU illimitati: l'avvio da zero (Docker, pull immagini, init MySQL)
-  # esaurisce i crediti standard della t3.micro. Prima era impostato a mano via CLI.
   credit_specification {
     cpu_credits = "unlimited"
   }

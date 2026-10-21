@@ -1,12 +1,10 @@
 # syntax=docker/dockerfile:1
 
-# ---- Fase 1: dipendenze di produzione ----
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# ---- Fase 2: immagine finale ----
 FROM node:22-alpine
 ENV NODE_ENV=production
 WORKDIR /app
